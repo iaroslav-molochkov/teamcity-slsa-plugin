@@ -1,0 +1,72 @@
+plugins {
+    id 'java'
+    id 'io.github.rodm.teamcity-server' version '1.5.6'
+}
+
+group = 'io.github.iaroslavmolochkov'
+version = '1.0-SNAPSHOT'
+
+ext.teamcityVersion = project.findProperty('teamcity.version') ?: '2026.1'
+
+repositories {
+    mavenCentral()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
+
+dependencies {
+    server platform('software.amazon.awssdk:bom:2.41.24')
+    server('software.amazon.awssdk:kms') { exclude group: 'org.slf4j' }
+    server('software.amazon.awssdk:sts') { exclude group: 'org.slf4j' }
+    server('software.amazon.awssdk:auth') { exclude group: 'org.slf4j' }
+    server('software.amazon.awssdk:url-connection-client') { exclude group: 'org.slf4j' }
+    server 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    server 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+
+    provided "org.jetbrains.teamcity:server-core:${teamcityVersion}"
+
+    compileOnly platform('software.amazon.awssdk:bom:2.41.24')
+    compileOnly 'software.amazon.awssdk:kms'
+    compileOnly 'software.amazon.awssdk:sts'
+    compileOnly 'software.amazon.awssdk:auth'
+    compileOnly 'software.amazon.awssdk:url-connection-client'
+    compileOnly 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    compileOnly 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation platform('software.amazon.awssdk:bom:2.41.24')
+    testImplementation 'software.amazon.awssdk:kms'
+    testImplementation 'software.amazon.awssdk:sts'
+    testImplementation 'software.amazon.awssdk:auth'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    testImplementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+}
+
+teamcity {
+    version = teamcityVersion
+
+    server {
+        descriptor {
+            name = project.name
+            displayName = 'TeamCity SLSA Plugin'
+            version = project.version
+            vendorName = 'Iaroslav Molochkov'
+            vendorUrl = 'https://github.com/iaroslav-molochkov/teamcity-slsa-plugin'
+            description = 'Generates SLSA v1.0 provenance for a finished build\'s artifacts and ' +
+                    'signs it as a DSSE envelope (server-local key or AWS KMS). Artifact access ' +
+                    'and signing happen server-side.'
+
+            useSeparateClassloader = true
+            allowRuntimeReload = true
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
