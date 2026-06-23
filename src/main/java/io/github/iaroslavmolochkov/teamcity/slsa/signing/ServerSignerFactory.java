@@ -73,7 +73,7 @@ public class ServerSignerFactory implements SignerFactory {
             signer.update(pae);
             return DsseEnvelope.of(payload, keyId, signer.sign());
         } catch (Exception e) {
-            throw new IllegalStateException("Server-side signing failed", e);
+            throw new SigningException("Server-side signing failed", e);
         }
     }
 
@@ -99,7 +99,7 @@ public class ServerSignerFactory implements SignerFactory {
             keyPair = keyFile.isFile() ? load() : generateAndPersist();
             keyId = "sha256:" + Sha256.hex(keyPair.getPublic().getEncoded());
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to initialize the server signing key at " + keyFile, e);
+            throw new KeyInitializationException("Failed to initialize the server signing key at " + keyFile, e);
         }
     }
 
@@ -131,6 +131,7 @@ public class ServerSignerFactory implements SignerFactory {
      * <em>at file creation</em>, so the key is never momentarily world-readable; elsewhere (e.g. Windows)
      * it falls back to a best-effort {@link File} chmod after writing.
      */
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private static void writeOwnerOnly(@NotNull Path path, @NotNull byte[] content) throws IOException {
         Files.deleteIfExists(path);
         if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {

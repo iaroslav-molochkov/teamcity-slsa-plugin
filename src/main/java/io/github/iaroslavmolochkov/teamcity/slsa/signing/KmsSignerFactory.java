@@ -79,7 +79,7 @@ public class KmsSignerFactory implements SignerFactory {
         try {
             return MessageDigest.getInstance(alg).digest(pae);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(alg + " not available", e);
+            throw new SigningException(alg + " not available", e);
         }
     }
 }

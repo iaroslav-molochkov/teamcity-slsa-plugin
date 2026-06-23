@@ -15,6 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.Mockito.mock;
@@ -60,6 +61,16 @@ class ServerSignerFactoryTest {
         Path key = new File(new File(dataDir, "slsa"), "server-signing.key").toPath();
         assumeTrue(key.getFileSystem().supportedFileAttributeViews().contains("posix"));
         assertEquals(PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(key));
+    }
+
+    @Test
+    void corruptKeyRaisesKeyInitializationException(@TempDir File dataDir) throws Exception {
+        File slsaDir = new File(dataDir, "slsa");
+        Files.createDirectories(slsaDir.toPath());
+        Files.writeString(new File(slsaDir, "server-signing.key").toPath(), "not a key");
+        Files.writeString(new File(slsaDir, "server-signing.pub.pem").toPath(), "not a pem");
+
+        assertThrows(KeyInitializationException.class, () -> factory(dataDir).keyId());
     }
 
     private static ServerSignerFactory factory(File dataDir) {
