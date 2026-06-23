@@ -5,9 +5,9 @@ import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
@@ -21,22 +21,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Assumes an IAM role on top of the base credentials: builds an STS client, feeds it to an
- * auto-refreshing assume-role provider, and returns both as closeables.
+ * Assumes an IAM role via STS, using the default provider chain as the base identity. Builds an STS client,
+ * feeds it to an auto-refreshing assume-role provider, and returns both as closeables.
  */
 @Component
-public class AssumeRoleResolution implements CredentialsResolution {
-
-    private final BaseCredentialsRegistry baseCredentials;
-
-    public AssumeRoleResolution(@NotNull BaseCredentialsRegistry baseCredentials) {
-        this.baseCredentials = baseCredentials;
-    }
+public class AssumeRoleAwsCredentials implements AwsCredentials {
 
     @NotNull
     @Override
-    public CredentialsMode type() {
-        return CredentialsMode.ASSUME_ROLE;
+    public AwsCredentialsType type() {
+        return AwsCredentialsType.ASSUME_ROLE;
     }
 
     @NotNull
@@ -46,6 +40,7 @@ public class AssumeRoleResolution implements CredentialsResolution {
         if (Params.get(params, SlsaParams.ASSUME_ROLE_ARN) == null) {
             errors.add(new InvalidProperty(SlsaParams.ASSUME_ROLE_ARN, "Role ARN is required to assume a role"));
         }
+        //todo assume role max duration?
         String duration = Params.get(params, SlsaParams.ASSUME_ROLE_DURATION_SECONDS);
         if (duration != null && Params.toIntOrNull(duration) == null) {
             errors.add(new InvalidProperty(SlsaParams.ASSUME_ROLE_DURATION_SECONDS,
@@ -54,26 +49,11 @@ public class AssumeRoleResolution implements CredentialsResolution {
         return errors;
     }
 
-    @Nullable
-    @Override
-    public AssumeRoleSpec assumeRole(@NotNull Map<String, String> params) {
-        String roleArn = Params.get(params, SlsaParams.ASSUME_ROLE_ARN);
-        if (roleArn == null) {
-            return null;
-        }
-        String sessionName = Params.get(params, SlsaParams.ASSUME_ROLE_SESSION_NAME);
-        return new AssumeRoleSpec(
-                roleArn,
-                sessionName == null ? SlsaParams.DEFAULT_SESSION_NAME : sessionName,
-                Params.get(params, SlsaParams.ASSUME_ROLE_EXTERNAL_ID),
-                Params.toIntOrNull(Params.get(params, SlsaParams.ASSUME_ROLE_DURATION_SECONDS)));
-    }
-
     @NotNull
     @Override
-    public ResolvedCredentials resolve(@NotNull KmsSignerConfig config, @NotNull Region region, @NotNull SdkHttpClient httpClient) {
+    public ResolvedCredentials provider(@NotNull KmsSignerConfig config, @NotNull Region region, @NotNull SdkHttpClient httpClient) {
         AssumeRoleSpec spec = config.assumeRole();
-        AwsCredentialsProvider base = baseCredentials.create(config);
+        AwsCredentialsProvider base = DefaultCredentialsProvider.builder().build();
 
         StsClientBuilder stsBuilder = StsClient.builder()
                 .region(region)

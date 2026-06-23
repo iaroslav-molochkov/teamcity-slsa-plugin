@@ -1,11 +1,8 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.aws;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AssumeRoleSpec;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AwsCredentialsType;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AwsKeys;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsMode;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsSource;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SignerConfig;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -17,24 +14,17 @@ import static java.util.Objects.requireNonNullElse;
 
 /**
  * Validated, typed configuration for the AWS KMS signer. Required fields are non-null by construction
- * (the {@code KmsConfigMapper} guarantees it); {@code keys} is present iff the base is static and
- * {@code assumeRole} iff the mode is assume-role.
+ * (the {@code KmsConfigMapper} guarantees it). {@code keys} is present iff {@code credentialsType} is
+ * {@code STATIC}, and {@code assumeRole} iff it is {@code ASSUME_ROLE}.
  */
 public record KmsSignerConfig(
         @NotNull String region,
         @NotNull String kmsKeyId,
         @NotNull SigningAlgorithmSpec algorithm,
-        @NotNull CredentialsSource source,
+        @NotNull AwsCredentialsType credentialsType,
         @Nullable AwsKeys keys,
-        @NotNull CredentialsMode mode,
         @Nullable AssumeRoleSpec assumeRole,
-        @Nullable String stsEndpoint) implements SignerConfig {
-
-    @NotNull
-    @Override
-    public String signerId() {
-        return SlsaParams.SIGNER_AWS_KMS;
-    }
+        @Nullable String stsEndpoint) {
 
     /**
      * A stable hash over the connection-relevant fields (everything that affects which client/creds
@@ -43,7 +33,7 @@ public record KmsSignerConfig(
     @NotNull
     public String connectionKey() {
         String material = String.join("\n",
-                region, source.name(), mode.name(),
+                region, credentialsType.name(),
                 keys == null ? "" : keys.accessKeyId(),
                 keys == null ? "" : keys.secret(),
                 assumeRole == null ? "" : assumeRole.roleArn(),
@@ -56,6 +46,6 @@ public record KmsSignerConfig(
     @Override
     public String toString() {
         return "KmsSignerConfig{region=" + region + ", kmsKeyId=" + kmsKeyId
-                + ", source=" + source + ", mode=" + mode + "}"; // keys/secret intentionally omitted
+                + ", credentials=" + credentialsType + "}"; // keys/secret intentionally omitted
     }
 }

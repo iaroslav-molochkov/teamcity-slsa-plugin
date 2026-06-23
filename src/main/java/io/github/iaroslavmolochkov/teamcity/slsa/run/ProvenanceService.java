@@ -1,7 +1,6 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.run;
 
 import com.intellij.openapi.diagnostic.Logger;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SignerConfig;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.persist.ProvenancePublisher;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ArtifactSubject;
@@ -9,11 +8,10 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJson;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.ConfigMappers;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.ConfigResult;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.Result;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Signer;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerFactories;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerHandler;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.BuildServerAdapter;
@@ -34,11 +32,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
- * Orchestrates provenance for a finished build. Mapping params into a validated, typed config runs
+ * Orchestrates provenance for a finished build. Resolving params into a ready signer runs
  * synchronously on the build-finishing thread so an invalid config is reported as a <em>build
- * problem</em> — the only validation point DSL/REST-created configs ever hit. The heavy work
- * (hashing, building the signer, signing, publishing) is scheduled on a pool so finishing isn't
- * blocked, and runs against an already-valid config.
+ * problem</em> — the only validation point DSL/REST-created configs ever hit. Assembly is cheap (the
+ * KMS/key I/O is deferred into {@link Signer#sign}); the heavy work (hashing, signing, publishing)
+ * is scheduled on a pool so finishing isn't blocked.
  */
 @Component
 public class ProvenanceService {
@@ -53,21 +51,18 @@ public class ProvenanceService {
 
     private final ArtifactHasher hasher;
     private final ProvenanceBuilder provenanceBuilder;
-    private final ConfigMappers configMappers;
-    private final SignerFactories signerFactories;
+    private final SignerHandler signerHandler;
     private final ProvenancePublisher publisher;
     private final ExecutorService pool;
 
     public ProvenanceService(@NotNull EventDispatcher<BuildServerListener> eventDispatcher,
                              @NotNull ArtifactHasher hasher,
                              @NotNull ProvenanceBuilder provenanceBuilder,
-                             @NotNull ConfigMappers configMappers,
-                             @NotNull SignerFactories signerFactories,
+                             @NotNull SignerHandler signerHandler,
                              @NotNull ProvenancePublisher publisher) {
         this.hasher = hasher;
         this.provenanceBuilder = provenanceBuilder;
-        this.configMappers = configMappers;
-        this.signerFactories = signerFactories;
+        this.signerHandler = signerHandler;
         this.publisher = publisher;
 
         int threads = TeamCityProperties.getInteger(ATTEST_THREADS_PROPERTY, SlsaExecutors.defaultPoolSize());
@@ -81,8 +76,8 @@ public class ProvenanceService {
     }
 
     /**
-     * Called on the build-finishing thread. Maps the (at most one) provenance feature's params into a
-     * validated config and — if valid — schedules signing; otherwise records a build problem.
+     * Called on the build-finishing thread. Resolves the (at most one) provenance feature's params
+     * into a ready signer and — if valid — schedules signing; otherwise records a build problem.
      */
     public void onBuildFinished(@NotNull SBuild build) {
         SBuildFeatureDescriptor feature = build.getBuildFeaturesOfType(SlsaParams.FEATURE_TYPE)
@@ -94,24 +89,24 @@ public class ProvenanceService {
             return;
         }
 
-        ConfigResult<SignerConfig> result = configMappers.map(feature.getParameters());
+        Result<Signer> result = signerHandler.resolve(feature.getParameters());
 
         if (!result.isValid()) {
             reportProblem(build, result.errors());
             return;
         }
 
-        SignerConfig config = result.config();
+        Signer signer = result.value();
         pool.execute(() -> {
             try {
-                sign(build, config);
+                sign(build, signer);
             } catch (Throwable t) {
                 LOG.warnAndDebugDetails("SLSA: attestation task failed for build " + build.getBuildId(), t);
             }
         });
     }
 
-    private void sign(@NotNull SBuild build, @NotNull SignerConfig config) {
+    private void sign(@NotNull SBuild build, @NotNull Signer signer) {
         List<ArtifactSubject> subjects = hasher.hash(build);
 
         if (subjects.isEmpty()) {
@@ -122,7 +117,6 @@ public class ProvenanceService {
         InTotoStatement statement = provenanceBuilder.build(build, subjects);
         byte[] payload = ProvenanceJson.toBytes(statement);
 
-        Signer signer = signerFactories.create(config);
         DsseEnvelope envelope = signer.sign(payload);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -130,10 +124,11 @@ public class ProvenanceService {
         out.write('\n');
         byte[] jsonl = out.toByteArray();
 
-        if (publisher.publish(build, jsonl, metadata(envelope, config.signerId(), jsonl))) {
+        String signerId = signer.type().value();
+        if (publisher.publish(build, jsonl, metadata(envelope, signerId, jsonl))) {
             //todo debug it, many arts, no point in spam
             LOG.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
-                    + subjects.size() + " subject(s)) via '" + config.signerId() + "' signer");
+                    + subjects.size() + " subject(s)) via '" + signerId + "' signer");
         }
     }
 

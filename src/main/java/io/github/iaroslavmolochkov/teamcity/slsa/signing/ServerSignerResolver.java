@@ -1,10 +1,9 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import com.intellij.openapi.diagnostic.Logger;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SignerConfig;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
 import jetbrains.buildServer.log.Loggers;
+import jetbrains.buildServer.serverSide.InvalidProperty;
 import jetbrains.buildServer.serverSide.ServerPaths;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
@@ -25,15 +24,17 @@ import java.security.spec.ECGenParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Creates {@link Signer}s backed by a local ECDSA P-256 key — the zero-dependency "tick the box"
- * backend. The key pair is generated once and persisted under the plugin data directory; the public
- * key (written next to it as PEM) is what verifiers use. Weaker than KMS (the private key lives on
- * the server's disk), but needs no configuration.
+ * The server-key signer, end-to-end. Backed by a local ECDSA P-256 key — the zero-dependency
+ * "tick the box" backend, needing no configuration (so {@link #validate} is always empty). The key
+ * pair is generated once and persisted under the plugin data directory; the public key (written next
+ * to it as PEM) is what verifiers use. Weaker than KMS (the private key lives on the server's disk).
  */
 @Component
-public class ServerSignerFactory implements SignerFactory {
+public class ServerSignerResolver implements SignerResolver {
 
     private static final Logger LOG = Loggers.SERVER;
     private static final String SIGNATURE_ALGORITHM = "SHA256withECDSA";
@@ -44,7 +45,7 @@ public class ServerSignerFactory implements SignerFactory {
     private KeyPair keyPair;
     private String keyId;
 
-    public ServerSignerFactory(@NotNull ServerPaths serverPaths) {
+    public ServerSignerResolver(@NotNull ServerPaths serverPaths) {
         File dir = new File(serverPaths.getPluginDataDirectory(), "slsa");
         keyFile = new File(dir, "server-signing.key");
         publicKeyPemFile = new File(dir, "server-signing.pub.pem");
@@ -52,15 +53,32 @@ public class ServerSignerFactory implements SignerFactory {
 
     @NotNull
     @Override
-    public String signerId() {
-        return SlsaParams.SIGNER_SERVER;
+    public SignerType type() {
+        return SignerType.SERVER;
     }
 
     @NotNull
     @Override
-    public Signer create(@NotNull SignerConfig config) {
-        // The server config is empty; the key material is the factory's own state.
-        return this::sign;
+    public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
+        return List.of();
+    }
+
+    @NotNull
+    @Override
+    public Result<Signer> resolve(@NotNull Map<String, String> params) {
+        return Result.of(new Signer() {
+            @NotNull
+            @Override
+            public SignerType type() {
+                return SignerType.SERVER;
+            }
+
+            @NotNull
+            @Override
+            public DsseEnvelope sign(@NotNull byte[] payload) {
+                return ServerSignerResolver.this.sign(payload);
+            }
+        });
     }
 
     @NotNull

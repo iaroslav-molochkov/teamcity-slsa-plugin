@@ -1,7 +1,7 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.feature;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
 import jetbrains.buildServer.serverSide.BuildFeature;
 import jetbrains.buildServer.serverSide.BuildTypeIdentity;
@@ -24,11 +24,11 @@ import java.util.Map;
 public class SlsaBuildFeature extends BuildFeature {
 
     private final String editUrl;
-    private final Validators validators;
+    private final SignerHandler signerHandler;
 
-    public SlsaBuildFeature(@NotNull PluginDescriptor descriptor, @NotNull Validators validators) {
+    public SlsaBuildFeature(@NotNull PluginDescriptor descriptor, @NotNull SignerHandler signerHandler) {
         editUrl = descriptor.getPluginResourcesPath("editSlsaProvenanceFeature.jsp");
-        this.validators = validators;
+        this.signerHandler = signerHandler;
     }
 
     @NotNull
@@ -50,6 +50,7 @@ public class SlsaBuildFeature extends BuildFeature {
     }
 
     @Override
+    //todo truly?
     public boolean isMultipleFeaturesPerBuildTypeAllowed() {
         return false;
     }
@@ -62,31 +63,32 @@ public class SlsaBuildFeature extends BuildFeature {
     @NotNull
     @Override
     public String describeParameters(@NotNull Map<String, String> params) {
-        String signerId = SlsaParams.signerId(params);
-        if (signerId == null) {
+        String signer = Params.get(params, SlsaParams.SIGNER);
+
+        if (signer == null) {
             return "No signer selected";
         }
-        if (SlsaParams.SIGNER_SERVER.equals(signerId)) {
+
+        if (SlsaParams.SIGNER_SERVER.equals(signer)) {
             return "Sign artifacts with the server's local key";
         }
+
         String keyId = Params.get(params, SlsaParams.KMS_KEY_ID);
         StringBuilder sb = new StringBuilder("Sign artifacts with KMS key ").append(keyId == null ? "(not set)" : keyId);
         String region = Params.get(params, SlsaParams.REGION);
+
         if (region != null) {
             sb.append(" in ").append(region);
         }
-        if (SlsaParams.MODE_ASSUME_ROLE.equals(SlsaParams.mode(params))) {
-            sb.append(", assuming a role");
-        } else {
-            String base = SlsaParams.baseId(params);
-            sb.append(", ").append(base == null ? "(unset)" : base).append(" credentials");
-        }
+
+        String credentials = Params.get(params, SlsaParams.CREDENTIALS);
+        sb.append(", ").append(credentials == null ? "(unset)" : credentials).append(" credentials");
         return sb.toString();
     }
 
     @Nullable
     @Override
     public PropertiesProcessor getParametersProcessor(@NotNull BuildTypeIdentity buildTypeIdentity) {
-        return validators::validate;
+        return signerHandler::validate;
     }
 }

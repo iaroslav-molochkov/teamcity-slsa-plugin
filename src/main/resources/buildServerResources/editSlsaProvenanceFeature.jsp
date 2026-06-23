@@ -59,14 +59,15 @@
 </tr>
 
 <tr>
-  <th><label for="slsa.aws.credentialsSource">Credentials:</label></th>
+  <th><label for="slsa.aws.credentials">Credentials:</label></th>
   <td>
-    <props:selectProperty name="slsa.aws.credentialsSource" className="mediumField"
-                          onchange="BS.Util.toggleVisibility(this.value)">
+    <props:selectProperty name="slsa.aws.credentials" className="mediumField">
       <props:option value="default">Default provider chain</props:option>
       <props:option value="static">Access key</props:option>
+      <props:option value="assume-role">Assume an IAM role</props:option>
     </props:selectProperty>
-    <span class="smallNote">Default chain uses env vars, profile, container or instance role on the server.</span>
+    <span class="smallNote">Default chain uses env vars, profile, container or instance role on the server.
+      "Access key" uses the fields below. "Assume role" assumes the role below over the default chain.</span>
   </td>
 </tr>
 
@@ -86,18 +87,7 @@
   </td>
 </tr>
 
-<tr>
-  <th><label for="slsa.aws.credentials.mode">Credentials mode:</label></th>
-  <td>
-    <props:selectProperty name="slsa.aws.credentials.mode" className="mediumField">
-      <props:option value="direct">Use credentials directly</props:option>
-      <props:option value="assume-role">Assume an IAM role</props:option>
-    </props:selectProperty>
-    <span class="smallNote">"Assume role" uses the credentials above to assume the role below before signing.</span>
-  </td>
-</tr>
-
-<l:settingsGroup title="Assume role (when mode = assume an IAM role)">
+<l:settingsGroup title="Assume role (when Credentials = Assume an IAM role)">
   <tr>
     <th><label for="slsa.aws.assumeRole.arn">Role ARN:</label></th>
     <td>

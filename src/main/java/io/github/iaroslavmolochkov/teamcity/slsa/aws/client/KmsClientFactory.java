@@ -1,8 +1,7 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.aws.client;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.KmsSignerConfig;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsResolution;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsResolutions;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AwsCredentialsRegistry;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.ResolvedCredentials;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
@@ -17,16 +16,15 @@ import java.util.List;
 /**
  * Builds a {@link KmsClient} (wrapped in a {@link SignerClient}) for a validated {@link KmsSignerConfig}.
  * The KMS and STS clients share one HTTP client; since we build it, the {@link SignerClient} owns it,
- * alongside whatever the chosen {@link CredentialsResolution} returns as closeables.
+ * alongside whatever the chosen {@link AwsCredentialsRegistry credentials strategy} returns as closeables.
  */
 @Component
 public class KmsClientFactory {
 
-    //todo credentialsresolver? which resolutions? new years?
-    private final CredentialsResolutions resolutions;
+    private final AwsCredentialsRegistry credentials;
 
-    public KmsClientFactory(@NotNull CredentialsResolutions resolutions) {
-        this.resolutions = resolutions;
+    public KmsClientFactory(@NotNull AwsCredentialsRegistry credentials) {
+        this.credentials = credentials;
     }
 
     @NotNull
@@ -37,13 +35,13 @@ public class KmsClientFactory {
         List<AutoCloseable> closeables = new ArrayList<>();
         closeables.add(httpClient);
 
-        ResolvedCredentials credentials = resolutions.resolve(config, region, httpClient);
-        closeables.addAll(credentials.closeables());
+        ResolvedCredentials resolved = credentials.provider(config, region, httpClient);
+        closeables.addAll(resolved.closeables());
 
         KmsClient kms = KmsClient.builder()
                 .region(region)
                 .httpClient(httpClient)
-                .credentialsProvider(credentials.provider())
+                .credentialsProvider(resolved.provider())
                 .build();
 
         return new SignerClient(kms, closeables);

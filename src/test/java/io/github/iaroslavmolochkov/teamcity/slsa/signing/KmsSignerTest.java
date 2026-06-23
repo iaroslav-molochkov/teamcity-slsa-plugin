@@ -2,15 +2,11 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.KmsSignerConfig;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AssumeRoleResolution;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.BaseCredentialsRegistry;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsMode;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsResolutions;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsSource;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.DefaultCredentials;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.DirectResolution;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.StaticCredentials;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SignerConfig;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AssumeRoleAwsCredentials;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AwsCredentialsRegistry;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AwsCredentialsType;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.DefaultAwsCredentials;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.StaticAwsCredentials;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.junit.jupiter.api.Test;
@@ -38,12 +34,10 @@ import static org.mockito.Mockito.when;
 
 class KmsSignerTest {
 
-    private final BaseCredentialsRegistry bases =
-            new BaseCredentialsRegistry(List.of(new DefaultCredentials(), new StaticCredentials()));
-    private final CredentialsResolutions resolutions =
-            new CredentialsResolutions(List.of(new DirectResolution(bases), new AssumeRoleResolution(bases)));
-    private final KmsValidator validator = new KmsValidator(bases, resolutions);
-    private final KmsConfigMapper mapper = new KmsConfigMapper(bases, resolutions);
+    private final AwsCredentialsRegistry credentials = new AwsCredentialsRegistry(
+            List.of(new DefaultAwsCredentials(), new StaticAwsCredentials(), new AssumeRoleAwsCredentials()));
+    private final KmsValidator validator = new KmsValidator(credentials);
+    private final KmsConfigMapper mapper = new KmsConfigMapper();
 
     private List<String> errorKeys(Map<String, String> params) {
         return validator.validate(params).stream().map(InvalidProperty::getPropertyName).toList();
@@ -55,6 +49,7 @@ class KmsSignerTest {
         assertTrue(keys.contains(SlsaParams.REGION));
         assertTrue(keys.contains(SlsaParams.KMS_KEY_ID));
         assertTrue(keys.contains(SlsaParams.SIGNING_ALGORITHM));
+        assertTrue(keys.contains(SlsaParams.CREDENTIALS));
     }
 
     @Test
@@ -62,7 +57,7 @@ class KmsSignerTest {
         var keys = errorKeys(Map.of(
                 SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "k",
                 SlsaParams.SIGNING_ALGORITHM, "NONSENSE",
-                SlsaParams.CREDENTIALS_SOURCE, "static"));
+                SlsaParams.CREDENTIALS, SlsaParams.CREDENTIALS_STATIC));
         assertTrue(keys.contains(SlsaParams.SIGNING_ALGORITHM));
         assertTrue(keys.contains(SlsaParams.ACCESS_KEY_ID));
         assertTrue(keys.contains(SlsaParams.SECRET_ACCESS_KEY));
@@ -73,51 +68,38 @@ class KmsSignerTest {
         var keys = errorKeys(Map.of(
                 SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "k",
                 SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
-                SlsaParams.CREDENTIALS_MODE, "assume-role"));
+                SlsaParams.CREDENTIALS, SlsaParams.CREDENTIALS_ASSUME_ROLE));
         assertTrue(keys.contains(SlsaParams.ASSUME_ROLE_ARN));
     }
 
     @Test
-    void rejectsMissingBaseAndMode() {
-        var keys = errorKeys(Map.of(
-                SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "k",
-                SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256"));
-        assertTrue(keys.contains(SlsaParams.CREDENTIALS_SOURCE));
-        assertTrue(keys.contains(SlsaParams.CREDENTIALS_MODE));
-    }
-
-    @Test
-    void rejectsUnknownSourceAndMode() {
+    void rejectsUnknownCredentialsType() {
         var keys = errorKeys(Map.of(
                 SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "k",
                 SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
-                SlsaParams.CREDENTIALS_SOURCE, "bogus",
-                SlsaParams.CREDENTIALS_MODE, "bogus"));
-        assertTrue(keys.contains(SlsaParams.CREDENTIALS_SOURCE));
-        assertTrue(keys.contains(SlsaParams.CREDENTIALS_MODE));
+                SlsaParams.CREDENTIALS, "bogus"));
+        assertTrue(keys.contains(SlsaParams.CREDENTIALS));
     }
 
     private static Map<String, String> validParams() {
         return Map.of(
                 SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "arn:key",
                 SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
-                SlsaParams.CREDENTIALS_SOURCE, SlsaParams.BASE_DEFAULT,
-                SlsaParams.CREDENTIALS_MODE, SlsaParams.MODE_DIRECT);
+                SlsaParams.CREDENTIALS, SlsaParams.CREDENTIALS_DEFAULT);
     }
 
     @Test
     void mapsValidConfig() {
         assertTrue(validator.validate(validParams()).isEmpty());
 
-        KmsSignerConfig config = (KmsSignerConfig) mapper.map(validParams());
+        KmsSignerConfig config = mapper.map(validParams());
         assertEquals("us-east-1", config.region());
         assertEquals(SigningAlgorithmSpec.ECDSA_SHA_256, config.algorithm());
-        assertEquals(CredentialsSource.DEFAULT, config.source());
-        assertEquals(CredentialsMode.DIRECT, config.mode());
+        assertEquals(AwsCredentialsType.DEFAULT, config.credentialsType());
     }
 
     @Test
-    void signsSha256OfPae() throws Exception {
+    void resolvesAndSignsSha256OfPae() throws Exception {
         byte[] sig = {9, 8, 7};
         KmsClient kms = mock(KmsClient.class);
         when(kms.sign(any(SignRequest.class))).thenReturn(SignResponse.builder()
@@ -126,8 +108,9 @@ class KmsSignerTest {
         KmsClientCache cache = mock(KmsClientCache.class);
         when(cache.get(any(KmsSignerConfig.class))).thenReturn(kms);
 
-        SignerConfig config = mapper.map(validParams());
-        Signer signer = new KmsSignerFactory(cache).create(config);
+        KmsSignerResolver resolver = new KmsSignerResolver(validator, mapper, cache);
+        Signer signer = resolver.resolve(validParams()).value();
+        assertEquals(SignerType.AWS_KMS, signer.type());
 
         byte[] payload = "{\"_type\":\"x\"}".getBytes(StandardCharsets.UTF_8);
         DsseEnvelope envelope = signer.sign(payload);

@@ -1,12 +1,6 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.config;
 
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.Map;
-
-/** Parameter keys for the {@code slsa.provenance} build feature, plus selection helpers. */
+/** Parameter keys (and their fixed values) for the {@code slsa.provenance} build feature. */
 public final class SlsaParams {
 
     public static final String FEATURE_TYPE = "slsa.provenance";
@@ -21,15 +15,11 @@ public final class SlsaParams {
     /** A {@code SigningAlgorithmSpec} name (e.g. {@code ECDSA_SHA_256}). */
     public static final String SIGNING_ALGORITHM = "slsa.kms.signingAlgorithm";
 
-    /** Selects the base credentials provider (required for the KMS signer). */
-    public static final String CREDENTIALS_SOURCE = "slsa.aws.credentialsSource";
-    public static final String BASE_DEFAULT = "default";
-    public static final String BASE_STATIC = "static";
-
-    /** Selects how the base credentials are resolved (required for the KMS signer). */
-    public static final String CREDENTIALS_MODE = "slsa.aws.credentials.mode";
-    public static final String MODE_DIRECT = "direct";
-    public static final String MODE_ASSUME_ROLE = "assume-role";
+    /** Selects how AWS credentials are obtained for the KMS signer (required). */
+    public static final String CREDENTIALS = "slsa.aws.credentials";
+    public static final String CREDENTIALS_DEFAULT = "default";
+    public static final String CREDENTIALS_STATIC = "static";
+    public static final String CREDENTIALS_ASSUME_ROLE = "assume-role";
 
     public static final String ACCESS_KEY_ID = "slsa.aws.accessKeyId";
     /** {@code secure:} prefix asks TeamCity to store this scrambled. */
@@ -45,24 +35,5 @@ public final class SlsaParams {
     public static final String DEFAULT_SESSION_NAME = "teamcity-slsa-signer";
 
     private SlsaParams() {
-    }
-
-    /** The selected signer id, or {@code null} if not specified — never silently defaulted. */
-    @Nullable
-    public static String signerId(@NotNull Map<String, String> params) {
-        return Params.get(params, SIGNER);
-    }
-
-    //todo remove specific names, just user params#get then
-    /** The selected base credentials id, or {@code null} if not specified. */
-    @Nullable
-    public static String baseId(@NotNull Map<String, String> params) {
-        return Params.get(params, CREDENTIALS_SOURCE);
-    }
-
-    /** The selected resolution mode id, or {@code null} if not specified. */
-    @Nullable
-    public static String mode(@NotNull Map<String, String> params) {
-        return Params.get(params, CREDENTIALS_MODE);
     }
 }

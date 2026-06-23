@@ -2,9 +2,8 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.KmsSignerConfig;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SignerConfig;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import jetbrains.buildServer.serverSide.IOGuard;
+import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.SdkBytes;
@@ -16,34 +15,63 @@ import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Creates {@link Signer}s that sign with AWS KMS. The private key never leaves KMS (a SLSA L3
- * property): signing sends only a digest using {@link MessageType#DIGEST}, sidestepping the 4 KiB
- * RAW limit. The KMS client is shared via {@link KmsClientCache}, keyed on the connection.
+ * The AWS KMS signer, end-to-end: validates via {@link KmsValidator}, maps via {@link KmsConfigMapper},
+ * and assembles a {@link Signer} backed by a cached {@link KmsClient}. The private key never leaves
+ * KMS (a SLSA L3 property): signing sends only a digest using {@link MessageType#DIGEST}, sidestepping
+ * the 4 KiB RAW limit. The actual KMS I/O happens lazily inside {@link Signer#sign}.
  */
 @Component
-public class KmsSignerFactory implements SignerFactory {
+public class KmsSignerResolver implements SignerResolver {
 
+    private final KmsValidator validator;
+    private final KmsConfigMapper mapper;
     private final KmsClientCache clientCache;
 
-    public KmsSignerFactory(@NotNull KmsClientCache clientCache) {
+    public KmsSignerResolver(@NotNull KmsValidator validator,
+                             @NotNull KmsConfigMapper mapper,
+                             @NotNull KmsClientCache clientCache) {
+        this.validator = validator;
+        this.mapper = mapper;
         this.clientCache = clientCache;
     }
 
     @NotNull
     @Override
-    public String signerId() {
-        return SlsaParams.SIGNER_AWS_KMS;
+    public SignerType type() {
+        return SignerType.AWS_KMS;
     }
 
     @NotNull
     @Override
-    public Signer create(@NotNull SignerConfig config) {
-        if (!(config instanceof KmsSignerConfig kms)) {
-            throw new IllegalStateException("KmsSignerFactory received " + config.getClass().getName());
+    public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
+        return validator.validate(params);
+    }
+
+    @NotNull
+    @Override
+    public Result<Signer> resolve(@NotNull Map<String, String> params) {
+        List<InvalidProperty> errors = validator.validate(params);
+        if (!errors.isEmpty()) {
+            return Result.invalid(errors);
         }
-        return payload -> sign(payload, kms);
+        KmsSignerConfig config = mapper.map(params);
+        return Result.of(new Signer() {
+            @NotNull
+            @Override
+            public SignerType type() {
+                return SignerType.AWS_KMS;
+            }
+
+            @NotNull
+            @Override
+            public DsseEnvelope sign(@NotNull byte[] payload) {
+                return KmsSignerResolver.this.sign(payload, config);
+            }
+        });
     }
 
     @NotNull

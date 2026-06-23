@@ -1,9 +1,7 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.aws.client;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.KmsSignerConfig;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsMode;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.CredentialsSource;
-import jetbrains.buildServer.serverSide.BuildServerListener;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AwsCredentialsType;
 import jetbrains.buildServer.util.EventDispatcher;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -28,7 +26,7 @@ class KmsClientCacheTest {
 
     private static KmsSignerConfig config(String region, String keyId) {
         return new KmsSignerConfig(region, keyId, SigningAlgorithmSpec.ECDSA_SHA_256,
-                CredentialsSource.DEFAULT, null, CredentialsMode.DIRECT, null, null);
+                AwsCredentialsType.DEFAULT, null, null, null);
     }
 
     @Test

@@ -21,43 +21,41 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class ServerSignerFactoryTest {
+class ServerSignerResolverTest {
 
     @Test
-    void validatorIsAlwaysValid() {
-        assertTrue(new ServerValidator().validate(Map.of()).isEmpty());
+    void validateIsAlwaysEmpty(@TempDir File dataDir) {
+        assertTrue(resolver(dataDir).validate(Map.of()).isEmpty());
     }
 
     @Test
-    void mapsToServerConfig() {
-        assertEquals(ServerSignerConfig.INSTANCE, new ServerConfigMapper().map(Map.of()));
-    }
+    void resolvesAndSignsWithLocalKeyAndVerifies(@TempDir File dataDir) throws Exception {
+        ServerSignerResolver resolver = resolver(dataDir);
+        Signer signer = resolver.resolve(Map.of()).value();
+        assertEquals(SignerType.SERVER, signer.type());
 
-    @Test
-    void signsWithLocalKeyAndVerifies(@TempDir File dataDir) throws Exception {
-        ServerSignerFactory factory = factory(dataDir);
         byte[] payload = "{\"_type\":\"https://in-toto.io/Statement/v1\"}".getBytes(StandardCharsets.UTF_8);
-        DsseEnvelope envelope = factory.create(ServerSignerConfig.INSTANCE).sign(payload);
+        DsseEnvelope envelope = signer.sign(payload);
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
-        assertEquals(factory.keyId(), envelope.signatures().get(0).keyid());
+        assertEquals(resolver.keyId(), envelope.signatures().get(0).keyid());
 
         byte[] pae = Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         byte[] sig = Base64.getDecoder().decode(envelope.signatures().get(0).sig());
         Signature verifier = Signature.getInstance("SHA256withECDSA");
-        verifier.initVerify(factory.publicKey());
+        verifier.initVerify(resolver.publicKey());
         verifier.update(pae);
         assertTrue(verifier.verify(sig));
     }
 
     @Test
     void persistsKeyAcrossInstances(@TempDir File dataDir) {
-        assertEquals(factory(dataDir).keyId(), factory(dataDir).keyId());
+        assertEquals(resolver(dataDir).keyId(), resolver(dataDir).keyId());
     }
 
     @Test
     void privateKeyIsOwnerOnlyOnPosix(@TempDir File dataDir) throws Exception {
-        factory(dataDir).keyId(); // generate
+        resolver(dataDir).keyId(); // generate
         Path key = new File(new File(dataDir, "slsa"), "server-signing.key").toPath();
         assumeTrue(key.getFileSystem().supportedFileAttributeViews().contains("posix"));
         assertEquals(PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(key));
@@ -70,12 +68,12 @@ class ServerSignerFactoryTest {
         Files.writeString(new File(slsaDir, "server-signing.key").toPath(), "not a key");
         Files.writeString(new File(slsaDir, "server-signing.pub.pem").toPath(), "not a pem");
 
-        assertThrows(KeyInitializationException.class, () -> factory(dataDir).keyId());
+        assertThrows(KeyInitializationException.class, () -> resolver(dataDir).keyId());
     }
 
-    private static ServerSignerFactory factory(File dataDir) {
+    private static ServerSignerResolver resolver(File dataDir) {
         ServerPaths serverPaths = mock(ServerPaths.class);
         when(serverPaths.getPluginDataDirectory()).thenReturn(dataDir);
-        return new ServerSignerFactory(serverPaths);
+        return new ServerSignerResolver(serverPaths);
     }
 }

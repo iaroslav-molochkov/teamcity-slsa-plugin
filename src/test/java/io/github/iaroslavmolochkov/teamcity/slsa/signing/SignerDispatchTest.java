@@ -1,6 +1,5 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SignerConfig;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.jetbrains.annotations.NotNull;
@@ -12,81 +11,69 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SignerDispatchTest {
 
-    private record StubConfig(@NotNull String signerId) implements SignerConfig {}
-
-    private record StubValidator(@NotNull String signerId, @NotNull List<InvalidProperty> errors) implements Validator {
+    /** A resolver that records nothing and returns canned results. */
+    private record StubResolver(@NotNull SignerType type, @NotNull List<InvalidProperty> errors,
+                                @NotNull Signer signer) implements SignerResolver {
         @NotNull
         @Override
         public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
             return errors;
         }
-    }
 
-    private record StubMapper(@NotNull String signerId, @NotNull SignerConfig config) implements ConfigMapper {
         @NotNull
         @Override
-        public SignerConfig map(@NotNull Map<String, String> params) {
-            return config;
+        public Result<Signer> resolve(@NotNull Map<String, String> params) {
+            return errors.isEmpty() ? Result.of(signer) : Result.invalid(errors);
         }
     }
 
-    private record StubFactory(@NotNull String signerId, @NotNull Signer signer) implements SignerFactory {
+    private static final Signer DUMMY = new Signer() {
         @NotNull
         @Override
-        public Signer create(@NotNull SignerConfig config) {
-            return signer;
+        public SignerType type() {
+            return SignerType.SERVER;
         }
+
+        @NotNull
+        @Override
+        public DsseEnvelope sign(@NotNull byte[] payload) {
+            throw new UnsupportedOperationException();
+        }
+    };
+
+    private SignerHandler handler(List<InvalidProperty> serverErrors) {
+        return new SignerHandler(List.of(new StubResolver(SignerType.SERVER, serverErrors, DUMMY)));
     }
 
     @Test
-    void validatorsRequireSignerSelection() {
-        Validators validators = new Validators(List.of(new StubValidator("server", List.of())));
-        assertEquals(SlsaParams.SIGNER, validators.validate(Map.of()).get(0).getPropertyName());
+    void requiresSignerSelection() {
+        assertEquals(SlsaParams.SIGNER, handler(List.of()).validate(Map.of()).get(0).getPropertyName());
     }
 
     @Test
-    void validatorsRejectUnknownSigner() {
-        Validators validators = new Validators(List.of(new StubValidator("server", List.of())));
-        assertFalse(validators.validate(Map.of(SlsaParams.SIGNER, "nope")).isEmpty());
+    void rejectsUnknownSigner() {
+        assertFalse(handler(List.of()).validate(Map.of(SlsaParams.SIGNER, "nope")).isEmpty());
     }
 
     @Test
-    void validatorsDelegateToSelected() {
-        Validators validators = new Validators(List.of(new StubValidator("server", List.of())));
-        assertTrue(validators.validate(Map.of(SlsaParams.SIGNER, "server")).isEmpty());
+    void delegatesValidationToSelectedResolver() {
+        assertTrue(handler(List.of()).validate(Map.of(SlsaParams.SIGNER, "server")).isEmpty());
     }
 
     @Test
-    void mappersReturnConfigWhenValid() {
-        StubConfig config = new StubConfig("server");
-        Validators validators = new Validators(List.of(new StubValidator("server", List.of())));
-        ConfigMappers mappers = new ConfigMappers(List.of(new StubMapper("server", config)), validators);
-
-        ConfigResult<SignerConfig> result = mappers.map(Map.of(SlsaParams.SIGNER, "server"));
+    void resolveReturnsSignerWhenValid() {
+        Result<Signer> result = handler(List.of()).resolve(Map.of(SlsaParams.SIGNER, "server"));
         assertTrue(result.isValid());
-        assertSame(config, result.config());
+        assertSame(DUMMY, result.value());
     }
 
     @Test
-    void mappersReturnErrorsWhenInvalid() {
-        Validators validators = new Validators(
-                List.of(new StubValidator("server", List.of(new InvalidProperty("x", "bad")))));
-        ConfigMappers mappers = new ConfigMappers(List.of(new StubMapper("server", new StubConfig("server"))), validators);
-
-        assertFalse(mappers.map(Map.of(SlsaParams.SIGNER, "server")).isValid());
-    }
-
-    @Test
-    void factoriesRouteByConfigSignerId() {
-        Signer signer = payload -> { throw new UnsupportedOperationException(); };
-        SignerFactories factories = new SignerFactories(List.of(new StubFactory("server", signer)));
-
-        assertSame(signer, factories.create(new StubConfig("server")));
-        assertThrows(IllegalStateException.class, () -> factories.create(new StubConfig("nope")));
+    void resolveReturnsErrorsWhenInvalid() {
+        SignerHandler handler = handler(List.of(new InvalidProperty("x", "bad")));
+        assertFalse(handler.resolve(Map.of(SlsaParams.SIGNER, "server")).isValid());
     }
 }
