@@ -55,7 +55,6 @@ public class StaticKmsClientLoader implements KmsClientLoader {
     /** Unscrambles a TeamCity-stored secret; plain values pass through. */
     @NotNull
     private static String reveal(@Nullable String value) {
-        // the validator guarantees the secret is present before we get here.
         return EncryptUtil.isScrambled(value) ? EncryptUtil.unscramble(value) : value;
     }
 }
