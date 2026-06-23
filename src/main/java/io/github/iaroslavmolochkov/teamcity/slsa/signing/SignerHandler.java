@@ -12,33 +12,34 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The entry point: reads the {@link SignerType} from the params and hands the params to the matching
- * {@link SignerResolver}. {@link #validate} backs the UI parameters processor; {@link #resolve} is the
- * build-time path. Selecting an absent or unknown signer is itself a validation error.
+ * The entry point: reads the {@link SignerType} from the params and hands them to the matching
+ * {@link SignerProcessor} bean (looked up in a map, no branching on type). {@link #validate} backs the
+ * UI parameters processor; {@link #process} is the build-time path. Selecting an absent or unknown
+ * signer is itself a validation error.
  */
 @Component
 public class SignerHandler {
 
-    private final Map<SignerType, SignerResolver> resolvers = new EnumMap<>(SignerType.class);
+    private final Map<SignerType, SignerProcessor> processors = new EnumMap<>(SignerType.class);
 
-    public SignerHandler(@NotNull List<SignerResolver> resolvers) {
-        for (SignerResolver resolver : resolvers) {
-            this.resolvers.put(resolver.type(), resolver);
+    public SignerHandler(@NotNull List<SignerProcessor> processors) {
+        for (SignerProcessor processor : processors) {
+            this.processors.put(processor.type(), processor);
         }
     }
 
     /** Validation errors for the params (empty when valid), including signer selection. For the UI. */
     @NotNull
     public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
-        SignerResolver resolver = resolvers.get(signerType(params));
-        return resolver == null ? selectionError(params) : resolver.validate(params);
+        SignerProcessor processor = processors.get(signerType(params));
+        return processor == null ? selectionError(params) : processor.validate(params);
     }
 
-    /** Resolves the params into a ready {@link Signer}, or the validation errors. For the runtime. */
+    /** Builds a ready {@link Signer} from the params, or returns the validation errors. For the runtime. */
     @NotNull
-    public Result<Signer> resolve(@NotNull Map<String, String> params) {
-        SignerResolver resolver = resolvers.get(signerType(params));
-        return resolver == null ? Result.invalid(selectionError(params)) : resolver.resolve(params);
+    public Result<Signer> process(@NotNull Map<String, String> params) {
+        SignerProcessor processor = processors.get(signerType(params));
+        return processor == null ? Result.invalid(selectionError(params)) : processor.process(params);
     }
 
     @Nullable

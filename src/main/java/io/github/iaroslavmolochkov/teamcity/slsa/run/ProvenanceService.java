@@ -89,7 +89,7 @@ public class ProvenanceService {
             return;
         }
 
-        Result<Signer> result = signerHandler.resolve(feature.getParameters());
+        Result<Signer> result = signerHandler.process(feature.getParameters());
 
         if (!result.isValid()) {
             reportProblem(build, result.errors());

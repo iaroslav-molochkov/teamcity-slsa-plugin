@@ -5,21 +5,20 @@ public final class SlsaParams {
 
     public static final String FEATURE_TYPE = "slsa.provenance";
 
-    /** Selects the signing strategy (required — the UI/DSL always provides it). */
+    /**
+     * The single discriminator: which signer, and (for KMS) how it gets credentials. Required — the
+     * UI/DSL always provides it. Each value maps to exactly one {@code SignerProcessor} bean.
+     */
     public static final String SIGNER = "slsa.signer";
     public static final String SIGNER_SERVER = "server";
-    public static final String SIGNER_AWS_KMS = "aws-kms";
+    public static final String SIGNER_AWS_KMS_DEFAULT = "aws-kms-default";
+    public static final String SIGNER_AWS_KMS_STATIC = "aws-kms-static";
+    public static final String SIGNER_AWS_KMS_ASSUME_ROLE = "aws-kms-assume-role";
 
     public static final String REGION = "slsa.aws.region";
     public static final String KMS_KEY_ID = "slsa.kms.keyId";
     /** A {@code SigningAlgorithmSpec} name (e.g. {@code ECDSA_SHA_256}). */
     public static final String SIGNING_ALGORITHM = "slsa.kms.signingAlgorithm";
-
-    /** Selects how AWS credentials are obtained for the KMS signer (required). */
-    public static final String CREDENTIALS = "slsa.aws.credentials";
-    public static final String CREDENTIALS_DEFAULT = "default";
-    public static final String CREDENTIALS_STATIC = "static";
-    public static final String CREDENTIALS_ASSUME_ROLE = "assume-role";
 
     public static final String ACCESS_KEY_ID = "slsa.aws.accessKeyId";
     /** {@code secure:} prefix asks TeamCity to store this scrambled. */

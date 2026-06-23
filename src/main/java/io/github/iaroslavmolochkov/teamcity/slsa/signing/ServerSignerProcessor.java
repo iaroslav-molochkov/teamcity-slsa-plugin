@@ -28,13 +28,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The server-key signer, end-to-end. Backed by a local ECDSA P-256 key — the zero-dependency
- * "tick the box" backend, needing no configuration (so {@link #validate} is always empty). The key
- * pair is generated once and persisted under the plugin data directory; the public key (written next
- * to it as PEM) is what verifiers use. Weaker than KMS (the private key lives on the server's disk).
+ * The server-key signer, end-to-end. Backed by a local ECDSA P-256 key — the zero-dependency "tick the
+ * box" backend, needing no configuration (so {@link #validate} is always empty). Being stateless beyond
+ * its one lazily-loaded key, it is its own {@link Signer}: the singleton bean is returned directly, with
+ * no per-build instance. The key pair is generated once and persisted under the plugin data directory;
+ * the public key (written next to it as PEM) is what verifiers use. Weaker than KMS (the private key
+ * lives on the server's disk).
  */
 @Component
-public class ServerSignerResolver implements SignerResolver {
+public class ServerSignerProcessor implements SignerProcessor, Signer {
 
     private static final Logger LOG = Loggers.SERVER;
     private static final String SIGNATURE_ALGORITHM = "SHA256withECDSA";
@@ -45,7 +47,7 @@ public class ServerSignerResolver implements SignerResolver {
     private KeyPair keyPair;
     private String keyId;
 
-    public ServerSignerResolver(@NotNull ServerPaths serverPaths) {
+    public ServerSignerProcessor(@NotNull ServerPaths serverPaths) {
         File dir = new File(serverPaths.getPluginDataDirectory(), "slsa");
         keyFile = new File(dir, "server-signing.key");
         publicKeyPemFile = new File(dir, "server-signing.pub.pem");
@@ -65,24 +67,13 @@ public class ServerSignerResolver implements SignerResolver {
 
     @NotNull
     @Override
-    public Result<Signer> resolve(@NotNull Map<String, String> params) {
-        return Result.of(new Signer() {
-            @NotNull
-            @Override
-            public SignerType type() {
-                return SignerType.SERVER;
-            }
-
-            @NotNull
-            @Override
-            public DsseEnvelope sign(@NotNull byte[] payload) {
-                return ServerSignerResolver.this.sign(payload);
-            }
-        });
+    public Result<Signer> process(@NotNull Map<String, String> params) {
+        return Result.of(this);
     }
 
     @NotNull
-    private synchronized DsseEnvelope sign(@NotNull byte[] payload) {
+    @Override
+    public synchronized DsseEnvelope sign(@NotNull byte[] payload) {
         ensureKey();
         byte[] pae = Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         try {

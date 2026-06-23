@@ -15,47 +15,55 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class ServerSignerResolverTest {
+class ServerSignerProcessorTest {
 
     @Test
     void validateIsAlwaysEmpty(@TempDir File dataDir) {
-        assertTrue(resolver(dataDir).validate(Map.of()).isEmpty());
+        assertTrue(processor(dataDir).validate(Map.of()).isEmpty());
     }
 
     @Test
-    void resolvesAndSignsWithLocalKeyAndVerifies(@TempDir File dataDir) throws Exception {
-        ServerSignerResolver resolver = resolver(dataDir);
-        Signer signer = resolver.resolve(Map.of()).value();
+    void processReturnsTheSingletonItself(@TempDir File dataDir) {
+        ServerSignerProcessor processor = processor(dataDir);
+        Signer signer = processor.process(Map.of()).value();
+        assertSame(processor, signer, "server processor is its own signer");
         assertEquals(SignerType.SERVER, signer.type());
+    }
+
+    @Test
+    void signsWithLocalKeyAndVerifies(@TempDir File dataDir) throws Exception {
+        ServerSignerProcessor processor = processor(dataDir);
+        Signer signer = processor.process(Map.of()).value();
 
         byte[] payload = "{\"_type\":\"https://in-toto.io/Statement/v1\"}".getBytes(StandardCharsets.UTF_8);
         DsseEnvelope envelope = signer.sign(payload);
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
-        assertEquals(resolver.keyId(), envelope.signatures().get(0).keyid());
+        assertEquals(processor.keyId(), envelope.signatures().get(0).keyid());
 
         byte[] pae = Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         byte[] sig = Base64.getDecoder().decode(envelope.signatures().get(0).sig());
         Signature verifier = Signature.getInstance("SHA256withECDSA");
-        verifier.initVerify(resolver.publicKey());
+        verifier.initVerify(processor.publicKey());
         verifier.update(pae);
         assertTrue(verifier.verify(sig));
     }
 
     @Test
     void persistsKeyAcrossInstances(@TempDir File dataDir) {
-        assertEquals(resolver(dataDir).keyId(), resolver(dataDir).keyId());
+        assertEquals(processor(dataDir).keyId(), processor(dataDir).keyId());
     }
 
     @Test
     void privateKeyIsOwnerOnlyOnPosix(@TempDir File dataDir) throws Exception {
-        resolver(dataDir).keyId(); // generate
+        processor(dataDir).keyId(); // generate
         Path key = new File(new File(dataDir, "slsa"), "server-signing.key").toPath();
         assumeTrue(key.getFileSystem().supportedFileAttributeViews().contains("posix"));
         assertEquals(PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(key));
@@ -68,12 +76,12 @@ class ServerSignerResolverTest {
         Files.writeString(new File(slsaDir, "server-signing.key").toPath(), "not a key");
         Files.writeString(new File(slsaDir, "server-signing.pub.pem").toPath(), "not a pem");
 
-        assertThrows(KeyInitializationException.class, () -> resolver(dataDir).keyId());
+        assertThrows(KeyInitializationException.class, () -> processor(dataDir).keyId());
     }
 
-    private static ServerSignerResolver resolver(File dataDir) {
+    private static ServerSignerProcessor processor(File dataDir) {
         ServerPaths serverPaths = mock(ServerPaths.class);
         when(serverPaths.getPluginDataDirectory()).thenReturn(dataDir);
-        return new ServerSignerResolver(serverPaths);
+        return new ServerSignerProcessor(serverPaths);
     }
 }

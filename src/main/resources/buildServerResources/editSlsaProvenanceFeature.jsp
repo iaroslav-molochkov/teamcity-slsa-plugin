@@ -17,10 +17,14 @@
   <td>
     <props:selectProperty name="slsa.signer" className="mediumField">
       <props:option value="server">Server key (local, quick start)</props:option>
-      <props:option value="aws-kms">AWS KMS (key never leaves AWS)</props:option>
+      <props:option value="aws-kms-default">AWS KMS — default provider chain</props:option>
+      <props:option value="aws-kms-static">AWS KMS — access key</props:option>
+      <props:option value="aws-kms-assume-role">AWS KMS — assume an IAM role</props:option>
     </props:selectProperty>
-    <span class="smallNote">Server key works out of the box. AWS KMS is recommended for real
-      assurance; the AWS settings below apply only to the AWS KMS signer.</span>
+    <span class="smallNote">Server key works out of the box. The AWS KMS signers (key never leaves AWS)
+      are recommended for real assurance; the AWS settings below apply only to them. The default
+      provider chain reads env vars, profile, container or instance role on the server; "access key"
+      uses the fields below; "assume role" assumes the role below over the default chain.</span>
   </td>
 </tr>
 
@@ -28,7 +32,8 @@
   <th><label for="slsa.aws.region">AWS region: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.aws.region" className="longField"/>
-    <span class="smallNote">e.g. <code>us-east-1</code>. The KMS key's region.</span>
+    <span class="smallNote">e.g. <code>us-east-1</code>. The KMS key's region. Optional for the default
+      provider chain (resolved from the environment, e.g. <code>AWS_REGION</code>); required otherwise.</span>
   </td>
 </tr>
 
@@ -59,23 +64,10 @@
 </tr>
 
 <tr>
-  <th><label for="slsa.aws.credentials">Credentials:</label></th>
-  <td>
-    <props:selectProperty name="slsa.aws.credentials" className="mediumField">
-      <props:option value="default">Default provider chain</props:option>
-      <props:option value="static">Access key</props:option>
-      <props:option value="assume-role">Assume an IAM role</props:option>
-    </props:selectProperty>
-    <span class="smallNote">Default chain uses env vars, profile, container or instance role on the server.
-      "Access key" uses the fields below. "Assume role" assumes the role below over the default chain.</span>
-  </td>
-</tr>
-
-<tr>
   <th><label for="slsa.aws.accessKeyId">Access key id:</label></th>
   <td>
     <props:textProperty name="slsa.aws.accessKeyId" className="longField"/>
-    <span class="smallNote">Required only when Credentials is set to Access key.</span>
+    <span class="smallNote">Required only for the "AWS KMS — access key" signer.</span>
   </td>
 </tr>
 
@@ -83,11 +75,11 @@
   <th><label for="secure:slsa.aws.secretAccessKey">Secret access key:</label></th>
   <td>
     <props:passwordProperty name="secure:slsa.aws.secretAccessKey" className="longField"/>
-    <span class="smallNote">Stored encrypted. Required only for Access key credentials.</span>
+    <span class="smallNote">Stored encrypted. Required only for the "AWS KMS — access key" signer.</span>
   </td>
 </tr>
 
-<l:settingsGroup title="Assume role (when Credentials = Assume an IAM role)">
+<l:settingsGroup title="Assume role (for the &quot;AWS KMS — assume an IAM role&quot; signer)">
   <tr>
     <th><label for="slsa.aws.assumeRole.arn">Role ARN:</label></th>
     <td>

@@ -10,10 +10,17 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * The signing mode — a single flat choice that picks both the backend and (for KMS) the credentials
+ * source. The {@link SlsaParams#SIGNER} param holds its {@link #value()}; each value is owned end-to-end
+ * by exactly one {@code SignerProcessor} bean, looked up by {@link #fromValue}.
+ */
 public enum SignerType {
 
     SERVER(SlsaParams.SIGNER_SERVER),
-    AWS_KMS(SlsaParams.SIGNER_AWS_KMS);
+    AWS_KMS_DEFAULT(SlsaParams.SIGNER_AWS_KMS_DEFAULT),
+    AWS_KMS_STATIC(SlsaParams.SIGNER_AWS_KMS_STATIC),
+    AWS_KMS_ASSUME_ROLE(SlsaParams.SIGNER_AWS_KMS_ASSUME_ROLE);
 
     private final String value;
 

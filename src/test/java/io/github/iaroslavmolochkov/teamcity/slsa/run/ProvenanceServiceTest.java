@@ -1,17 +1,11 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.run;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AssumeRoleAwsCredentials;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AwsCredentialsRegistry;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.DefaultAwsCredentials;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.StaticAwsCredentials;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.persist.ProvenancePublisher;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.KmsConfigMapper;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.KmsSignerResolver;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.KmsValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.StaticKmsSignerProcessor;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.serverSide.BuildServerListener;
 import jetbrains.buildServer.serverSide.SBuild;
@@ -32,11 +26,7 @@ class ProvenanceServiceTest {
 
     @SuppressWarnings("unchecked")
     private ProvenanceService newService() {
-        AwsCredentialsRegistry credentials = new AwsCredentialsRegistry(
-                List.of(new DefaultAwsCredentials(), new StaticAwsCredentials(), new AssumeRoleAwsCredentials()));
-        KmsSignerResolver kms = new KmsSignerResolver(
-                new KmsValidator(credentials), new KmsConfigMapper(), mock(KmsClientCache.class));
-        SignerHandler handler = new SignerHandler(List.of(kms));
+        SignerHandler handler = new SignerHandler(List.of(new StaticKmsSignerProcessor(mock(KmsClientCache.class))));
         return new ProvenanceService(
                 mock(EventDispatcher.class),
                 mock(ArtifactHasher.class),
@@ -48,8 +38,8 @@ class ProvenanceServiceTest {
     @Test
     void reportsBuildProblemForInvalidConfig() {
         SBuildFeatureDescriptor feature = mock(SBuildFeatureDescriptor.class);
-        // aws-kms selected but region/key/algorithm/credentials missing -> invalid
-        when(feature.getParameters()).thenReturn(Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS));
+        // static-keys KMS selected but region/key/algorithm/keys missing -> invalid
+        when(feature.getParameters()).thenReturn(Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC));
 
         SBuild build = mock(SBuild.class);
         when(build.getBuildFeaturesOfType(SlsaParams.FEATURE_TYPE)).thenReturn(List.of(feature));

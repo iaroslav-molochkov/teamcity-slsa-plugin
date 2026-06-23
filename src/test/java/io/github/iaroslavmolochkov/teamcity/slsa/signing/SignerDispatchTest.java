@@ -15,9 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SignerDispatchTest {
 
-    /** A resolver that records nothing and returns canned results. */
-    private record StubResolver(@NotNull SignerType type, @NotNull List<InvalidProperty> errors,
-                                @NotNull Signer signer) implements SignerResolver {
+    /** A processor that records nothing and returns canned results. */
+    private record StubProcessor(@NotNull SignerType type, @NotNull List<InvalidProperty> errors,
+                                 @NotNull Signer signer) implements SignerProcessor {
         @NotNull
         @Override
         public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
@@ -26,7 +26,7 @@ class SignerDispatchTest {
 
         @NotNull
         @Override
-        public Result<Signer> resolve(@NotNull Map<String, String> params) {
+        public Result<Signer> process(@NotNull Map<String, String> params) {
             return errors.isEmpty() ? Result.of(signer) : Result.invalid(errors);
         }
     }
@@ -46,7 +46,7 @@ class SignerDispatchTest {
     };
 
     private SignerHandler handler(List<InvalidProperty> serverErrors) {
-        return new SignerHandler(List.of(new StubResolver(SignerType.SERVER, serverErrors, DUMMY)));
+        return new SignerHandler(List.of(new StubProcessor(SignerType.SERVER, serverErrors, DUMMY)));
     }
 
     @Test
@@ -60,20 +60,20 @@ class SignerDispatchTest {
     }
 
     @Test
-    void delegatesValidationToSelectedResolver() {
+    void delegatesValidationToSelectedProcessor() {
         assertTrue(handler(List.of()).validate(Map.of(SlsaParams.SIGNER, "server")).isEmpty());
     }
 
     @Test
-    void resolveReturnsSignerWhenValid() {
-        Result<Signer> result = handler(List.of()).resolve(Map.of(SlsaParams.SIGNER, "server"));
+    void processReturnsSignerWhenValid() {
+        Result<Signer> result = handler(List.of()).process(Map.of(SlsaParams.SIGNER, "server"));
         assertTrue(result.isValid());
         assertSame(DUMMY, result.value());
     }
 
     @Test
-    void resolveReturnsErrorsWhenInvalid() {
+    void processReturnsErrorsWhenInvalid() {
         SignerHandler handler = handler(List.of(new InvalidProperty("x", "bad")));
-        assertFalse(handler.resolve(Map.of(SlsaParams.SIGNER, "server")).isValid());
+        assertFalse(handler.process(Map.of(SlsaParams.SIGNER, "server")).isValid());
     }
 }

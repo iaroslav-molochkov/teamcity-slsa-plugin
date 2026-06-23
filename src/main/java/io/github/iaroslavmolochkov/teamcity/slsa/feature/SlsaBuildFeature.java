@@ -2,6 +2,7 @@ package io.github.iaroslavmolochkov.teamcity.slsa.feature;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
 import jetbrains.buildServer.serverSide.BuildFeature;
 import jetbrains.buildServer.serverSide.BuildTypeIdentity;
@@ -63,27 +64,32 @@ public class SlsaBuildFeature extends BuildFeature {
     @NotNull
     @Override
     public String describeParameters(@NotNull Map<String, String> params) {
-        String signer = Params.get(params, SlsaParams.SIGNER);
+        SignerType signer = SignerType.fromValue(Params.get(params, SlsaParams.SIGNER));
 
         if (signer == null) {
             return "No signer selected";
         }
-
-        if (SlsaParams.SIGNER_SERVER.equals(signer)) {
+        if (signer == SignerType.SERVER) {
             return "Sign artifacts with the server's local key";
         }
 
         String keyId = Params.get(params, SlsaParams.KMS_KEY_ID);
         StringBuilder sb = new StringBuilder("Sign artifacts with KMS key ").append(keyId == null ? "(not set)" : keyId);
         String region = Params.get(params, SlsaParams.REGION);
-
         if (region != null) {
             sb.append(" in ").append(region);
         }
-
-        String credentials = Params.get(params, SlsaParams.CREDENTIALS);
-        sb.append(", ").append(credentials == null ? "(unset)" : credentials).append(" credentials");
+        sb.append(", ").append(credentialsLabel(signer)).append(" credentials");
         return sb.toString();
+    }
+
+    @NotNull
+    private static String credentialsLabel(@NotNull SignerType signer) {
+        return switch (signer) {
+            case AWS_KMS_STATIC -> "access key";
+            case AWS_KMS_ASSUME_ROLE -> "assume-role";
+            default -> "default provider chain";
+        };
     }
 
     @Nullable

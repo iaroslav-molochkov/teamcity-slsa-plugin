@@ -1,17 +1,14 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.aws.client;
 
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.KmsSignerConfig;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.credentials.AwsCredentialsType;
 import jetbrains.buildServer.util.EventDispatcher;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -20,38 +17,36 @@ import static org.mockito.Mockito.when;
 class KmsClientCacheTest {
 
     @SuppressWarnings("unchecked")
-    private KmsClientCache newCache(KmsClientFactory factory) {
-        return new KmsClientCache(factory, mock(EventDispatcher.class));
+    private KmsClientCache newCache() {
+        return new KmsClientCache(mock(EventDispatcher.class));
     }
 
-    private static KmsSignerConfig config(String region, String keyId) {
-        return new KmsSignerConfig(region, keyId, SigningAlgorithmSpec.ECDSA_SHA_256,
-                AwsCredentialsType.DEFAULT, null, null, null);
+    @SuppressWarnings("unchecked")
+    private static Supplier<SignerClient> factoryOfNewClients() {
+        Supplier<SignerClient> factory = mock(Supplier.class);
+        when(factory.get()).thenAnswer(inv -> new SignerClient(mock(KmsClient.class), List.of()));
+        return factory;
     }
 
     @Test
-    void sharesClientAcrossSameConnectionIgnoringKeyId() {
-        KmsClientFactory factory = mock(KmsClientFactory.class);
-        when(factory.create(any())).thenAnswer(inv -> new SignerClient(mock(KmsClient.class), List.of()));
-        KmsClientCache cache = newCache(factory);
+    void buildsOncePerConnectionKey() {
+        KmsClientCache cache = newCache();
+        Supplier<SignerClient> factory = factoryOfNewClients();
 
-        KmsClient a = cache.get(config("us-east-1", "key-1"));
-        KmsClient b = cache.get(config("us-east-1", "key-2")); // different key id, same connection
+        KmsClient a = cache.get("conn-1", factory);
+        KmsClient b = cache.get("conn-1", factory);
 
         assertSame(a, b);
-        verify(factory, times(1)).create(any());
+        verify(factory, times(1)).get();
     }
 
     @Test
-    void buildsDistinctClientPerConnection() {
-        KmsClientFactory factory = mock(KmsClientFactory.class);
-        when(factory.create(any())).thenAnswer(inv -> new SignerClient(mock(KmsClient.class), List.of()));
-        KmsClientCache cache = newCache(factory);
+    void buildsDistinctClientPerConnectionKey() {
+        KmsClientCache cache = newCache();
 
-        KmsClient us = cache.get(config("us-east-1", "key-1"));
-        KmsClient eu = cache.get(config("eu-west-1", "key-1"));
+        KmsClient a = cache.get("conn-1", factoryOfNewClients());
+        KmsClient b = cache.get("conn-2", factoryOfNewClients());
 
-        assertNotSame(us, eu);
-        verify(factory, times(2)).create(any());
+        assertNotSame(a, b);
     }
 }
