@@ -9,18 +9,15 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJson;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Result;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Signer;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningServices;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
+import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.log.Loggers;
-import jetbrains.buildServer.serverSide.BuildServerAdapter;
-import jetbrains.buildServer.serverSide.BuildServerListener;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import jetbrains.buildServer.serverSide.SBuild;
 import jetbrains.buildServer.serverSide.SBuildFeatureDescriptor;
-import jetbrains.buildServer.serverSide.TeamCityProperties;
-import jetbrains.buildServer.util.EventDispatcher;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
@@ -28,56 +25,46 @@ import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
- * Orchestrates provenance for a finished build. Resolving params into a ready signer runs
- * synchronously on the build-finishing thread so an invalid config is reported as a <em>build
- * problem</em> — the only validation point DSL/REST-created configs ever hit. Assembly is cheap (the
- * KMS/key I/O is deferred into {@link Signer#sign}); the heavy work (hashing, signing, publishing)
- * is scheduled on a pool so finishing isn't blocked.
+ * Orchestrates provenance for a finished build, synchronously on the build-finishing thread: validate
+ * by type → hash the artifacts → build the statement → hand the payload to the signing service for the
+ * type → attach the result. Any failure — an invalid config or a signing error — is reported as a
+ * <em>build problem</em> right there, so it is visible on the build (and never silently swallowed).
+ *
+ * <p>The client is never built until there is a payload to sign, so a build with no artifacts touches
+ * no AWS at all.
  */
 @Component
 public class ProvenanceService {
 
     private static final Logger LOG = Loggers.SERVER;
 
-    /** Server property to override the attestation pool size. */
-    public static final String ATTEST_THREADS_PROPERTY = "teamcity.slsa.attestThreads";
-
     private static final String PROBLEM_IDENTITY = "slsaProvenanceConfig";
     private static final String PROBLEM_TYPE = "slsaProvenanceConfig";
 
+    private final Validators validators;
     private final ArtifactHasher hasher;
     private final ProvenanceBuilder provenanceBuilder;
-    private final SignerHandler signerHandler;
+    private final SigningServices signingServices;
     private final ProvenancePublisher publisher;
-    private final ExecutorService pool;
 
-    public ProvenanceService(@NotNull EventDispatcher<BuildServerListener> eventDispatcher,
+    public ProvenanceService(@NotNull Validators validators,
                              @NotNull ArtifactHasher hasher,
                              @NotNull ProvenanceBuilder provenanceBuilder,
-                             @NotNull SignerHandler signerHandler,
+                             @NotNull SigningServices signingServices,
                              @NotNull ProvenancePublisher publisher) {
+        this.validators = validators;
         this.hasher = hasher;
         this.provenanceBuilder = provenanceBuilder;
-        this.signerHandler = signerHandler;
+        this.signingServices = signingServices;
         this.publisher = publisher;
-
-        int threads = TeamCityProperties.getInteger(ATTEST_THREADS_PROPERTY, SlsaExecutors.defaultPoolSize());
-        pool = SlsaExecutors.fixedDaemonPool(threads, "slsa-attest");
-        eventDispatcher.addListener(new BuildServerAdapter() {
-            @Override
-            public void serverShutdown() {
-                pool.shutdownNow();
-            }
-        });
     }
 
     /**
-     * Called on the build-finishing thread. Resolves the (at most one) provenance feature's params
-     * into a ready signer and — if valid — schedules signing; otherwise records a build problem.
+     * Called on the build-finishing thread. Validates the (at most one) provenance feature's params,
+     * hashes, signs, and publishes; an invalid config or a signing failure is recorded as a build problem.
      */
     public void onBuildFinished(@NotNull SBuild build) {
         SBuildFeatureDescriptor feature = build.getBuildFeaturesOfType(SlsaParams.FEATURE_TYPE)
@@ -89,24 +76,25 @@ public class ProvenanceService {
             return;
         }
 
-        Result<Signer> result = signerHandler.process(feature.getParameters());
+        Map<String, String> params = feature.getParameters();
 
-        if (!result.isValid()) {
-            reportProblem(build, result.errors());
+        List<InvalidProperty> errors = validators.validate(params);
+        if (!errors.isEmpty()) {
+            reportProblem(build, errors.stream()
+                    .map(InvalidProperty::getInvalidReason)
+                    .collect(Collectors.joining("; ")));
             return;
         }
 
-        Signer signer = result.value();
-        pool.execute(() -> {
-            try {
-                sign(build, signer);
-            } catch (Throwable t) {
-                LOG.warnAndDebugDetails("SLSA: attestation task failed for build " + build.getBuildId(), t);
-            }
-        });
+        try {
+            sign(build, params);
+        } catch (Exception e) {
+            LOG.warnAndDebugDetails("SLSA: signing failed for build " + build.getBuildId(), e);
+            reportProblem(build, e.getMessage());
+        }
     }
 
-    private void sign(@NotNull SBuild build, @NotNull Signer signer) {
+    private void sign(@NotNull SBuild build, @NotNull Map<String, String> params) {
         List<ArtifactSubject> subjects = hasher.hash(build);
 
         if (subjects.isEmpty()) {
@@ -117,28 +105,23 @@ public class ProvenanceService {
         InTotoStatement statement = provenanceBuilder.build(build, subjects);
         byte[] payload = ProvenanceJson.toBytes(statement);
 
-        DsseEnvelope envelope = signer.sign(payload);
+        DsseEnvelope envelope = signingServices.sign(params, payload);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.writeBytes(ProvenanceJson.toBytes(envelope));
         out.write('\n');
         byte[] jsonl = out.toByteArray();
 
-        String signerId = signer.type().value();
+        String signerId = SignerType.fromValue(Params.get(params, SlsaParams.SIGNER)).value();
         if (publisher.publish(build, jsonl, metadata(envelope, signerId, jsonl))) {
-            //todo debug it, many arts, no point in spam
             LOG.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
                     + subjects.size() + " subject(s)) via '" + signerId + "' signer");
         }
     }
 
     /** Records a build problem (visible on the build) and logs it. */
-    private void reportProblem(@NotNull SBuild build, @NotNull List<InvalidProperty> errors) {
-        String reason = errors.stream()
-                .map(InvalidProperty::getInvalidReason)
-                .collect(Collectors.joining("; "));
+    private void reportProblem(@NotNull SBuild build, @NotNull String reason) {
         LOG.warn("SLSA: build " + build.getBuildId() + " — " + reason);
-
         build.addBuildProblem(BuildProblemData.createBuildProblem(PROBLEM_IDENTITY, PROBLEM_TYPE, "SLSA provenance: " + reason));
     }
 

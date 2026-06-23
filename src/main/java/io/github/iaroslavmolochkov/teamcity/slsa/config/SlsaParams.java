@@ -7,7 +7,7 @@ public final class SlsaParams {
 
     /**
      * The single discriminator: which signer, and (for KMS) how it gets credentials. Required — the
-     * UI/DSL always provides it. Each value maps to exactly one {@code SignerProcessor} bean.
+     * UI/DSL always provides it. Each value maps to a {@code Validator} and a {@code SigningService}.
      */
     public static final String SIGNER = "slsa.signer";
     public static final String SIGNER_SERVER = "server";

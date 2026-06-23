@@ -3,7 +3,6 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 import com.intellij.openapi.diagnostic.Logger;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
 import jetbrains.buildServer.log.Loggers;
-import jetbrains.buildServer.serverSide.InvalidProperty;
 import jetbrains.buildServer.serverSide.ServerPaths;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
@@ -24,19 +23,17 @@ import java.security.spec.ECGenParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * The server-key signer, end-to-end. Backed by a local ECDSA P-256 key — the zero-dependency "tick the
- * box" backend, needing no configuration (so {@link #validate} is always empty). Being stateless beyond
- * its one lazily-loaded key, it is its own {@link Signer}: the singleton bean is returned directly, with
- * no per-build instance. The key pair is generated once and persisted under the plugin data directory;
- * the public key (written next to it as PEM) is what verifiers use. Weaker than KMS (the private key
- * lives on the server's disk).
+ * The server-key signing service. One job: sign with a local ECDSA P-256 key — the zero-dependency
+ * "tick the box" backend, needing no client (it ignores the params). The key pair is generated once and
+ * persisted under the plugin data directory; the public key (written next to it as PEM) is what
+ * verifiers use. Weaker than KMS (the private key lives on the server's disk).
  */
 @Component
-public class ServerSignerProcessor implements SignerProcessor, Signer {
+public class ServerSigningService implements SigningService {
 
     private static final Logger LOG = Loggers.SERVER;
     private static final String SIGNATURE_ALGORITHM = "SHA256withECDSA";
@@ -47,7 +44,7 @@ public class ServerSignerProcessor implements SignerProcessor, Signer {
     private KeyPair keyPair;
     private String keyId;
 
-    public ServerSignerProcessor(@NotNull ServerPaths serverPaths) {
+    public ServerSigningService(@NotNull ServerPaths serverPaths) {
         File dir = new File(serverPaths.getPluginDataDirectory(), "slsa");
         keyFile = new File(dir, "server-signing.key");
         publicKeyPemFile = new File(dir, "server-signing.pub.pem");
@@ -55,25 +52,13 @@ public class ServerSignerProcessor implements SignerProcessor, Signer {
 
     @NotNull
     @Override
-    public SignerType type() {
-        return SignerType.SERVER;
+    public Set<SignerType> types() {
+        return Set.of(SignerType.SERVER);
     }
 
     @NotNull
     @Override
-    public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
-        return List.of();
-    }
-
-    @NotNull
-    @Override
-    public Result<Signer> process(@NotNull Map<String, String> params) {
-        return Result.of(this);
-    }
-
-    @NotNull
-    @Override
-    public synchronized DsseEnvelope sign(@NotNull byte[] payload) {
+    public synchronized DsseEnvelope sign(@NotNull Map<String, String> params, @NotNull byte[] payload) {
         ensureKey();
         byte[] pae = Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         try {
@@ -86,14 +71,14 @@ public class ServerSignerProcessor implements SignerProcessor, Signer {
         }
     }
 
-    /** The public key verifiers use to check signatures produced by this signer. */
+    /** The public key verifiers use to check signatures produced by this service. */
     @NotNull
     public synchronized PublicKey publicKey() {
         ensureKey();
         return keyPair.getPublic();
     }
 
-    /** The DSSE {@code keyid} embedded in envelopes from this signer. */
+    /** The DSSE {@code keyid} embedded in envelopes from this service. */
     @NotNull
     public synchronized String keyId() {
         ensureKey();

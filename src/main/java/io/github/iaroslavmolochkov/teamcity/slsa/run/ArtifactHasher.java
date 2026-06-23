@@ -88,6 +88,7 @@ public class ArtifactHasher {
     }
 
     private ArtifactSubject toSubject(@NotNull SBuild build, @NotNull BuildArtifact artifact) {
+        //todo retry4j?
         try (InputStream in = artifact.getInputStream()) {
             ArtifactSubject subject = new ArtifactSubject(artifact.getRelativePath(), artifact.getSize(), Sha256.hex(in));
             //todo is log debug enabled redundant if lambda?

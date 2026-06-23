@@ -4,13 +4,13 @@ import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.persist.ProvenancePublisher;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerHandler;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.StaticKmsSignerProcessor;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningServices;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.StaticKmsClientLoader;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.StaticKmsValidator;
 import jetbrains.buildServer.BuildProblemData;
-import jetbrains.buildServer.serverSide.BuildServerListener;
 import jetbrains.buildServer.serverSide.SBuild;
 import jetbrains.buildServer.serverSide.SBuildFeatureDescriptor;
-import jetbrains.buildServer.util.EventDispatcher;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -24,14 +24,16 @@ import static org.mockito.Mockito.when;
 
 class ProvenanceServiceTest {
 
-    @SuppressWarnings("unchecked")
     private ProvenanceService newService() {
-        SignerHandler handler = new SignerHandler(List.of(new StaticKmsSignerProcessor(mock(KmsClientCache.class))));
+        Validators validators = new Validators(List.of(new StaticKmsValidator()));
+        SigningServices services = new SigningServices(List.of(
+                new io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.KmsSigningService(
+                        List.of(new StaticKmsClientLoader(mock(KmsClientCache.class))))));
         return new ProvenanceService(
-                mock(EventDispatcher.class),
+                validators,
                 mock(ArtifactHasher.class),
                 mock(ProvenanceBuilder.class),
-                handler,
+                services,
                 mock(ProvenancePublisher.class));
     }
 

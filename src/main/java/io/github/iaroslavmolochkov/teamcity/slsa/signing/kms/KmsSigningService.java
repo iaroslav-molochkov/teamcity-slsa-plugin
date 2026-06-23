@@ -1,12 +1,15 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
+import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Pae;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Signer;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
+import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
 import jetbrains.buildServer.serverSide.IOGuard;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.MessageType;
@@ -16,42 +19,42 @@ import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.function.Supplier;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * Signs provenance with AWS KMS, shared by all three KMS modes — they differ only in how the client is
- * built, not in the signing itself. The private key never leaves KMS (a SLSA L3 property): we send only
- * a digest using {@link MessageType#DIGEST}, sidestepping the 4 KiB RAW limit.
- *
- * <p>The client is resolved lazily via {@code clientSupplier} on the first {@link #sign}, so the
- * (potentially network-touching) client build happens on the attestation pool rather than the
- * build-finishing thread.
+ * The single AWS KMS signing service for all three credential modes — they share identical signing and
+ * differ only in how the client is built. It reads the param type to pick the matching
+ * {@link KmsClientLoader} (construct/get the client from cache), then signs. The private key never
+ * leaves KMS (a SLSA L3 property): we send only a digest using {@link MessageType#DIGEST}, sidestepping
+ * the 4 KiB RAW limit.
  */
-public final class KmsSigner implements Signer {
+@Component
+public class KmsSigningService implements SigningService {
 
-    private final SignerType type;
-    private final Supplier<KmsClient> clientSupplier;
-    private final String keyId;
-    private final SigningAlgorithmSpec algorithm;
+    private final Map<SignerType, KmsClientLoader> loaders = new EnumMap<>(SignerType.class);
 
-    public KmsSigner(@NotNull SignerType type, @NotNull Supplier<KmsClient> clientSupplier,
-                     @NotNull String keyId, @NotNull SigningAlgorithmSpec algorithm) {
-        this.type = type;
-        this.clientSupplier = clientSupplier;
-        this.keyId = keyId;
-        this.algorithm = algorithm;
+    public KmsSigningService(@NotNull List<KmsClientLoader> loaders) {
+        for (KmsClientLoader loader : loaders) {
+            this.loaders.put(loader.type(), loader);
+        }
     }
 
     @NotNull
     @Override
-    public SignerType type() {
-        return type;
+    public Set<SignerType> types() {
+        return loaders.keySet();
     }
 
     @NotNull
     @Override
-    public DsseEnvelope sign(@NotNull byte[] payload) {
-        KmsClient client = clientSupplier.get();
+    public DsseEnvelope sign(@NotNull Map<String, String> params, @NotNull byte[] payload) {
+        SignerType type = SignerType.fromValue(Params.get(params, SlsaParams.SIGNER));
+        KmsClient client = loaders.get(type).load(params);
+        String keyId = Params.get(params, SlsaParams.KMS_KEY_ID);
+        SigningAlgorithmSpec algorithm = Kms.algorithm(params);
 
         byte[] pae = Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         byte[] digest = digest(algorithm, pae);
