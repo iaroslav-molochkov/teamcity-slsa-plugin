@@ -1,5 +1,7 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.provenance;
 
+import com.intellij.openapi.diagnostic.Logger;
+import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.Branch;
 import jetbrains.buildServer.serverSide.BuildRevision;
 import jetbrains.buildServer.serverSide.SBuild;
@@ -42,6 +44,8 @@ public class ProvenanceBuilder {
 
     /** Identifies this plugin's build type/template in the provenance. */
     public static final String BUILD_TYPE = "https://iaroslav-molochkov.github.io/teamcity-slsa-plugin/buildtype/v1";
+
+    private static final Logger log = Loggers.SERVER;
 
     private final SBuildServer server;
 
@@ -213,8 +217,8 @@ public class ProvenanceBuilder {
             try {
                 byRootVersion.put(change.getVcsRoot().getId() + "@" + change.getVersion(), change);
             } catch (VcsRootNotFoundException e) {
-                //todo fail build? or at least log?
-
+                log.warn("SLSA: VCS root for change " + change.getVersion()
+                        + " not found; skipping its commit enrichment", e);
             }
         }
 

@@ -80,6 +80,11 @@ public class ProvenanceService {
             return;
         }
 
+        if (!build.getBuildStatus().isSuccessful()) {
+            log.debug("SLSA: build " + build.getBuildId() + " did not succeed; skipping provenance");
+            return;
+        }
+
         SigningContext context = new SigningContext(feature.getParameters());
         List<InvalidProperty> errors = validators.validate(context);
 

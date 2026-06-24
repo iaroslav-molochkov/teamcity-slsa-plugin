@@ -46,7 +46,6 @@ public class SlsaBuildFeature extends BuildFeature {
     }
 
     @Override
-    //todo truly?
     public boolean isMultipleFeaturesPerBuildTypeAllowed() {
         return false;
     }

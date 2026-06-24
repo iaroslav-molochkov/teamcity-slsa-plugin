@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -86,14 +87,18 @@ public class ArtifactHasher {
             futures.add(CompletableFuture.supplyAsync(() -> toSubject(build, artifact), pool));
         }
 
-        //todo if build error then probably useless? but unconfirmed
         List<ArtifactSubject> subjects = new ArrayList<>(files.size());
 
-        for (CompletableFuture<ArtifactSubject> future : futures) {
-            ArtifactSubject subject = future.join();
-            if (subject != null) {
-                subjects.add(subject);
+        try {
+            for (CompletableFuture<ArtifactSubject> future : futures) {
+                subjects.add(future.join());
             }
+        } catch (CompletionException e) {
+            futures.forEach(future -> future.cancel(true));
+            Throwable cause = e.getCause();
+            throw cause instanceof HashingException hashing
+                    ? hashing
+                    : new HashingException("Failed to hash artifacts of build " + build.getBuildId(), cause);
         }
 
         return subjects;
@@ -103,16 +108,17 @@ public class ArtifactHasher {
         //todo retry4j?
         try (InputStream in = artifact.getInputStream()) {
             ArtifactSubject subject = new ArtifactSubject(artifact.getRelativePath(), artifact.getSize(), sha256.hex(in));
-            //todo is log debug enabled redundant if lambda?
+
             if (log.isDebugEnabled()) {
                 log.debug("SLSA:   " + subject.path() + " (" + subject.size() + " bytes) sha256:" + subject.sha256());
             }
+
             return subject;
         } catch (Exception e) {
             log.warnAndDebugDetails("SLSA: failed to digest artifact " + artifact.getRelativePath()
                     + " of build " + build.getBuildId(), e);
-            //todo fail build? if users use sigs then it's important and can't ship wihtout them?
-            return null;
+            throw new HashingException("Failed to digest artifact " + artifact.getRelativePath()
+                    + " of build " + build.getBuildId(), e);
         }
     }
 }

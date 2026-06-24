@@ -14,6 +14,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticConnecti
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsClientLoader;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsValidator;
 import jetbrains.buildServer.BuildProblemData;
+import jetbrains.buildServer.messages.Status;
 import jetbrains.buildServer.serverSide.SBuild;
 import jetbrains.buildServer.serverSide.SBuildFeatureDescriptor;
 import org.junit.jupiter.api.Test;
@@ -53,10 +54,23 @@ class ProvenanceServiceTest {
 
         SBuild build = mock(SBuild.class);
         when(build.getBuildFeaturesOfType(SlsaParams.FEATURE_TYPE)).thenReturn(List.of(feature));
+        when(build.getBuildStatus()).thenReturn(Status.NORMAL);
 
         newService().onBuildFinished(build);
 
         verify(build).addBuildProblem(any(BuildProblemData.class));
+    }
+
+    @Test
+    void skipsUnsuccessfulBuild() {
+        SBuildFeatureDescriptor feature = mock(SBuildFeatureDescriptor.class);
+        SBuild build = mock(SBuild.class);
+        when(build.getBuildFeaturesOfType(SlsaParams.FEATURE_TYPE)).thenReturn(List.of(feature));
+        when(build.getBuildStatus()).thenReturn(Status.FAILURE);
+
+        newService().onBuildFinished(build);
+
+        verify(build, never()).addBuildProblem(any());
     }
 
     @Test
