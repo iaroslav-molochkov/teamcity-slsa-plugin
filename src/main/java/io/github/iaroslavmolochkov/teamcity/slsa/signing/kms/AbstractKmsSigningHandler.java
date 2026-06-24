@@ -1,14 +1,13 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseService;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
 import jetbrains.buildServer.serverSide.IOGuard;
-import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.MessageType;
@@ -18,33 +17,30 @@ import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-/** AWS KMS signing for all three credential modes; signs a digest so the private key never leaves KMS. */
-@Component
-public class KmsSigningService implements SigningService {
+/**
+ * Skeletal {@link SigningHandler} for the KMS modes: all three sign identically (digest then
+ * {@code kms:Sign}, so the private key never leaves KMS) and differ only in how the client is built.
+ * Each mode's subclass supplies its {@link KmsClientLoader}; {@link #type()} follows that loader's type.
+ */
+public abstract class AbstractKmsSigningHandler implements SigningHandler {
 
-    private final Map<SignerType, KmsClientLoader> loaders = new EnumMap<>(SignerType.class);
+    private final KmsClientLoader loader;
     private final DsseService dsse;
 
-    public KmsSigningService(List<KmsClientLoader> loaders, DsseService dsse) {
-        for (KmsClientLoader loader : loaders) {
-            this.loaders.put(loader.type(), loader);
-        }
+    protected AbstractKmsSigningHandler(KmsClientLoader loader, DsseService dsse) {
+        this.loader = loader;
         this.dsse = dsse;
     }
 
     @Override
-    public Set<SignerType> types() {
-        return loaders.keySet();
+    public final SignerType type() {
+        return loader.type();
     }
 
     @Override
-    public DsseEnvelope sign(SigningContext context, byte[] payload) {
-        KmsClient client = loaders.get(context.type()).load(context);
+    public final DsseEnvelope sign(SigningContext context, byte[] payload) {
+        KmsClient client = loader.load(context);
         String keyId = context.get(SlsaParams.KMS_KEY_ID);
         SigningAlgorithmSpec algorithm = SigningAlgorithmSpec.fromValue(context.get(SlsaParams.SIGNING_ALGORITHM));
 

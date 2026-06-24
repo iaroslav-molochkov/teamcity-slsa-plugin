@@ -3,6 +3,8 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJsonHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -51,9 +53,9 @@ class DsseServiceTest {
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
         assertEquals(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, envelope.payloadType());
-        assertEquals(1, envelope.signatures().size());
+        assertEquals(1, envelope.dsseSignatures().size());
         assertEquals("arn:aws:kms:key/abc", envelope.keyId());
-        assertArrayEquals(signature, Base64.getDecoder().decode(envelope.signatures().get(0).sig()));
+        assertArrayEquals(signature, Base64.getDecoder().decode(envelope.dsseSignatures().get(0).sig()));
     }
 
     @Test

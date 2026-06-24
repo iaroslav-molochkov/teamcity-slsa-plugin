@@ -18,13 +18,13 @@ import jetbrains.buildServer.vcs.VcsRootInstance;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -32,18 +32,12 @@ import static org.mockito.Mockito.when;
 class ProvenanceBuilderTest {
 
     @Test
-    @SuppressWarnings("unchecked")
     void mapsBuildToSlsaStatement() {
         SBuildServer server = mock(SBuildServer.class);
         when(server.getFullServerVersion()).thenReturn("TeamCity 2025.07 (build 999)");
 
         WebLinks webLinks = mock(WebLinks.class);
-        when(webLinks.getRootUrl()).thenReturn("https://tc.example.com");
-
-        Map<String, String> ownParams = new LinkedHashMap<>();
-        ownParams.put("teamcity.build.id", "42");
-        ownParams.put("env.FOO", "bar");
-        ownParams.put("system.teamcity.auth.password", "topsecret");
+        when(webLinks.getRootUrlByProjectExternalId(any())).thenReturn("https://tc.example.com");
 
         SBuild build = mock(SBuild.class);
         when(build.getBuildId()).thenReturn(42L);
@@ -55,12 +49,10 @@ class ProvenanceBuilderTest {
         when(branch.isDefaultBranch()).thenReturn(true);
         when(build.getBranch()).thenReturn(branch);
         when(build.getAgentName()).thenReturn("agent-1");
-        when(build.getBuildOwnParameters()).thenReturn(ownParams);
         when(build.getRevisions()).thenReturn(List.of());
         when(build.getStartDate()).thenReturn(new Date(1000));
         when(build.getFinishDate()).thenReturn(new Date(5000));
         when(build.getProjectExternalId()).thenReturn("MyProj");
-        when(webLinks.getViewResultsUrl(build)).thenReturn("https://tc.example.com/build/42");
 
         stubPlatform(build);
         SUser user = mock(SUser.class);
@@ -91,23 +83,18 @@ class ProvenanceBuilderTest {
         assertEquals("1970-01-01T00:00:05Z", statement.predicate().runDetails().metadata().finishedOn());
 
         Map<String, Object> external = statement.predicate().buildDefinition().externalParameters();
-        Map<String, String> buildParams = (Map<String, String>) external.get("buildParameters");
-        assertTrue(buildParams.containsKey("teamcity.build.id"), "allowlisted params are included");
-        assertFalse(buildParams.containsKey("system.teamcity.auth.password"), "auth secret must be excluded");
-        assertFalse(buildParams.containsKey("env.FOO"), "non-allowlisted params are excluded");
+        assertEquals("MyProj_Build", external.get("buildTypeId"));
+        assertEquals("1.0.1", external.get("buildNumber"));
         assertEquals("user:jdoe", external.get("triggeredBy"));
         assertEquals("main", external.get("branch"));
         assertEquals(true, external.get("branchIsDefault"));
+        assertFalse(external.containsKey("buildParameters"), "no redundant raw-parameter dump");
 
         Map<String, Object> internal = statement.predicate().buildDefinition().internalParameters();
         assertEquals("MyProj", internal.get("projectId"));
         assertEquals("agent-host-1", internal.get("agentHostName"));
         assertEquals("2026.1", internal.get("agentVersion"));
         assertFalse(internal.containsKey("personal"), "non-personal builds omit the flag");
-
-        String json = new String(new ProvenanceJsonHandler().toBytes(statement), java.nio.charset.StandardCharsets.UTF_8);
-        assertFalse(json.contains("system.teamcity.auth.password"), "auth secret must not be serialized");
-        assertFalse(json.contains("\"build.number\""), "absent allowlisted params are dropped, not emitted as null");
     }
 
     @Test
@@ -116,7 +103,7 @@ class ProvenanceBuilderTest {
         when(server.getFullServerVersion()).thenReturn("TeamCity 2025.07");
 
         WebLinks webLinks = mock(WebLinks.class);
-        when(webLinks.getRootUrl()).thenReturn("https://tc.example.com");
+        when(webLinks.getRootUrlByProjectExternalId(any())).thenReturn("https://tc.example.com");
 
         VcsRootInstance root = mock(VcsRootInstance.class);
         when(root.getId()).thenReturn(7L);
@@ -146,7 +133,6 @@ class ProvenanceBuilderTest {
         when(build.getBuildNumber()).thenReturn("1");
         when(build.getBranch()).thenReturn(null);
         when(build.getAgentName()).thenReturn("a");
-        when(build.getBuildOwnParameters()).thenReturn(Map.of());
         when(build.getStartDate()).thenReturn(new Date(0));
         when(build.getFinishDate()).thenReturn(new Date(0));
         when(build.getRevisions()).thenReturn(List.of(revision));
@@ -181,13 +167,12 @@ class ProvenanceBuilderTest {
         when(server.getFullServerVersion()).thenReturn("TeamCity 2026.1");
 
         WebLinks webLinks = mock(WebLinks.class);
-        when(webLinks.getRootUrl()).thenReturn("https://tc.example.com");
+        when(webLinks.getRootUrlByProjectExternalId(any())).thenReturn("https://tc.example.com");
 
         SBuild upstream = mock(SBuild.class);
         when(upstream.getBuildId()).thenReturn(7L);
         when(upstream.getBuildTypeExternalId()).thenReturn("Lib_Build");
         when(upstream.getBuildNumber()).thenReturn("3.2");
-        when(webLinks.getViewResultsUrl(upstream)).thenReturn("https://tc.example.com/build/7");
 
         BuildPromotion upstreamPromotion = mock(BuildPromotion.class);
         when(upstreamPromotion.getAssociatedBuild()).thenReturn(upstream);
@@ -201,7 +186,6 @@ class ProvenanceBuilderTest {
         when(build.getBuildNumber()).thenReturn("1");
         when(build.getBranch()).thenReturn(null);
         when(build.getAgentName()).thenReturn("a");
-        when(build.getBuildOwnParameters()).thenReturn(Map.of());
         when(build.getStartDate()).thenReturn(new Date(0));
         when(build.getFinishDate()).thenReturn(new Date(0));
         when(build.getRevisions()).thenReturn(List.of());

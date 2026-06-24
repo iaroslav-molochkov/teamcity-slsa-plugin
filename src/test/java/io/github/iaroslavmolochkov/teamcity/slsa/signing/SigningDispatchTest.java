@@ -1,12 +1,13 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -23,7 +24,7 @@ class SigningDispatchTest {
         }
     }
 
-    private record StubService(Set<SignerType> types, DsseEnvelope envelope) implements SigningService {
+    private record StubHandler(SignerType type, DsseEnvelope envelope) implements SigningHandler {
         @Override
         public DsseEnvelope sign(SigningContext context, byte[] payload) {
             return envelope;
@@ -33,8 +34,8 @@ class SigningDispatchTest {
     private static final DsseEnvelope ENVELOPE = new DsseService().envelope(new byte[]{1}, "key", new byte[]{2});
 
 
-    private Validators validators(List<InvalidProperty> serverErrors) {
-        return new Validators(List.of(new StubValidator(SignerType.SERVER, serverErrors)));
+    private ParameterValidator validators(List<InvalidProperty> serverErrors) {
+        return new ParameterValidator(List.of(new StubValidator(SignerType.SERVER, serverErrors)));
     }
 
     @Test
@@ -56,8 +57,8 @@ class SigningDispatchTest {
     }
 
 
-    private SigningServices services() {
-        return new SigningServices(List.of(new StubService(Set.of(SignerType.SERVER), ENVELOPE)));
+    private SigningService services() {
+        return new SigningService(List.of(new StubHandler(SignerType.SERVER, ENVELOPE)));
     }
 
     @Test

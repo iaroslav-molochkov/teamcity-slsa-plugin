@@ -1,8 +1,10 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractKmsSigningHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.KmsClientLoader;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.KmsSigningService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.core.SdkBytes;
@@ -15,9 +17,7 @@ import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class KmsSigningServiceTest {
+class KmsSigningHandlerTest {
 
     private record StubLoader(SignerType type, KmsClient client) implements KmsClientLoader {
         @Override
@@ -45,18 +45,19 @@ class KmsSigningServiceTest {
                 .signingAlgorithm(SigningAlgorithmSpec.ECDSA_SHA_256).build());
 
         DsseService dsse = new DsseService();
-        KmsSigningService service = new KmsSigningService(List.of(new StubLoader(SignerType.AWS_KMS_DEFAULT, kms)), dsse);
-        assertEquals(Set.of(SignerType.AWS_KMS_DEFAULT), service.types());
+        SigningHandler handler = new AbstractKmsSigningHandler(new StubLoader(SignerType.AWS_KMS_DEFAULT, kms), dsse) {
+        };
+        assertEquals(SignerType.AWS_KMS_DEFAULT, handler.type());
 
         Map<String, String> params = Map.of(
                 SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_DEFAULT,
                 SlsaParams.KMS_KEY_ID, "arn:key",
                 SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256");
         byte[] payload = "{\"_type\":\"x\"}".getBytes(StandardCharsets.UTF_8);
-        DsseEnvelope envelope = service.sign(new SigningContext(params), payload);
+        DsseEnvelope envelope = handler.sign(new SigningContext(params), payload);
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
-        assertArrayEquals(sig, Base64.getDecoder().decode(envelope.signatures().get(0).sig()));
+        assertArrayEquals(sig, Base64.getDecoder().decode(envelope.dsseSignatures().get(0).sig()));
 
         ArgumentCaptor<SignRequest> captor = ArgumentCaptor.forClass(SignRequest.class);
         verify(kms).sign(captor.capture());

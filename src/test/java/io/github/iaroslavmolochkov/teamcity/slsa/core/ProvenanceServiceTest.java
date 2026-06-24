@@ -6,11 +6,11 @@ import io.github.iaroslavmolochkov.teamcity.slsa.persist.ProvenancePublisher;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJsonHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseService;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningServices;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.ParameterValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.ConnectionIdService;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.KmsSigningService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsSigningHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticConnectionKeyHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsClientLoader;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsValidator;
@@ -36,13 +36,13 @@ import static org.mockito.Mockito.when;
 class ProvenanceServiceTest {
 
     private ProvenanceService newService() {
-        Validators validators = new Validators(List.of(new StaticKmsValidator()));
+        ParameterValidator parameterValidator = new ParameterValidator(List.of(new StaticKmsValidator()));
         ConnectionIdService connectionIdService = new ConnectionIdService(List.of(new StaticConnectionKeyHandler()));
-        SigningServices services = new SigningServices(List.of(
-                new KmsSigningService(
-                        List.of(new StaticKmsClientLoader(mock(KmsClientCache.class), connectionIdService)), new DsseService())));
+        SigningService services = new SigningService(List.of(
+                new StaticKmsSigningHandler(
+                        new StaticKmsClientLoader(mock(KmsClientCache.class), connectionIdService), new DsseService())));
         return new ProvenanceService(
-                validators,
+                parameterValidator,
                 mock(ArtifactHasher.class),
                 mock(ProvenanceBuilder.class),
                 new ProvenanceJsonHandler(),

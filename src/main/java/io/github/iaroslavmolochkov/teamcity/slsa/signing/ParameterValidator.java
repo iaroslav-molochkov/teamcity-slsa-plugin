@@ -10,11 +10,11 @@ import java.util.Map;
 
 /** Runs the {@link Validator} for the context's signer type; an unknown signer is itself an error. */
 @Component
-public class Validators {
+public class ParameterValidator {
 
     private final Map<SignerType, Validator> validators = new EnumMap<>(SignerType.class);
 
-    public Validators(List<Validator> validators) {
+    public ParameterValidator(List<Validator> validators) {
         for (Validator validator : validators) {
             this.validators.put(validator.type(), validator);
         }

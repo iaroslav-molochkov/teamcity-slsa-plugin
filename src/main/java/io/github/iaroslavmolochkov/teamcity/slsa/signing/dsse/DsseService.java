@@ -1,4 +1,4 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse;
 
 import org.springframework.stereotype.Component;
 
@@ -39,7 +39,7 @@ public class DsseService {
         return new DsseEnvelope(
                 b64.encodeToString(payloadBytes),
                 DsseEnvelope.IN_TOTO_PAYLOAD_TYPE,
-                List.of(new Signature(keyId, b64.encodeToString(signature))));
+                List.of(new DsseSignature(keyId, b64.encodeToString(signature))));
     }
 
     private void writeAscii(ByteArrayOutputStream out, String s) {

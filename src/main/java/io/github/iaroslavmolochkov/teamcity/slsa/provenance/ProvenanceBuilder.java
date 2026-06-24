@@ -42,14 +42,6 @@ public class ProvenanceBuilder {
     /** Identifies this plugin's build type/template in the provenance. */
     public static final String BUILD_TYPE = "https://iaroslav-molochkov.github.io/teamcity-slsa-plugin/buildtype/v1";
 
-    private static final Set<String> WHITELISTED_PARAMETERS = Set.of(
-            "teamcity.build.id",
-            "build.number",
-            "teamcity.project.id",
-            "system.teamcity.buildType.id",
-            "teamcity.build.branch"
-    );
-
     private static final Logger log = Loggers.SERVER;
 
     private final SBuildServer server;
@@ -74,23 +66,23 @@ public class ProvenanceBuilder {
                         internalParameters(build),
                         resolvedDependencies(build)),
                 new RunDetails(
-                        new SlsaPlatform(builderId(), builderVersion()),
+                        new SlsaPlatform(builderId(build), builderVersion()),
                         new RunMetadata(
                                 buildUrl(build),
                                 iso(build.getStartDate()),
-                                iso(build.getFinishDate()))));
+                                iso(finishDate(build)))));
 
         return new InTotoStatement(InTotoStatement.TYPE, wireSubjects, InTotoStatement.SLSA_PREDICATE_TYPE, predicate);
     }
 
-    /** Platform identity - the TeamCity server instance that produced the provenance. */
-    private String builderId() {
-        return trimTrailingSlash(webLinks.getRootUrl());
+    /** Platform identity - the server root for this build's configuration (project-aware, includes context path). */
+    private String builderId(SBuild build) {
+        return trimTrailingSlash(webLinks.getRootUrlByProjectExternalId(build.getProjectExternalId()));
     }
 
-    /** Run identity - the server's canonical results URL for this specific build. */
+    /** Run identity - the server's short, stable build URL ({@code <root>/build/<id>}). */
     private String buildUrl(SBuild build) {
-        return webLinks.getViewResultsUrl(build);
+        return builderId(build) + "/build/" + build.getBuildId();
     }
 
     private Map<String, Object> externalParameters(SBuild build) {
@@ -107,15 +99,6 @@ public class ProvenanceBuilder {
             params.put("branch", branch.getName());
             params.put("branchIsDefault", branch.isDefaultBranch());
         }
-
-        Map<String, String> ownParameters = build.getBuildOwnParameters();
-        Map<String, String> buildParameters = new HashMap<>();
-
-        for (String key : WHITELISTED_PARAMETERS) {
-            buildParameters.put(key, ownParameters.get(key));
-        }
-
-        params.put("buildParameters", buildParameters);
 
         return params;
     }
@@ -238,6 +221,16 @@ public class ProvenanceBuilder {
 
     private Map<String, String> builderVersion() {
         return Map.of("teamcity", server.getFullServerVersion());
+    }
+
+    /** Build finish time; the server finish date can still be unset at the build-finished event, so fall back. */
+    private Date finishDate(SBuild build) {
+        Date finish = build.getFinishDate();
+        if (finish != null) {
+            return finish;
+        }
+        Date agentFinish = build.getFinishOnAgentDate();
+        return agentFinish != null ? agentFinish : new Date();
     }
 
     private String iso(Date date) {

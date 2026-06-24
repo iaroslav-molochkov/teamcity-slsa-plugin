@@ -8,9 +8,9 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJsonHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningServices;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.ParameterValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.log.Loggers;
@@ -42,26 +42,26 @@ public class ProvenanceService {
     private static final String PROBLEM_IDENTITY = "slsaProvenanceConfig";
     private static final String PROBLEM_TYPE = "slsaProvenanceConfig";
 
-    private final Validators validators;
+    private final ParameterValidator parameterValidator;
     private final ArtifactHasher hasher;
     private final ProvenanceBuilder provenanceBuilder;
     private final ProvenanceJsonHandler provenanceJsonHandler;
-    private final SigningServices signingServices;
+    private final SigningService signingService;
     private final ProvenancePublisher publisher;
     private final Sha256Handler sha256;
 
-    public ProvenanceService(Validators validators,
+    public ProvenanceService(ParameterValidator parameterValidator,
                              ArtifactHasher hasher,
                              ProvenanceBuilder provenanceBuilder,
                              ProvenanceJsonHandler provenanceJsonHandler,
-                             SigningServices signingServices,
+                             SigningService signingService,
                              ProvenancePublisher publisher,
                              Sha256Handler sha256) {
-        this.validators = validators;
+        this.parameterValidator = parameterValidator;
         this.hasher = hasher;
         this.provenanceBuilder = provenanceBuilder;
         this.provenanceJsonHandler = provenanceJsonHandler;
-        this.signingServices = signingServices;
+        this.signingService = signingService;
         this.publisher = publisher;
         this.sha256 = sha256;
     }
@@ -87,7 +87,7 @@ public class ProvenanceService {
         }
 
         SigningContext context = new SigningContext(feature.getParameters());
-        List<InvalidProperty> errors = validators.validate(context);
+        List<InvalidProperty> errors = parameterValidator.validate(context);
 
         if (!errors.isEmpty()) {
             reportError(build, context, errors.stream()
@@ -124,7 +124,7 @@ public class ProvenanceService {
         }
 
         byte[] payload = provenanceJsonHandler.toBytes(statement);
-        DsseEnvelope envelope = signingServices.sign(context, payload);
+        DsseEnvelope envelope = signingService.sign(context, payload);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.writeBytes(provenanceJsonHandler.toBytes(envelope));

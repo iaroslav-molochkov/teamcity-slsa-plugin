@@ -1,12 +1,29 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
+import org.springframework.stereotype.Component;
 
-import java.util.Set;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 
-/** Signs a built provenance payload; {@link SigningServices} routes to it by {@link #types()}. */
-public interface SigningService {
+/** Routes a payload to the {@link SigningHandler} for the context's signer type. */
+@Component
+public class SigningService {
 
-    Set<SignerType> types();
+    private final Map<SignerType, SigningHandler> signingService = new EnumMap<>(SignerType.class);
 
-    DsseEnvelope sign(SigningContext context, byte[] payload);
+    public SigningService(List<SigningHandler> handlers) {
+        for (SigningHandler handler : handlers) {
+            signingService.put(handler.type(), handler);
+        }
+    }
+
+    public DsseEnvelope sign(SigningContext context, byte[] payload) {
+        SigningHandler service = signingService.get(context.type());
+        if (service == null) {
+            throw new SigningException("No signing service for signer: " + context.type());
+        }
+        return service.sign(context, payload);
+    }
 }

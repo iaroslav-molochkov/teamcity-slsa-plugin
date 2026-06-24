@@ -2,7 +2,7 @@ package io.github.iaroslavmolochkov.teamcity.slsa.feature;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.ParameterValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.BuildFeature;
 import jetbrains.buildServer.serverSide.BuildTypeIdentity;
@@ -17,11 +17,11 @@ import java.util.Map;
 public class SlsaBuildFeature extends BuildFeature {
 
     private final String editUrl;
-    private final Validators validators;
+    private final ParameterValidator parameterValidator;
 
-    public SlsaBuildFeature(PluginDescriptor descriptor, Validators validators) {
+    public SlsaBuildFeature(PluginDescriptor descriptor, ParameterValidator parameterValidator) {
         editUrl = descriptor.getPluginResourcesPath(SlsaEditFeatureController.EDIT_PATH);
-        this.validators = validators;
+        this.parameterValidator = parameterValidator;
     }
 
     @Override
@@ -81,6 +81,6 @@ public class SlsaBuildFeature extends BuildFeature {
 
     @Override
     public PropertiesProcessor getParametersProcessor(BuildTypeIdentity buildTypeIdentity) {
-        return params -> validators.validate(new SigningContext(params));
+        return params -> parameterValidator.validate(new SigningContext(params));
     }
 }

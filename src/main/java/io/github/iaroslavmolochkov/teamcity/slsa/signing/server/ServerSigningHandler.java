@@ -1,12 +1,12 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.server;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningHandler;
 import org.springframework.stereotype.Component;
 
 import java.security.GeneralSecurityException;
@@ -15,19 +15,19 @@ import java.util.Set;
 
 /** Signs the DSSE PAE with the PEM private key read from the server-side path in the feature config; stateless. */
 @Component
-public class ServerSigningService implements SigningService {
+public class ServerSigningHandler implements SigningHandler {
 
     private final ServerKeyParser keyParser;
     private final DsseService dsse;
 
-    public ServerSigningService(ServerKeyParser keyParser, DsseService dsse) {
+    public ServerSigningHandler(ServerKeyParser keyParser, DsseService dsse) {
         this.keyParser = keyParser;
         this.dsse = dsse;
     }
 
     @Override
-    public Set<SignerType> types() {
-        return Set.of(SignerType.SERVER);
+    public SignerType type() {
+        return SignerType.SERVER;
     }
 
     @Override
