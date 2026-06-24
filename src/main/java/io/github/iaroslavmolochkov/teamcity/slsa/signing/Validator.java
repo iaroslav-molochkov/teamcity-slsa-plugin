@@ -4,11 +4,7 @@ import jetbrains.buildServer.serverSide.InvalidProperty;
 
 import java.util.List;
 
-/**
- * Validates one signer type's params. Selected by {@link #type()} and looked up in {@link Validators}.
- * Deliberately standalone (no signing): the UI parameters processor and the build-time path both reuse
- * the same bean.
- */
+/** Validates one signer type's params; shared by the UI processor and the build-time check. */
 public interface Validator {
 
     SignerType type();

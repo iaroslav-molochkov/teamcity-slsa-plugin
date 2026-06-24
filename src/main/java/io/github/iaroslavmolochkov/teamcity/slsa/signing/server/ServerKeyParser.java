@@ -26,16 +26,7 @@ import java.security.spec.ECPublicKeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 
-/**
- * Parses a user-supplied PEM private key into a {@link ServerKey}: it accepts PKCS#8
- * ({@code BEGIN PRIVATE KEY}), PKCS#1 ({@code BEGIN RSA PRIVATE KEY}) and SEC1
- * ({@code BEGIN EC PRIVATE KEY}) via BouncyCastle's {@link PEMParser}, derives the public key from the
- * private one (EC by scalar-multiplying the curve generator, RSA from the CRT modulus/exponent), and
- * computes the default DSSE {@code keyId} as {@code sha256:<X.509 public key>}.
- *
- * <p>The keys handed back are produced by the platform JCA providers (not BouncyCastle), so signing and
- * verification never cross provider boundaries. Encrypted PEM keys are not supported.
- */
+/** Parses a PEM private key (PKCS#8, PKCS#1 or SEC1) into a {@link ServerKey}, deriving the public key and {@code keyId}. */
 @Component
 public class ServerKeyParser {
 

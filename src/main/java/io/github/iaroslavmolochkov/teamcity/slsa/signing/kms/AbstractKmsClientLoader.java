@@ -9,10 +9,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.KmsClientBuilder;
 
-/**
- * Skeletal {@link KmsClientLoader}: owns the cache lookup (keyed by the connection id) and the shared
- * KMS client build, so each mode only implements {@link #build} for its own credentials.
- */
+/** Skeletal {@link KmsClientLoader}: the cache lookup and shared client build; subclasses implement {@link #build}. */
 public abstract class AbstractKmsClientLoader implements KmsClientLoader {
 
     private final KmsClientCache cache;

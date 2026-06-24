@@ -7,12 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 
-/**
- * The DSSE protocol operations the signers share: producing the bytes that get signed
- * (<a href="https://github.com/secure-systems-lab/dsse/blob/master/protocol.md">PAE</a>) and assembling
- * the signed {@link DsseEnvelope}. A wired bean rather than static helpers, and the one place that
- * touches the package-private {@link Signature}.
- */
+/** Shared DSSE operations: PAE encoding and {@link DsseEnvelope} assembly. */
 @Component
 public class DsseService {
 

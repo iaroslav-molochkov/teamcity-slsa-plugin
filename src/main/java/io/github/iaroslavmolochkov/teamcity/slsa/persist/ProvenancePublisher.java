@@ -11,15 +11,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.Map;
 
-/**
- * Persists the signed attestation: writes the DSSE envelope into the finished build's artifacts as a
- * normal, downloadable artifact ({@code slsa/provenance.intoto.jsonl}) and indexes its metadata so
- * it's queryable via the REST metadata API.
- *
- * <p>The metadata is written directly here via {@link MetadataStorage#addBuildEntry}, using values
- * the caller already has in hand — so there is no dependency on a {@code BuildMetadataProvider}
- * running at the right moment (which would race the asynchronous attestation).
- */
+/** Writes the signed envelope as the {@code slsa/provenance.intoto.jsonl} build artifact and indexes its metadata. */
 @Component
 public class ProvenancePublisher {
 

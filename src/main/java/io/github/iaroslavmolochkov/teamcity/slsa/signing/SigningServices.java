@@ -6,11 +6,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Routes a built payload to the {@link SigningService} for the context's signer type (map lookup, no
- * branching). Reached only after {@link Validators} has accepted the params, so the type resolves to a
- * registered service.
- */
+/** Routes a payload to the {@link SigningService} for the context's signer type. */
 @Component
 public class SigningServices {
 

@@ -8,11 +8,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * The signing mode — a single flat choice that picks both the backend and (for KMS) the credentials
- * source. The {@link SlsaParams#SIGNER} param holds its {@link #value()}; each value is owned end-to-end
- * by exactly one {@code SignerProcessor} bean, looked up by {@link #fromValue}.
- */
+/** The signing mode: the backend and, for KMS, the credentials source. Held in {@link SlsaParams#SIGNER}. */
 public enum SignerType {
 
     SERVER(SlsaParams.SIGNER_SERVER),

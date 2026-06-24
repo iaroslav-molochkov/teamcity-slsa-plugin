@@ -21,11 +21,7 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import java.net.URI;
 import java.util.List;
 
-/**
- * Builds a KMS client whose credentials come from assuming an IAM role via STS, with the default chain
- * as the base identity. The STS and KMS clients share one HTTP client; the STS client and the
- * auto-refreshing provider are tracked as closeables so the cache can release them on eviction.
- */
+/** Builds a KMS client from STS assume-role credentials over the default chain. */
 @Component
 public class AssumeRoleKmsClientLoader extends AbstractKmsClientLoader {
 

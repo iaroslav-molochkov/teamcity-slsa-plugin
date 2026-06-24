@@ -13,19 +13,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import java.time.Duration;
 import java.util.function.Supplier;
 
-/**
- * Caches {@link KmsClient}s so builds that share a connection reuse one client (and, through it, the
- * SDK's internal session-credential refresh) instead of rebuilding it — and re-assuming roles — each time.
- *
- * <p><b>Keying:</b> by a caller-supplied connection key — a hash of the connection-relevant fields
- * (region, credentials source/identity, assume-role/STS settings) that each signer processor computes
- * for its own config. Deliberately <em>not</em> by project id (one project may have build configs with
- * different connections, and identical connections across projects should share) and <em>not</em> by the
- * KMS key id (a per-{@code sign()} argument).
- *
- * <p>Backed by Caffeine: bounded by size, expired on idle, and each evicted client is closed (its
- * removal listener releases the HTTP sockets and the assume-role refresh thread).
- */
+/** Caches {@link KmsClient}s by connection key so builds sharing a connection reuse one client. */
 @Component
 public class KmsClientCache {
 

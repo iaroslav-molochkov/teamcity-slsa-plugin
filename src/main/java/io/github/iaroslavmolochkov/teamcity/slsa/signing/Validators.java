@@ -8,11 +8,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Runs the {@link Validator} matching the context's signer type (looked up in a map, no branching).
- * Backs both the UI parameters processor and the build-time pre-check. Selecting an absent or unknown
- * signer is itself a validation error.
- */
+/** Runs the {@link Validator} for the context's signer type; an unknown signer is itself an error. */
 @Component
 public class Validators {
 

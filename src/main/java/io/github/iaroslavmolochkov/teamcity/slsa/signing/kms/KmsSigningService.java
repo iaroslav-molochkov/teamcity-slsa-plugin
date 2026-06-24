@@ -23,13 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * The single AWS KMS signing service for all three credential modes — they share identical signing and
- * differ only in how the client is built. It reads the param type to pick the matching
- * {@link KmsClientLoader} (construct/get the client from cache), then signs. The private key never
- * leaves KMS (a SLSA L3 property): we send only a digest using {@link MessageType#DIGEST}, sidestepping
- * the 4 KiB RAW limit.
- */
+/** AWS KMS signing for all three credential modes; signs a digest so the private key never leaves KMS. */
 @Component
 public class KmsSigningService implements SigningService {
 

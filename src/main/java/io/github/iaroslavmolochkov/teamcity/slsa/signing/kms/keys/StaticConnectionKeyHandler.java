@@ -7,11 +7,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractConnectionKeyHandler;
 import org.springframework.stereotype.Component;
 
-/**
- * Static-keys connections are identified by region + access key id + secret. The stored (scrambled)
- * secret is used as-is: it's deterministic, so the same secret keys the same client, and distinct
- * secrets never collide — no need to unscramble just to derive an identity.
- */
+/** Static-keys connections are identified by region + access key id + secret. */
 @Component
 public class StaticConnectionKeyHandler extends AbstractConnectionKeyHandler {
 

@@ -32,16 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Hashes a finished build's file artifacts <em>in parallel</em> on a bounded pool, streaming each
- * artifact (so artifact size doesn't drive memory). Returns one {@link ArtifactSubject} per file,
- * in artifact-iteration order.
- *
- * <p>Artifact reads may be served from external storage (e.g. S3), so each read-and-hash is retried
- * with exponential backoff and jitter on {@link IOException}; once the attempts are exhausted the
- * failure surfaces as a {@link HashingException} and the build fails (we never publish a partial
- * attestation).
- */
+/** Hashes a finished build's file artifacts in parallel, streaming each; retries transient reads and fails closed. */
 @Component
 public class ArtifactHasher {
 

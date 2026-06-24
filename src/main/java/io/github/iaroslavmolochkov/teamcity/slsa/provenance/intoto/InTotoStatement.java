@@ -5,11 +5,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPredicate;
 
 import java.util.List;
 
-/**
- * An <a href="https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md">in-toto
- * Statement v1</a> carrying a SLSA provenance predicate. This is the payload that gets
- * base64-encoded into the DSSE envelope and signed.
- */
+/** An in-toto Statement v1 carrying the SLSA provenance predicate; the signed DSSE payload. */
 public record InTotoStatement(
         @JsonProperty("_type") String type,
         List<Subject> subject,

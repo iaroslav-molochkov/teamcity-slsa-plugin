@@ -9,10 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/**
- * Validates the server signer: a PEM private key must be present and actually parse into a usable EC or
- * RSA key. Parsing it here means a bad key is reported when the feature is saved, not at build time.
- */
+/** Validates the server signer: the PEM key must be present and parse into a usable EC or RSA key. */
 @Component
 public class ServerValidator implements Validator {
 

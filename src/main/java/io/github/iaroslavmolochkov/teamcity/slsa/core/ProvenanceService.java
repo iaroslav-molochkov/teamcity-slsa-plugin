@@ -25,15 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Orchestrates provenance for a finished build, synchronously on the build-finishing thread: validate
- * by type → hash the artifacts → build the statement → hand the payload to the signing service for the
- * type → attach the result. Any failure — an invalid config or a signing error — is reported as a
- * <em>build problem</em> right there, so it is visible on the build (and never silently swallowed).
- *
- * <p>The client is never built until there is a payload to sign, so a build with no artifacts touches
- * no AWS at all.
- */
+/** Orchestrates provenance for a finished build: validate, hash, build the statement, sign, publish. */
 @Component
 public class ProvenanceService {
 

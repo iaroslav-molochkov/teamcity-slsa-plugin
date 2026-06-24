@@ -12,13 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-/**
- * The {@code slsa.provenance} build feature: enabling it makes the server generate and sign SLSA
- * provenance for a configuration's finished builds, using the selected signer.
- *
- * <p>Registering this server extension also exposes the feature to the TeamCity Kotlin DSL
- * ({@code settings.kts}). It is a server-side feature ({@link #isRequiresAgent()} is {@code false}).
- */
+/** The {@code slsa.provenance} build feature: generates and signs SLSA provenance for finished builds. */
 @Component
 public class SlsaBuildFeature extends BuildFeature {
 

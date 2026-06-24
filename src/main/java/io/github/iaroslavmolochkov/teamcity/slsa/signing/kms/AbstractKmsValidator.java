@@ -8,11 +8,7 @@ import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.util.List;
 
-/**
- * Skeletal {@link Validator} for the KMS modes: the checks common to every mode — key id + algorithm
- * (always), region (when required) — live here as {@code protected} helpers, so each mode's validator
- * only adds its own fields.
- */
+/** Skeletal {@link Validator} for the KMS modes: shared key, algorithm, and region checks as helpers. */
 public abstract class AbstractKmsValidator implements Validator {
 
     protected void requireKeyAndAlgorithm(SigningContext context, List<InvalidProperty> errors) {

@@ -8,12 +8,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 
 import java.util.UUID;
 
-/**
- * Skeletal {@link ConnectionKeyHandler}: owns the one collision-safe hashing scheme so each mode only
- * declares its own fields. {@link #id} seeds a fresh stream with the type discriminator, lets the
- * subclass {@link #funnel} its fields (length-framed, null-safe via {@link #put}), and finalizes to
- * a stable id. The framing is defined once here.
- */
+/** Skeletal {@link ConnectionKeyHandler}: the shared collision-safe hashing scheme; subclasses {@link #funnel} their fields. */
 public abstract class AbstractConnectionKeyHandler implements ConnectionKeyHandler {
 
     private static final Hasher128 HASHER = Hashing.murmur3_128();

@@ -13,13 +13,7 @@ import java.security.GeneralSecurityException;
 import java.security.Signature;
 import java.util.Set;
 
-/**
- * The server-key signing service: signs the DSSE PAE with a user-supplied PEM private key. It is
- * stateless — the key lives in the feature configuration (scrambled), so there is nothing to generate,
- * persist, or distribute; the user keeps the matching public key and gives it to verifiers. Weaker than
- * KMS (the private key reaches the server), but durable across server rebuilds and verifiable, because
- * the user owns the key's lifecycle.
- */
+/** Signs the DSSE PAE with the user-supplied PEM private key; stateless, the key lives in the feature config. */
 @Component
 public class ServerSigningService implements SigningService {
 

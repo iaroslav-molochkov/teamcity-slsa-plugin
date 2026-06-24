@@ -8,10 +8,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
-/**
- * Computes SHA-256 digests. SLSA provenance identifies each subject (artifact)
- * by its content digest, so this is the core hashing primitive of the plugin.
- */
+/** Computes SHA-256 digests. */
 @Component
 public class Sha256Handler {
 

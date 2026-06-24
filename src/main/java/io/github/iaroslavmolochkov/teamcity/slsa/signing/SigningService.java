@@ -3,11 +3,7 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import java.util.Set;
 
-/**
- * Signs an already-built provenance payload. One job: sign. It receives the {@link SigningContext} (to
- * resolve its backend — e.g. the KMS client) and the payload, and returns the DSSE envelope. The
- * {@link #types()} it handles are how {@link SigningServices} routes to it; the AWS modes all share one.
- */
+/** Signs a built provenance payload; {@link SigningServices} routes to it by {@link #types()}. */
 public interface SigningService {
 
     Set<SignerType> types();

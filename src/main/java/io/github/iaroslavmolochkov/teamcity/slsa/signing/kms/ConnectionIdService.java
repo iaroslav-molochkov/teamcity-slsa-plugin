@@ -9,11 +9,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Derives a connection's stable id (its client-cache key): dispatches by type to the matching
- * {@link ConnectionKeyHandler}, which builds the id itself. Pure dispatch — the hashing lives in the
- * handlers.
- */
+/** Derives a connection's stable client-cache id by dispatching to its {@link ConnectionKeyHandler}. */
 @Component
 public class ConnectionIdService {
 

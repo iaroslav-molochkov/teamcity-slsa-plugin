@@ -4,11 +4,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 
 import java.util.Map;
 
-/**
- * The feature params for one build, with the {@link SignerType} resolved once. Built right after the
- * feature is read and threaded through validation, signing, and connection id, so the type is never
- * re-derived and downstream code reads params through one place.
- */
+/** One build's feature params, with the {@link SignerType} resolved once. */
 public final class SigningContext {
 
     private final SignerType type;

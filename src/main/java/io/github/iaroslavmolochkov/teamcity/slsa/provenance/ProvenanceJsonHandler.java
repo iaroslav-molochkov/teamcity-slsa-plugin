@@ -6,13 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.stereotype.Component;
 
-/**
- * Shared JSON serialization for provenance/DSSE payloads.
- *
- * <p>DSSE does not require canonical JSON: we sign the exact bytes produced here and base64 those
- * same bytes into the envelope. A verifier base64-decodes the payload and re-runs PAE over it — it
- * never re-serializes — so a single, stable serialization is all that's needed.
- */
+/** Serializes provenance/DSSE payloads to JSON. */
 @Component
 public class ProvenanceJsonHandler {
 

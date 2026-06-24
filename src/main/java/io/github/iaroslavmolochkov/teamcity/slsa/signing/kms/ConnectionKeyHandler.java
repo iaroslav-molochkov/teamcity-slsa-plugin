@@ -3,10 +3,7 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 
-/**
- * Produces the stable id (client-cache key) for one connection type. Selected by {@link #type()};
- * {@link AbstractConnectionKeyHandler} provides the shared hashing skeleton.
- */
+/** Produces the stable client-cache id for one connection type. */
 public interface ConnectionKeyHandler {
 
     SignerType type();

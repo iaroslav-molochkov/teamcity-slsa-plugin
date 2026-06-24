@@ -9,10 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Validates the default-provider-chain KMS signer. Only the key id and algorithm are required; the
- * region is optional (resolved from the environment, e.g. {@code AWS_REGION}, like the credentials).
- */
+/** Validates the default-provider-chain KMS signer; the region is optional. */
 @Component
 public class DefaultKmsValidator extends AbstractKmsValidator {
 

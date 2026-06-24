@@ -6,13 +6,7 @@ import jetbrains.buildServer.serverSide.SRunningBuild;
 import jetbrains.buildServer.util.EventDispatcher;
 import org.springframework.stereotype.Component;
 
-/**
- * Thin {@link BuildServerListener} adapter: hands every finished build to {@link ProvenanceService},
- * which validates the provenance feature and signs it synchronously, reporting a build problem on failure.
- *
- * <p>All artifact access and signing happen on the server — never on the agent — and the signing key
- * lives only in KMS (or the server's own key), so the build cannot forge its own provenance.
- */
+/** Hands every finished build to {@link ProvenanceService}. */
 @Component
 public class ArtifactProvenanceListener extends BuildServerAdapter {
 

@@ -34,11 +34,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Builds an {@link InTotoStatement} (SLSA v1.0 provenance) from a finished build, reading only
- * server-side build data. Field values are taken from platform-controlled sources so the
- * resulting attestation is non-falsifiable by the build itself (a SLSA L3 property).
- */
+/** Builds the SLSA v1.0 {@link InTotoStatement} for a finished build from server-side data only. */
 @Component
 public class ProvenanceBuilder {
 

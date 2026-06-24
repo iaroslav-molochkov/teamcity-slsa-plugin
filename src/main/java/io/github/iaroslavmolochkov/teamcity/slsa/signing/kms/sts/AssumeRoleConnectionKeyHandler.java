@@ -7,11 +7,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractConnectionKeyHandler;
 import org.springframework.stereotype.Component;
 
-/**
- * Assume-role connections are identified by region + role ARN + external id + STS endpoint — the inputs
- * that determine which STS client and assumed identity back the KMS client. Session name and duration are
- * per-request details, not connection identity, so they're excluded.
- */
+/** Assume-role connections are identified by region + role ARN + external id + STS endpoint. */
 @Component
 public class AssumeRoleConnectionKeyHandler extends AbstractConnectionKeyHandler {
 

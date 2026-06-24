@@ -7,11 +7,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Owns a configured {@link KmsClient} and the resources the SDK won't close itself: the shared HTTP
- * client, and (for assume-role) the STS client + credentials provider. {@link #close()} releases them
- * in reverse order, so the shared HTTP client — added first — is released last.
- */
+/** A {@link KmsClient} plus the resources the SDK won't close itself; {@link #close()} releases them in reverse order. */
 public final class SignerClient implements AutoCloseable {
 
     private static final Logger log = Loggers.SERVER;

@@ -12,11 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Renders the build feature's edit page. It injects the KMS signing algorithms straight from the AWS SDK
- * enum so the dropdown can never drift from what the SDK actually supports — when the SDK adds an
- * algorithm, it appears here on the next upgrade with no JSP edit.
- */
+/** Renders the feature's edit page, injecting the KMS signing algorithms from the AWS SDK enum. */
 @Component
 public class SlsaEditFeatureController extends BaseController {
 
