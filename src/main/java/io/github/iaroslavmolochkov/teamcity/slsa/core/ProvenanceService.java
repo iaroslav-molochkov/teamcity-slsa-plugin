@@ -71,17 +71,17 @@ public class ProvenanceService {
      * hashes, signs, and publishes; an invalid config or a signing failure is recorded as a build problem.
      */
     public void onBuildFinished(SBuild build) {
+        if (!build.getBuildStatus().isSuccessful()) {
+            log.info("SLSA: build " + build.getBuildId() + " did not succeed; skipping provenance");
+            return;
+        }
+
         SBuildFeatureDescriptor feature = build.getBuildFeaturesOfType(SlsaParams.FEATURE_TYPE)
                 .stream()
                 .findFirst()
                 .orElse(null);
 
         if (feature == null) {
-            return;
-        }
-
-        if (!build.getBuildStatus().isSuccessful()) {
-            log.debug("SLSA: build " + build.getBuildId() + " did not succeed; skipping provenance");
             return;
         }
 

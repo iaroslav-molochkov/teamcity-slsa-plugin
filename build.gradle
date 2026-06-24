@@ -25,6 +25,7 @@ dependencies {
     server 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     server 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     server 'com.dynatrace.hash4j:hash4j:0.28.0'
+    server('com.evanlennick:retry4j:0.15.0') { exclude group: 'org.slf4j' }
 
     provided "org.jetbrains.teamcity:server-core:${teamcityVersion}"
 
@@ -36,6 +37,7 @@ dependencies {
     compileOnly 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     compileOnly 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     compileOnly 'com.dynatrace.hash4j:hash4j:0.28.0'
+    compileOnly 'com.evanlennick:retry4j:0.15.0'
 
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -47,6 +49,7 @@ dependencies {
     testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     testImplementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     testImplementation 'com.dynatrace.hash4j:hash4j:0.28.0'
+    testImplementation 'com.evanlennick:retry4j:0.15.0'
     testImplementation 'org.mockito:mockito-core:5.14.2'
 }
 

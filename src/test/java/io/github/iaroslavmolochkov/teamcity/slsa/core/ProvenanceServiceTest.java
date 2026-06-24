@@ -76,6 +76,7 @@ class ProvenanceServiceTest {
     @Test
     void noProblemWhenFeatureAbsent() {
         SBuild build = mock(SBuild.class);
+        when(build.getBuildStatus()).thenReturn(Status.NORMAL);
         when(build.getBuildFeaturesOfType(SlsaParams.FEATURE_TYPE)).thenReturn(List.of());
 
         newService().onBuildFinished(build);

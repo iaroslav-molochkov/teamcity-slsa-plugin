@@ -10,11 +10,13 @@ import jetbrains.buildServer.util.EventDispatcher;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -52,6 +54,36 @@ class ArtifactHasherTest {
         when(artifacts.isAvailable()).thenReturn(false);
 
         assertEquals(List.of(), newHasher().hash(build));
+    }
+
+    @Test
+    void retriesTransientReadFailureThenSucceeds() throws Exception {
+        byte[] content = "payload".getBytes(StandardCharsets.UTF_8);
+        BuildArtifact artifact = mock(BuildArtifact.class);
+        when(artifact.isFile()).thenReturn(true);
+        when(artifact.getRelativePath()).thenReturn("dir/flaky.bin");
+        when(artifact.getSize()).thenReturn((long) content.length);
+        when(artifact.getInputStream())
+                .thenThrow(new IOException("transient"))
+                .thenThrow(new IOException("transient"))
+                .thenReturn(new ByteArrayInputStream(content));
+
+        List<ArtifactSubject> subjects = newHasher().hash(buildWith(List.of(artifact)));
+
+        assertEquals(1, subjects.size());
+        assertEquals(new Sha256Handler().hex(content), subjects.get(0).sha256());
+    }
+
+    @Test
+    void failsWhenRetriesAreExhausted() throws Exception {
+        BuildArtifact artifact = mock(BuildArtifact.class);
+        when(artifact.isFile()).thenReturn(true);
+        when(artifact.getRelativePath()).thenReturn("dir/broken.bin");
+        when(artifact.getSize()).thenReturn(1L);
+        when(artifact.getInputStream()).thenThrow(new IOException("always down"));
+
+        SBuild build = buildWith(List.of(artifact));
+        assertThrows(HashingException.class, () -> newHasher().hash(build));
     }
 
     private static BuildArtifact fileArtifact(String path, byte[] content) {

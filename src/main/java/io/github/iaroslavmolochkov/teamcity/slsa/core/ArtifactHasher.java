@@ -1,5 +1,11 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.core;
 
+import com.evanlennick.retry4j.CallExecutor;
+import com.evanlennick.retry4j.CallExecutorBuilder;
+import com.evanlennick.retry4j.config.RetryConfig;
+import com.evanlennick.retry4j.config.RetryConfigBuilder;
+import com.evanlennick.retry4j.exception.RetriesExhaustedException;
+import com.evanlennick.retry4j.exception.UnexpectedException;
 import com.intellij.openapi.diagnostic.Logger;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ArtifactSubject;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
@@ -14,7 +20,9 @@ import jetbrains.buildServer.serverSide.artifacts.BuildArtifactsViewMode;
 import jetbrains.buildServer.util.EventDispatcher;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +36,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Hashes a finished build's file artifacts <em>in parallel</em> on a bounded pool, streaming each
  * artifact (so artifact size doesn't drive memory). Returns one {@link ArtifactSubject} per file,
  * in artifact-iteration order.
+ *
+ * <p>Artifact reads may be served from external storage (e.g. S3), so each read-and-hash is retried
+ * with exponential backoff and jitter on {@link IOException}; once the attempts are exhausted the
+ * failure surfaces as a {@link HashingException} and the build fails (we never publish a partial
+ * attestation).
  */
 @Component
 public class ArtifactHasher {
@@ -36,6 +49,16 @@ public class ArtifactHasher {
 
     /** Server property to override the hashing pool size; defaults to the CPU count. */
     public static final String HASH_THREADS_PROPERTY = "teamcity.slsa.hashThreads";
+
+    private static final int MAX_HASH_ATTEMPTS = 4;
+
+    /** Retry transient artifact-read failures (e.g. S3 throttling/5xx) with backoff + jitter. */
+    private static final RetryConfig RETRY_CONFIG = new RetryConfigBuilder()
+            .retryOnSpecificExceptions(IOException.class)
+            .withMaxNumberOfTries(MAX_HASH_ATTEMPTS)
+            .withDelayBetweenTries(Duration.ofMillis(200))
+            .withRandomExponentialBackoff()
+            .build();
 
     private final ExecutorService pool;
     private final Sha256Handler sha256;
@@ -104,8 +127,23 @@ public class ArtifactHasher {
         return subjects;
     }
 
+    @SuppressWarnings("unchecked") // retry4j's fluent config() returns a raw builder, dropping the type
     private ArtifactSubject toSubject(SBuild build, BuildArtifact artifact) {
-        //todo retry4j?
+        try {
+            CallExecutor<ArtifactSubject> executor = new CallExecutorBuilder<ArtifactSubject>()
+                    .config(RETRY_CONFIG)
+                    .build();
+            return executor.execute(() -> digest(artifact)).getResult();
+        } catch (RetriesExhaustedException | UnexpectedException e) {
+            Throwable cause = e.getCause();
+            log.warnAndDebugDetails("SLSA: failed to digest artifact " + artifact.getRelativePath()
+                    + " of build " + build.getBuildId(), cause);
+            throw new HashingException("Failed to digest artifact " + artifact.getRelativePath()
+                    + " of build " + build.getBuildId(), cause);
+        }
+    }
+
+    private ArtifactSubject digest(BuildArtifact artifact) throws IOException {
         try (InputStream in = artifact.getInputStream()) {
             ArtifactSubject subject = new ArtifactSubject(artifact.getRelativePath(), artifact.getSize(), sha256.hex(in));
 
@@ -114,11 +152,6 @@ public class ArtifactHasher {
             }
 
             return subject;
-        } catch (Exception e) {
-            log.warnAndDebugDetails("SLSA: failed to digest artifact " + artifact.getRelativePath()
-                    + " of build " + build.getBuildId(), e);
-            throw new HashingException("Failed to digest artifact " + artifact.getRelativePath()
-                    + " of build " + build.getBuildId(), e);
         }
     }
 }
