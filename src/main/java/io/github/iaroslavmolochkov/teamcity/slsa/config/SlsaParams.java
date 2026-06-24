@@ -9,6 +9,9 @@ public final class SlsaParams {
      * The single discriminator: which signer, and (for KMS) how it gets credentials. Required - the
      * UI/DSL always provides it. Each value maps to a {@code Validator} and a {@code SigningService}.
      */
+    /** When {@code true}, a provenance failure fails the build; otherwise it only logs a warning. */
+    public static final String FAIL_BUILD_ON_ERROR = "slsa.failBuildOnError";
+
     public static final String SIGNER = "slsa.signer";
     public static final String SIGNER_SERVER = "server";
     public static final String SIGNER_AWS_KMS_DEFAULT = "aws-kms-default";

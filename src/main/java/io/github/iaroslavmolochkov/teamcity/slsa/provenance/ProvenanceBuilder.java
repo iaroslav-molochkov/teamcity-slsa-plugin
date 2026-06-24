@@ -5,8 +5,10 @@ import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.Branch;
 import jetbrains.buildServer.serverSide.BuildRevision;
 import jetbrains.buildServer.serverSide.SBuild;
+import jetbrains.buildServer.serverSide.SBuildAgent;
 import jetbrains.buildServer.serverSide.SBuildServer;
 import jetbrains.buildServer.serverSide.TriggeredBy;
+import jetbrains.buildServer.serverSide.WebLinks;
 import jetbrains.buildServer.serverSide.dependency.BuildDependency;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.Subject;
@@ -16,7 +18,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunDetails;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunMetadata;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPlatform;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPredicate;
-import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
 import jetbrains.buildServer.users.SUser;
 import jetbrains.buildServer.vcs.SVcsModification;
 import jetbrains.buildServer.vcs.VcsRootInstance;
@@ -41,12 +42,22 @@ public class ProvenanceBuilder {
     /** Identifies this plugin's build type/template in the provenance. */
     public static final String BUILD_TYPE = "https://iaroslav-molochkov.github.io/teamcity-slsa-plugin/buildtype/v1";
 
+    private static final Set<String> WHITELISTED_PARAMETERS = Set.of(
+            "teamcity.build.id",
+            "build.number",
+            "teamcity.project.id",
+            "system.teamcity.buildType.id",
+            "teamcity.build.branch"
+    );
+
     private static final Logger log = Loggers.SERVER;
 
     private final SBuildServer server;
+    private final WebLinks webLinks;
 
-    public ProvenanceBuilder(SBuildServer server) {
+    public ProvenanceBuilder(SBuildServer server, WebLinks webLinks) {
         this.server = server;
+        this.webLinks = webLinks;
     }
 
     public InTotoStatement build(SBuild build, List<ArtifactSubject> subjects) {
@@ -74,13 +85,12 @@ public class ProvenanceBuilder {
 
     /** Platform identity - the TeamCity server instance that produced the provenance. */
     private String builderId() {
-        return trimTrailingSlash(server.getRootUrl());
+        return trimTrailingSlash(webLinks.getRootUrl());
     }
 
-    /** Run identity - the URL of this specific build. */
+    /** Run identity - the server's canonical results URL for this specific build. */
     private String buildUrl(SBuild build) {
-        return builderId() + "/viewLog.html?buildId=" + build.getBuildId()
-                + "&buildTypeId=" + build.getBuildTypeExternalId();
+        return webLinks.getViewResultsUrl(build);
     }
 
     private Map<String, Object> externalParameters(SBuild build) {
@@ -95,19 +105,17 @@ public class ProvenanceBuilder {
 
         if (branch != null) {
             params.put("branch", branch.getName());
+            params.put("branchIsDefault", branch.isDefaultBranch());
         }
 
-        Map<String, String> configParams = new HashMap<>();
+        Map<String, String> ownParameters = build.getBuildOwnParameters();
+        Map<String, String> buildParameters = new HashMap<>();
 
-        for (Map.Entry<String, String> param : build.getBuildOwnParameters().entrySet()) {
-            if (isSafe(param.getKey(), param.getValue())) {
-                configParams.put(param.getKey(), param.getValue());
-            }
+        for (String key : WHITELISTED_PARAMETERS) {
+            buildParameters.put(key, ownParameters.get(key));
         }
 
-        if (!configParams.isEmpty()) {
-            params.put("buildParameters", configParams);
-        }
+        params.put("buildParameters", buildParameters);
 
         return params;
     }
@@ -116,18 +124,11 @@ public class ProvenanceBuilder {
         Map<String, Object> params = new HashMap<>();
         params.put("teamcityVersion", server.getFullServerVersion());
         params.put("projectId", build.getProjectExternalId());
+        params.put("agentName", build.getAgentName());
 
-        String agent = build.getAgentName();
-
-        if (agent != null && !agent.isEmpty()) {
-            params.put("agentName", agent);
-        }
-
-        String agentHost = build.getAgent().getHostName();
-
-        if (agentHost != null && !agentHost.isEmpty()) {
-            params.put("agentHostName", agentHost);
-        }
+        SBuildAgent buildAgent = build.getAgent();
+        params.put("agentHostName", buildAgent.getHostName());
+        params.put("agentVersion", buildAgent.getVersion());
 
         if (build.isPersonal()) {
             params.put("personal", true);
@@ -140,14 +141,13 @@ public class ProvenanceBuilder {
     private String triggeredBy(SBuild build) {
         TriggeredBy triggeredBy = build.getTriggeredBy();
         SUser user = triggeredBy.getUser();
-        if (user != null) {
+        if (user != null && user.getUsername() != null && !user.getUsername().isEmpty()) {
             return "user:" + user.getUsername();
         }
         if (triggeredBy.isTriggeredBySnapshotDependency()) {
             return "snapshotDependency";
         }
-        String triggerId = triggeredBy.getTriggerId();
-        return (triggerId != null && !triggerId.isEmpty()) ? triggerId : "unknown";
+        return triggeredBy.getTriggerId();
     }
 
     private List<ResolvedDependency> resolvedDependencies(SBuild build) {
@@ -159,25 +159,21 @@ public class ProvenanceBuilder {
             String revisionSha = revision.getRevision();
 
             Map<String, String> annotations = new HashMap<>();
-            String branch = revision.getRepositoryVersion().getVcsBranch();
-
-            if (branch != null && !branch.isEmpty()) {
-                annotations.put("branch", branch);
-            }
+            annotations.put("branch", revision.getRepositoryVersion().getVcsBranch());
 
             SVcsModification commit = commits.get(root.getId() + "@" + revisionSha);
 
             if (commit != null) {
-                putIfNotEmpty(annotations, "author", commit.getUserName());
-                putIfNotEmpty(annotations, "message", firstLine(commit.getDescription()));
-                putIfNotEmpty(annotations, "committedAt", iso(commit.getVcsDate()));
+                annotations.put("author", commit.getUserName());
+                annotations.put("message", firstLine(commit.getDescription()));
+                annotations.put("committedAt", iso(commit.getVcsDate()));
             }
 
             deps.add(new ResolvedDependency(
                     gitUri(root),
                     Map.of("gitCommit", revisionSha),
                     root.getName(),
-                    annotations.isEmpty() ? null : annotations));
+                    annotations));
         }
 
         Set<Long> seenBuilds = new HashSet<>();
@@ -230,16 +226,6 @@ public class ProvenanceBuilder {
         return base;
     }
 
-    private void putIfNotEmpty(Map<String, String> map, String key, String value) {
-        if (value == null) {
-            return;
-        }
-        String trimmed = value.trim();
-        if (!trimmed.isEmpty()) {
-            map.put(key, trimmed);
-        }
-    }
-
     private String firstLine(String text) {
         if (text == null) {
             return "";
@@ -252,18 +238,6 @@ public class ProvenanceBuilder {
 
     private Map<String, String> builderVersion() {
         return Map.of("teamcity", server.getFullServerVersion());
-    }
-
-    private boolean isSafe(String key, String value) {
-        if (value == null) {
-            return false;
-        }
-
-        if (key.startsWith("secure:")) {
-            return false;
-        }
-
-        return !EncryptUtil.isScrambled(value);
     }
 
     private String iso(Date date) {

@@ -6,7 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.stereotype.Component;
 
-/** Serializes provenance/DSSE payloads to JSON. */
+/**
+ * Serializes provenance/DSSE payloads to JSON. Configured {@code NON_EMPTY}: null, empty strings, and
+ * empty (or all-empty) collections are omitted. This is the single place that decides field omission -
+ * builders just put what they have and never gate on null/emptiness themselves.
+ */
 @Component
 public class ProvenanceJsonHandler {
 

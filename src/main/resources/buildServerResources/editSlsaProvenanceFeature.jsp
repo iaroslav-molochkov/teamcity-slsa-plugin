@@ -25,6 +25,14 @@
   </td>
 </tr>
 
+<tr>
+  <th><label for="slsa.failBuildOnError">Fail build on error:</label></th>
+  <td>
+    <props:checkboxProperty name="slsa.failBuildOnError"/>
+    <span class="smallNote">Off by default: a provenance failure only logs a warning. Enable to fail the build instead.</span>
+  </td>
+</tr>
+
 <tr class="slsa-server">
   <th><label for="slsa.server.privateKeyPath">Private key file: <l:star/></label></th>
   <td>

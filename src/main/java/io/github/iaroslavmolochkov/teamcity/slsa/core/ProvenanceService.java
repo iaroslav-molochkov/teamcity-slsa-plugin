@@ -14,9 +14,11 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.log.Loggers;
+import jetbrains.buildServer.messages.Status;
 import jetbrains.buildServer.serverSide.InvalidProperty;
-import jetbrains.buildServer.serverSide.SBuild;
 import jetbrains.buildServer.serverSide.SBuildFeatureDescriptor;
+import jetbrains.buildServer.serverSide.SRunningBuild;
+import jetbrains.buildServer.serverSide.buildLog.MessageAttrs;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
@@ -25,7 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** Orchestrates provenance for a finished build: validate, hash, build the statement, sign, publish. */
+/**
+ * Orchestrates provenance for a finished build: validate, hash, build the statement, sign, publish.
+ *
+ * <p>Fail-closed on the attestation, fail-open on the build: an incomplete/unsigned attestation is
+ * never published, but a provenance failure only logs a warning to the build log - it does not turn a
+ * successful build red, unless {@link SlsaParams#FAIL_BUILD_ON_ERROR} is enabled.
+ */
 @Component
 public class ProvenanceService {
 
@@ -60,9 +68,10 @@ public class ProvenanceService {
 
     /**
      * Called on the build-finishing thread. Validates the (at most one) provenance feature's params,
-     * hashes, signs, and publishes; an invalid config or a signing failure is recorded as a build problem.
+     * hashes, signs, and publishes; any failure is reported as a build-log warning (and a build problem
+     * only when the feature opts in).
      */
-    public void onBuildFinished(SBuild build) {
+    public void onBuildFinished(SRunningBuild build) {
         if (!build.getBuildStatus().isSuccessful()) {
             log.info("SLSA: build " + build.getBuildId() + " did not succeed; skipping provenance");
             return;
@@ -81,7 +90,7 @@ public class ProvenanceService {
         List<InvalidProperty> errors = validators.validate(context);
 
         if (!errors.isEmpty()) {
-            reportProblem(build, errors.stream()
+            reportError(build, context, errors.stream()
                     .map(InvalidProperty::getInvalidReason)
                     .collect(Collectors.joining("; ")));
             return;
@@ -91,11 +100,11 @@ public class ProvenanceService {
             sign(build, context);
         } catch (Exception e) {
             log.warnAndDebugDetails("SLSA: signing failed for build " + build.getBuildId(), e);
-            reportProblem(build, e.getMessage());
+            reportError(build, context, e.getMessage());
         }
     }
 
-    private void sign(SBuild build, SigningContext context) {
+    private void sign(SRunningBuild build, SigningContext context) {
         List<ArtifactSubject> subjects = hasher.hash(build);
 
         if (subjects.isEmpty()) {
@@ -104,8 +113,17 @@ public class ProvenanceService {
         }
 
         InTotoStatement statement = provenanceBuilder.build(build, subjects);
-        byte[] payload = provenanceJsonHandler.toBytes(statement);
 
+        String builderId = statement.predicate()
+                .runDetails()
+                .builder()
+                .id();
+        if (builderId == null || builderId.isBlank()) {
+            reportError(build, context, "server root URL is not configured; cannot attest the builder identity");
+            return;
+        }
+
+        byte[] payload = provenanceJsonHandler.toBytes(statement);
         DsseEnvelope envelope = signingServices.sign(context, payload);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -120,10 +138,19 @@ public class ProvenanceService {
         }
     }
 
-    /** Records a build problem (visible on the build) and logs it. */
-    private void reportProblem(SBuild build, String reason) {
+    /**
+     * Surfaces a provenance failure: a warning in the build log (and server log). The build keeps its
+     * result unless the feature enabled {@link SlsaParams#FAIL_BUILD_ON_ERROR}, in which case it also
+     * records a build problem.
+     */
+    private void reportError(SRunningBuild build, SigningContext context, String reason) {
         log.warn("SLSA: build " + build.getBuildId() + " - " + reason);
-        build.addBuildProblem(BuildProblemData.createBuildProblem(PROBLEM_IDENTITY, PROBLEM_TYPE, "SLSA provenance: " + reason));
+        String message = "SLSA provenance: " + reason;
+        build.getBuildLog().messageAsync(message, Status.WARNING, MessageAttrs.serverMessage());
+
+        if (Boolean.parseBoolean(context.get(SlsaParams.FAIL_BUILD_ON_ERROR))) {
+            build.addBuildProblem(BuildProblemData.createBuildProblem(PROBLEM_IDENTITY, PROBLEM_TYPE, message));
+        }
     }
 
     /** Indexable metadata for the attestation, computed from values already in hand (no re-read). */

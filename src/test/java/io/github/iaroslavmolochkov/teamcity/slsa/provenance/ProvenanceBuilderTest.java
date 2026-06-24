@@ -2,6 +2,7 @@ package io.github.iaroslavmolochkov.teamcity.slsa.provenance;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.ResolvedDependency;
+import jetbrains.buildServer.serverSide.Branch;
 import jetbrains.buildServer.serverSide.BuildPromotion;
 import jetbrains.buildServer.serverSide.BuildRevision;
 import jetbrains.buildServer.serverSide.RepositoryVersion;
@@ -9,6 +10,7 @@ import jetbrains.buildServer.serverSide.SBuild;
 import jetbrains.buildServer.serverSide.SBuildAgent;
 import jetbrains.buildServer.serverSide.SBuildServer;
 import jetbrains.buildServer.serverSide.TriggeredBy;
+import jetbrains.buildServer.serverSide.WebLinks;
 import jetbrains.buildServer.serverSide.dependency.BuildDependency;
 import jetbrains.buildServer.users.SUser;
 import jetbrains.buildServer.vcs.SVcsModification;
@@ -33,25 +35,32 @@ class ProvenanceBuilderTest {
     @SuppressWarnings("unchecked")
     void mapsBuildToSlsaStatement() {
         SBuildServer server = mock(SBuildServer.class);
-        when(server.getRootUrl()).thenReturn("https://tc.example.com/");
         when(server.getFullServerVersion()).thenReturn("TeamCity 2025.07 (build 999)");
 
+        WebLinks webLinks = mock(WebLinks.class);
+        when(webLinks.getRootUrl()).thenReturn("https://tc.example.com");
+
         Map<String, String> ownParams = new LinkedHashMap<>();
+        ownParams.put("teamcity.build.id", "42");
         ownParams.put("env.FOO", "bar");
-        ownParams.put("secure:token", "should-be-dropped");
+        ownParams.put("system.teamcity.auth.password", "topsecret");
 
         SBuild build = mock(SBuild.class);
         when(build.getBuildId()).thenReturn(42L);
         when(build.getBuildTypeExternalId()).thenReturn("MyProj_Build");
         when(build.getFullName()).thenReturn("MyProj / Build");
         when(build.getBuildNumber()).thenReturn("1.0.1");
-        when(build.getBranch()).thenReturn(null);
+        Branch branch = mock(Branch.class);
+        when(branch.getName()).thenReturn("main");
+        when(branch.isDefaultBranch()).thenReturn(true);
+        when(build.getBranch()).thenReturn(branch);
         when(build.getAgentName()).thenReturn("agent-1");
         when(build.getBuildOwnParameters()).thenReturn(ownParams);
         when(build.getRevisions()).thenReturn(List.of());
         when(build.getStartDate()).thenReturn(new Date(1000));
         when(build.getFinishDate()).thenReturn(new Date(5000));
         when(build.getProjectExternalId()).thenReturn("MyProj");
+        when(webLinks.getViewResultsUrl(build)).thenReturn("https://tc.example.com/build/42");
 
         stubPlatform(build);
         SUser user = mock(SUser.class);
@@ -61,9 +70,10 @@ class ProvenanceBuilderTest {
         when(build.getTriggeredBy()).thenReturn(triggeredBy);
         SBuildAgent agent = mock(SBuildAgent.class);
         when(agent.getHostName()).thenReturn("agent-host-1");
+        when(agent.getVersion()).thenReturn("2026.1");
         when(build.getAgent()).thenReturn(agent);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
         InTotoStatement statement = builder.build(build,
                 List.of(new ArtifactSubject("dist/app.jar", 10, "abcd1234")));
 
@@ -75,28 +85,38 @@ class ProvenanceBuilderTest {
         assertEquals("abcd1234", statement.subject().get(0).digest().get("sha256"));
 
         assertEquals("https://tc.example.com", statement.predicate().runDetails().builder().id());
-        String invocation = "https://tc.example.com/viewLog.html?buildId=42&buildTypeId=MyProj_Build";
-        assertEquals(invocation, statement.predicate().runDetails().metadata().invocationId());
+        assertEquals("https://tc.example.com/build/42",
+                statement.predicate().runDetails().metadata().invocationId());
         assertEquals("1970-01-01T00:00:01Z", statement.predicate().runDetails().metadata().startedOn());
         assertEquals("1970-01-01T00:00:05Z", statement.predicate().runDetails().metadata().finishedOn());
 
         Map<String, Object> external = statement.predicate().buildDefinition().externalParameters();
         Map<String, String> buildParams = (Map<String, String>) external.get("buildParameters");
-        assertTrue(buildParams.containsKey("env.FOO"));
-        assertFalse(buildParams.containsKey("secure:token"), "secret params must be excluded");
+        assertTrue(buildParams.containsKey("teamcity.build.id"), "allowlisted params are included");
+        assertFalse(buildParams.containsKey("system.teamcity.auth.password"), "auth secret must be excluded");
+        assertFalse(buildParams.containsKey("env.FOO"), "non-allowlisted params are excluded");
         assertEquals("user:jdoe", external.get("triggeredBy"));
+        assertEquals("main", external.get("branch"));
+        assertEquals(true, external.get("branchIsDefault"));
 
         Map<String, Object> internal = statement.predicate().buildDefinition().internalParameters();
         assertEquals("MyProj", internal.get("projectId"));
         assertEquals("agent-host-1", internal.get("agentHostName"));
+        assertEquals("2026.1", internal.get("agentVersion"));
         assertFalse(internal.containsKey("personal"), "non-personal builds omit the flag");
+
+        String json = new String(new ProvenanceJsonHandler().toBytes(statement), java.nio.charset.StandardCharsets.UTF_8);
+        assertFalse(json.contains("system.teamcity.auth.password"), "auth secret must not be serialized");
+        assertFalse(json.contains("\"build.number\""), "absent allowlisted params are dropped, not emitted as null");
     }
 
     @Test
     void enrichesSourceWithCommitAndBranch() {
         SBuildServer server = mock(SBuildServer.class);
-        when(server.getRootUrl()).thenReturn("https://tc.example.com");
         when(server.getFullServerVersion()).thenReturn("TeamCity 2025.07");
+
+        WebLinks webLinks = mock(WebLinks.class);
+        when(webLinks.getRootUrl()).thenReturn("https://tc.example.com");
 
         VcsRootInstance root = mock(VcsRootInstance.class);
         when(root.getId()).thenReturn(7L);
@@ -133,7 +153,7 @@ class ProvenanceBuilderTest {
         when(build.getContainingChanges()).thenReturn(List.of(commit));
         stubPlatform(build);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
         InTotoStatement statement = builder.build(build,
                 List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
 
@@ -158,13 +178,16 @@ class ProvenanceBuilderTest {
     @Test
     void includesUpstreamBuildDependencies() {
         SBuildServer server = mock(SBuildServer.class);
-        when(server.getRootUrl()).thenReturn("https://tc.example.com");
         when(server.getFullServerVersion()).thenReturn("TeamCity 2026.1");
+
+        WebLinks webLinks = mock(WebLinks.class);
+        when(webLinks.getRootUrl()).thenReturn("https://tc.example.com");
 
         SBuild upstream = mock(SBuild.class);
         when(upstream.getBuildId()).thenReturn(7L);
         when(upstream.getBuildTypeExternalId()).thenReturn("Lib_Build");
         when(upstream.getBuildNumber()).thenReturn("3.2");
+        when(webLinks.getViewResultsUrl(upstream)).thenReturn("https://tc.example.com/build/7");
 
         BuildPromotion upstreamPromotion = mock(BuildPromotion.class);
         when(upstreamPromotion.getAssociatedBuild()).thenReturn(upstream);
@@ -187,14 +210,14 @@ class ProvenanceBuilderTest {
         doReturn(List.of(dependency, dependency)).when(promotion).getDependencies();
         when(build.getBuildPromotion()).thenReturn(promotion);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
         InTotoStatement statement = builder.build(build,
                 List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
 
         List<ResolvedDependency> deps =
                 statement.predicate().buildDefinition().resolvedDependencies();
         assertEquals(1, deps.size());
-        assertEquals("https://tc.example.com/viewLog.html?buildId=7&buildTypeId=Lib_Build", deps.get(0).uri());
+        assertEquals("https://tc.example.com/build/7", deps.get(0).uri());
         assertEquals("Lib_Build #3.2", deps.get(0).name());
     }
 
