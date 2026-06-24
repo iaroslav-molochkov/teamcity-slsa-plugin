@@ -2,7 +2,10 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.server;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.math.ec.FixedPointCombMultiplier;
@@ -44,7 +47,7 @@ public class ServerKeyParser {
 
     /**
      * Parses the stored PEM (unscrambling it first if TeamCity stored it as a {@code secure:} value).
-     * Throws {@link IllegalArgumentException} if the value is not a usable EC or RSA private key.
+     * Throws {@link InvalidServerKeyException} if the value is not a usable EC or RSA private key.
      */
     public ServerKey parse(String storedPem) {
         String pem = EncryptUtil.isScrambled(storedPem) ? EncryptUtil.unscramble(storedPem) : storedPem;
@@ -58,36 +61,31 @@ public class ServerKeyParser {
         try (PEMParser parser = new PEMParser(new StringReader(pem))) {
             Object object = parser.readObject();
             if (object == null) {
-                throw new IllegalArgumentException("no PEM private key found");
+                throw new InvalidServerKeyException("no PEM private key found");
             }
             PrivateKeyInfo info = switch (object) {
                 case PEMKeyPair keyPair -> keyPair.getPrivateKeyInfo();
                 case PrivateKeyInfo pkcs8 -> pkcs8;
-                default -> throw new IllegalArgumentException(
+                default -> throw new InvalidServerKeyException(
                         "unsupported PEM object: " + object.getClass().getSimpleName()
                                 + " (encrypted keys are not supported)");
             };
-            byte[] pkcs8 = info.getEncoded();
-            PrivateKey ec = tryLoad("EC", pkcs8);
-            return ec != null ? ec : require(tryLoad("RSA", pkcs8));
-        } catch (IOException e) {
-            throw new IllegalArgumentException("could not read PEM private key", e);
+            String algorithm = keyAlgorithm(info.getPrivateKeyAlgorithm().getAlgorithm());
+            return KeyFactory.getInstance(algorithm).generatePrivate(new PKCS8EncodedKeySpec(info.getEncoded()));
+        } catch (IOException | GeneralSecurityException e) {
+            throw new InvalidServerKeyException("could not read PEM private key", e);
         }
     }
 
-    private PrivateKey tryLoad(String algorithm, byte[] pkcs8) {
-        try {
-            return KeyFactory.getInstance(algorithm).generatePrivate(new PKCS8EncodedKeySpec(pkcs8));
-        } catch (GeneralSecurityException e) {
-            return null;
+    /** Maps the PKCS#8 algorithm OID to a JCA {@code KeyFactory} name. */
+    private String keyAlgorithm(ASN1ObjectIdentifier oid) {
+        if (X9ObjectIdentifiers.id_ecPublicKey.equals(oid)) {
+            return "EC";
         }
-    }
-
-    private PrivateKey require(PrivateKey key) {
-        if (key == null) {
-            throw new IllegalArgumentException("not an EC or RSA private key");
+        if (PKCSObjectIdentifiers.rsaEncryption.equals(oid)) {
+            return "RSA";
         }
-        return key;
+        throw new InvalidServerKeyException("unsupported key algorithm: " + oid);
     }
 
     private PublicKey derivePublicKey(PrivateKey privateKey) {
@@ -96,11 +94,11 @@ public class ServerKeyParser {
                 case ECPrivateKey ec -> deriveEcPublicKey(ec);
                 case RSAPrivateCrtKey rsa -> KeyFactory.getInstance("RSA")
                         .generatePublic(new RSAPublicKeySpec(rsa.getModulus(), rsa.getPublicExponent()));
-                default -> throw new IllegalArgumentException(
+                default -> throw new InvalidServerKeyException(
                         "cannot derive public key for " + privateKey.getAlgorithm() + " key");
             };
         } catch (GeneralSecurityException e) {
-            throw new IllegalArgumentException("could not derive public key", e);
+            throw new InvalidServerKeyException("could not derive public key", e);
         }
     }
 
@@ -116,13 +114,16 @@ public class ServerKeyParser {
         return switch (privateKey) {
             case ECPrivateKey ec -> ecSignatureAlgorithm(ec);
             case RSAPrivateCrtKey ignored -> "SHA256withRSA";
-            default -> throw new IllegalArgumentException(
+            default -> throw new InvalidServerKeyException(
                     "unsupported key type: " + privateKey.getAlgorithm());
         };
     }
 
     private String ecSignatureAlgorithm(ECPrivateKey ec) {
-        int fieldSize = ec.getParams().getCurve().getField().getFieldSize();
+        int fieldSize = ec.getParams()
+                .getCurve()
+                .getField()
+                .getFieldSize();
         if (fieldSize <= 256) {
             return "SHA256withECDSA";
         }

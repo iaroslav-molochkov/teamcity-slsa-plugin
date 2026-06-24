@@ -68,8 +68,8 @@ class ServerKeyParserTest {
 
     @Test
     void rejectsGarbage() {
-        assertThrows(IllegalArgumentException.class, () -> parser.parse("-----BEGIN PRIVATE KEY-----\nnope\n-----END PRIVATE KEY-----"));
-        assertThrows(IllegalArgumentException.class, () -> parser.parse("not even pem"));
+        assertThrows(InvalidServerKeyException.class, () -> parser.parse("-----BEGIN PRIVATE KEY-----\nnope\n-----END PRIVATE KEY-----"));
+        assertThrows(InvalidServerKeyException.class, () -> parser.parse("not even pem"));
     }
 
     private static KeyPair ec(String curve) throws Exception {
