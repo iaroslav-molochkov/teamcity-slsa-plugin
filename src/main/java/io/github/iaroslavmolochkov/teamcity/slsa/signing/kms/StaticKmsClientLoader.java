@@ -41,7 +41,8 @@ public class StaticKmsClientLoader implements KmsClientLoader {
                 Params.get(params, SlsaParams.REGION),
                 Params.get(params, SlsaParams.ACCESS_KEY_ID),
                 reveal(Params.get(params, SlsaParams.SECRET_ACCESS_KEY)));
-        return cache.get(config.connectionKey(), () -> build(config));
+        String connectionKey = Kms.connectionKey("static", config.region(), config.accessKeyId(), config.secret());
+        return cache.get(connectionKey, () -> build(config));
     }
 
     @NotNull

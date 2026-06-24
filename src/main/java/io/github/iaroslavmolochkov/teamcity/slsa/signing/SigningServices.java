@@ -17,12 +17,12 @@ import java.util.Map;
 @Component
 public class SigningServices {
 
-    private final Map<SignerType, SigningService> byType = new EnumMap<>(SignerType.class);
+    private final Map<SignerType, SigningService> signingService = new EnumMap<>(SignerType.class);
 
     public SigningServices(@NotNull List<SigningService> services) {
         for (SigningService service : services) {
             for (SignerType type : service.types()) {
-                byType.put(type, service);
+                signingService.put(type, service);
             }
         }
     }
@@ -30,7 +30,7 @@ public class SigningServices {
     @NotNull
     public DsseEnvelope sign(@NotNull Map<String, String> params, @NotNull byte[] payload) {
         SignerType type = SignerType.fromValue(Params.get(params, SlsaParams.SIGNER));
-        SigningService service = byType.get(type);
+        SigningService service = signingService.get(type);
         if (service == null) {
             throw new SigningException("No signing service for signer: " + Params.get(params, SlsaParams.SIGNER));
         }

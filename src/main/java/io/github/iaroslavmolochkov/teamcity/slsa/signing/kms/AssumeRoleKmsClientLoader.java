@@ -52,7 +52,10 @@ public class AssumeRoleKmsClientLoader implements KmsClientLoader {
                 Params.get(params, SlsaParams.ASSUME_ROLE_EXTERNAL_ID),
                 Params.toIntOrNull(Params.get(params, SlsaParams.ASSUME_ROLE_DURATION_SECONDS)),
                 Params.get(params, SlsaParams.STS_ENDPOINT));
-        return cache.get(config.connectionKey(), () -> build(config));
+        String connectionKey = Kms.connectionKey("assume-role", config.region(), config.roleArn(),
+                config.externalId() == null ? "" : config.externalId(),
+                config.stsEndpoint() == null ? "" : config.stsEndpoint());
+        return cache.get(connectionKey, () -> build(config));
     }
 
     @NotNull

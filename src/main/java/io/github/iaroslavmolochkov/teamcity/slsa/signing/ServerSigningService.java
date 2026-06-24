@@ -40,14 +40,16 @@ public class ServerSigningService implements SigningService {
 
     private final File keyFile;
     private final File publicKeyPemFile;
+    private final Dsse dsse;
 
     private KeyPair keyPair;
     private String keyId;
 
-    public ServerSigningService(@NotNull ServerPaths serverPaths) {
+    public ServerSigningService(@NotNull ServerPaths serverPaths, @NotNull Dsse dsse) {
         File dir = new File(serverPaths.getPluginDataDirectory(), "slsa");
         keyFile = new File(dir, "server-signing.key");
         publicKeyPemFile = new File(dir, "server-signing.pub.pem");
+        this.dsse = dsse;
     }
 
     @NotNull
@@ -60,12 +62,12 @@ public class ServerSigningService implements SigningService {
     @Override
     public synchronized DsseEnvelope sign(@NotNull Map<String, String> params, @NotNull byte[] payload) {
         ensureKey();
-        byte[] pae = Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
+        byte[] pae = dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         try {
             Signature signer = Signature.getInstance(SIGNATURE_ALGORITHM);
             signer.initSign(keyPair.getPrivate());
             signer.update(pae);
-            return DsseEnvelope.of(payload, keyId, signer.sign());
+            return dsse.envelope(payload, keyId, signer.sign());
         } catch (Exception e) {
             throw new SigningException("Server-side signing failed", e);
         }

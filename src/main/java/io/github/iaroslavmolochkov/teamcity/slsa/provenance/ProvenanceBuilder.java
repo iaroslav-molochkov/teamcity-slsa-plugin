@@ -77,7 +77,7 @@ public class ProvenanceBuilder {
                         //todo same thing
                         List.of()));
 
-        return InTotoStatement.of(wireSubjects, predicate);
+        return new InTotoStatement(InTotoStatement.TYPE, wireSubjects, InTotoStatement.SLSA_PREDICATE_TYPE, predicate);
     }
 
     /** Platform identity — the TeamCity server instance that produced the provenance. */

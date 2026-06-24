@@ -47,7 +47,8 @@ class KmsSigningServiceTest {
                 .keyId("arn:key").signature(SdkBytes.fromByteArray(sig))
                 .signingAlgorithm(SigningAlgorithmSpec.ECDSA_SHA_256).build());
 
-        KmsSigningService service = new KmsSigningService(List.of(new StubLoader(SignerType.AWS_KMS_DEFAULT, kms)));
+        Dsse dsse = new Dsse();
+        KmsSigningService service = new KmsSigningService(List.of(new StubLoader(SignerType.AWS_KMS_DEFAULT, kms)), dsse);
         assertEquals(Set.of(SignerType.AWS_KMS_DEFAULT), service.types());
 
         Map<String, String> params = Map.of(
@@ -65,7 +66,7 @@ class KmsSigningServiceTest {
         assertEquals(MessageType.DIGEST, captor.getValue().messageType());
         assertEquals("arn:key", captor.getValue().keyId());
         byte[] expected = MessageDigest.getInstance("SHA-256")
-                .digest(Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload));
+                .digest(dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload));
         assertArrayEquals(expected, captor.getValue().message().asByteArray());
     }
 }

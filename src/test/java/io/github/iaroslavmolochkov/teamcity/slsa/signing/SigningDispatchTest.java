@@ -33,7 +33,7 @@ class SigningDispatchTest {
         }
     }
 
-    private static final DsseEnvelope ENVELOPE = DsseEnvelope.of(new byte[]{1}, "key", new byte[]{2});
+    private static final DsseEnvelope ENVELOPE = new Dsse().envelope(new byte[]{1}, "key", new byte[]{2});
 
     // --- Validators ---
 

@@ -35,7 +35,8 @@ public class DefaultKmsClientLoader implements KmsClientLoader {
     @Override
     public KmsClient load(@NotNull Map<String, String> params) {
         DefaultKmsConfig config = new DefaultKmsConfig(Params.get(params, SlsaParams.REGION));
-        return cache.get(config.connectionKey(), () -> build(config));
+        String connectionKey = Kms.connectionKey("default", config.region() == null ? "" : config.region());
+        return cache.get(connectionKey, () -> build(config));
     }
 
     @NotNull

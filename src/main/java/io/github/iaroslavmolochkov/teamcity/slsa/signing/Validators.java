@@ -4,7 +4,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
@@ -19,17 +18,17 @@ import java.util.Map;
 @Component
 public class Validators {
 
-    private final Map<SignerType, Validator> byType = new EnumMap<>(SignerType.class);
+    private final Map<SignerType, Validator> validators = new EnumMap<>(SignerType.class);
 
     public Validators(@NotNull List<Validator> validators) {
         for (Validator validator : validators) {
-            byType.put(validator.type(), validator);
+            this.validators.put(validator.type(), validator);
         }
     }
 
     @NotNull
     public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
-        Validator validator = byType.get(SignerType.fromValue(Params.get(params, SlsaParams.SIGNER)));
+        Validator validator = validators.get(SignerType.fromValue(Params.get(params, SlsaParams.SIGNER)));
         return validator == null ? selectionError(params) : validator.validate(params);
     }
 

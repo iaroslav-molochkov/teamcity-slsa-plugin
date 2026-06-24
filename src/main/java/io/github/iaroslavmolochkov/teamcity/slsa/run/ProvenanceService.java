@@ -77,8 +77,8 @@ public class ProvenanceService {
         }
 
         Map<String, String> params = feature.getParameters();
-
         List<InvalidProperty> errors = validators.validate(params);
+
         if (!errors.isEmpty()) {
             reportProblem(build, errors.stream()
                     .map(InvalidProperty::getInvalidReason)

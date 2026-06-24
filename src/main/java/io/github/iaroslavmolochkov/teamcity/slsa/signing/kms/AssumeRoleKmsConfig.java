@@ -10,11 +10,4 @@ import org.jetbrains.annotations.Nullable;
 record AssumeRoleKmsConfig(@NotNull String region, @NotNull String roleArn, @NotNull String sessionName,
                            @Nullable String externalId, @Nullable Integer durationSeconds,
                            @Nullable String stsEndpoint) {
-
-    @NotNull
-    String connectionKey() {
-        return Kms.connectionKey("assume-role", region, roleArn,
-                externalId == null ? "" : externalId,
-                stsEndpoint == null ? "" : stsEndpoint);
-    }
 }

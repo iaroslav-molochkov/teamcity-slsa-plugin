@@ -1,8 +1,8 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.Dsse;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Pae;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
@@ -35,11 +35,13 @@ import java.util.Set;
 public class KmsSigningService implements SigningService {
 
     private final Map<SignerType, KmsClientLoader> loaders = new EnumMap<>(SignerType.class);
+    private final Dsse dsse;
 
-    public KmsSigningService(@NotNull List<KmsClientLoader> loaders) {
+    public KmsSigningService(@NotNull List<KmsClientLoader> loaders, @NotNull Dsse dsse) {
         for (KmsClientLoader loader : loaders) {
             this.loaders.put(loader.type(), loader);
         }
+        this.dsse = dsse;
     }
 
     @NotNull
@@ -56,7 +58,7 @@ public class KmsSigningService implements SigningService {
         String keyId = Params.get(params, SlsaParams.KMS_KEY_ID);
         SigningAlgorithmSpec algorithm = Kms.algorithm(params);
 
-        byte[] pae = Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
+        byte[] pae = dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         byte[] digest = digest(algorithm, pae);
 
         SignResponse response = IOGuard.allowNetworkCall(() -> client.sign(SignRequest.builder()
@@ -66,7 +68,7 @@ public class KmsSigningService implements SigningService {
                 .signingAlgorithm(algorithm)
                 .build()));
 
-        return DsseEnvelope.of(payload, response.keyId(), response.signature().asByteArray());
+        return dsse.envelope(payload, response.keyId(), response.signature().asByteArray());
     }
 
     /** Hashes the PAE with the digest that matches the signing algorithm's suffix (256/384/512). */

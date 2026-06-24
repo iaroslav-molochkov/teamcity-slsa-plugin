@@ -1,9 +1,7 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Base64;
 import java.util.List;
 
 /**
@@ -17,18 +15,6 @@ import java.util.List;
 public record DsseEnvelope(String payload, String payloadType, List<Signature> signatures) {
 
     public static final String IN_TOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json";
-
-    /**
-     * Builds an envelope from the raw payload bytes and a single raw signature, base64-encoding both.
-     */
-    @NotNull
-    public static DsseEnvelope of(@NotNull byte[] payloadBytes, @NotNull String keyId, @NotNull byte[] signature) {
-        Base64.Encoder b64 = Base64.getEncoder();
-        return new DsseEnvelope(
-                b64.encodeToString(payloadBytes),
-                IN_TOTO_PAYLOAD_TYPE,
-                List.of(new Signature(keyId, b64.encodeToString(signature))));
-    }
 
     /** The first signature's key id, or {@code null} if unsigned. Avoids exposing {@link Signature}. */
     @Nullable

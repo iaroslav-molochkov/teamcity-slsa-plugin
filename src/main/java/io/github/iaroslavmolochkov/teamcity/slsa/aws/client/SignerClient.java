@@ -32,13 +32,13 @@ public final class SignerClient implements AutoCloseable {
 
     @Override
     public void close() {
-        closeQuietly(kms);
+        close(kms);
         for (int i = closeables.size() - 1; i >= 0; i--) {
-            closeQuietly(closeables.get(i));
+            close(closeables.get(i));
         }
     }
 
-    private static void closeQuietly(@NotNull AutoCloseable closeable) {
+    private static void close(@NotNull AutoCloseable closeable) {
         try {
             closeable.close();
         } catch (Exception e) {

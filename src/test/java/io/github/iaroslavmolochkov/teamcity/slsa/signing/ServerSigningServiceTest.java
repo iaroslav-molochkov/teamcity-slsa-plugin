@@ -33,7 +33,7 @@ class ServerSigningServiceTest {
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
         assertEquals(service.keyId(), envelope.signatures().get(0).keyid());
 
-        byte[] pae = Pae.encode(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
+        byte[] pae = new Dsse().pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         byte[] sig = Base64.getDecoder().decode(envelope.signatures().get(0).sig());
         Signature verifier = Signature.getInstance("SHA256withECDSA");
         verifier.initVerify(service.publicKey());
@@ -67,6 +67,6 @@ class ServerSigningServiceTest {
     private static ServerSigningService service(File dataDir) {
         ServerPaths serverPaths = mock(ServerPaths.class);
         when(serverPaths.getPluginDataDirectory()).thenReturn(dataDir);
-        return new ServerSigningService(serverPaths);
+        return new ServerSigningService(serverPaths, new Dsse());
     }
 }

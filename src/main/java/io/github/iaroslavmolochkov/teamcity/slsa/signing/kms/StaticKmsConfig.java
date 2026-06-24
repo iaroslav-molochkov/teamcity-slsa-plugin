@@ -7,9 +7,4 @@ import org.jetbrains.annotations.NotNull;
  * that maps it, so downstream code never sees ciphertext.
  */
 record StaticKmsConfig(@NotNull String region, @NotNull String accessKeyId, @NotNull String secret) {
-
-    @NotNull
-    String connectionKey() {
-        return Kms.connectionKey("static", region, accessKeyId, secret);
-    }
 }

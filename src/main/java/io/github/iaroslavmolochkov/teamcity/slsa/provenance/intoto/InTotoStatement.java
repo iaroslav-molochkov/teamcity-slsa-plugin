@@ -18,8 +18,4 @@ public record InTotoStatement(
 
     public static final String TYPE = "https://in-toto.io/Statement/v1";
     public static final String SLSA_PREDICATE_TYPE = "https://slsa.dev/provenance/v1";
-
-    public static InTotoStatement of(List<Subject> subjects, SlsaPredicate predicate) {
-        return new InTotoStatement(TYPE, subjects, SLSA_PREDICATE_TYPE, predicate);
-    }
 }
