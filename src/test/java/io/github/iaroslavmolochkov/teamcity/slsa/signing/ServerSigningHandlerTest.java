@@ -39,13 +39,13 @@ class ServerSigningHandlerTest {
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
         assertEquals("sha256:" + new Sha256Handler().hex(pair.getPublic().getEncoded()),
-                envelope.dsseSignatures().get(0).keyid());
+                envelope.signatures().get(0).keyid());
 
         byte[] pae = new DsseService().pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         Signature verifier = Signature.getInstance("SHA256withECDSA");
         verifier.initVerify(pair.getPublic());
         verifier.update(pae);
-        assertTrue(verifier.verify(Base64.getDecoder().decode(envelope.dsseSignatures().get(0).sig())));
+        assertTrue(verifier.verify(Base64.getDecoder().decode(envelope.signatures().get(0).sig())));
     }
 
     private static SigningContext context(String keyPath) {

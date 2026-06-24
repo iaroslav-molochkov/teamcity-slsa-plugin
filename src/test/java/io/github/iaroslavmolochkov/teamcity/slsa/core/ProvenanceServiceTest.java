@@ -12,7 +12,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.ParameterValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.ConnectionIdService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsSigningHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticConnectionKeyHandler;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsClientLoader;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsValidator;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.messages.Status;
@@ -39,8 +38,7 @@ class ProvenanceServiceTest {
         ParameterValidator parameterValidator = new ParameterValidator(List.of(new StaticKmsValidator()));
         ConnectionIdService connectionIdService = new ConnectionIdService(List.of(new StaticConnectionKeyHandler()));
         SigningService services = new SigningService(List.of(
-                new StaticKmsSigningHandler(
-                        new StaticKmsClientLoader(mock(KmsClientCache.class), connectionIdService), new DsseService())));
+                new StaticKmsSigningHandler(mock(KmsClientCache.class), connectionIdService, new DsseService())));
         return new ProvenanceService(
                 parameterValidator,
                 mock(ArtifactHasher.class),

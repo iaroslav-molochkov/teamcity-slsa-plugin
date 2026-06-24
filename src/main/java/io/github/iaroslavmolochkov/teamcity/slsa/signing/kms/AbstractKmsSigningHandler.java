@@ -1,15 +1,20 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
+import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.SignerClient;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
 import jetbrains.buildServer.serverSide.IOGuard;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.KmsClientBuilder;
 import software.amazon.awssdk.services.kms.model.MessageType;
 import software.amazon.awssdk.services.kms.model.SignRequest;
 import software.amazon.awssdk.services.kms.model.SignResponse;
@@ -19,28 +24,25 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * Skeletal {@link SigningHandler} for the KMS modes: all three sign identically (digest then
- * {@code kms:Sign}, so the private key never leaves KMS) and differ only in how the client is built.
- * Each mode's subclass supplies its {@link KmsClientLoader}; {@link #type()} follows that loader's type.
+ * Skeletal {@link SigningHandler} for the KMS modes: builds (and caches, by connection id) the KMS
+ * client for its credentials mode, then signs a digest so the private key never leaves KMS. Subclasses
+ * implement {@link #type()} and {@link #buildClient} - the only things that differ between modes.
  */
 public abstract class AbstractKmsSigningHandler implements SigningHandler {
 
-    private final KmsClientLoader loader;
+    private final KmsClientCache cache;
+    private final ConnectionIdService connectionIdService;
     private final DsseService dsse;
 
-    protected AbstractKmsSigningHandler(KmsClientLoader loader, DsseService dsse) {
-        this.loader = loader;
+    protected AbstractKmsSigningHandler(KmsClientCache cache, ConnectionIdService connectionIdService, DsseService dsse) {
+        this.cache = cache;
+        this.connectionIdService = connectionIdService;
         this.dsse = dsse;
     }
 
     @Override
-    public final SignerType type() {
-        return loader.type();
-    }
-
-    @Override
     public final DsseEnvelope sign(SigningContext context, byte[] payload) {
-        KmsClient client = loader.load(context);
+        KmsClient client = cache.get(connectionIdService.id(context), () -> buildClient(context));
         String keyId = context.get(SlsaParams.KMS_KEY_ID);
         SigningAlgorithmSpec algorithm = SigningAlgorithmSpec.fromValue(context.get(SlsaParams.SIGNING_ALGORITHM));
 
@@ -55,6 +57,24 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
                 .build()));
 
         return dsse.envelope(payload, response.keyId(), response.signature().asByteArray());
+    }
+
+    /** Builds the (closeable) client for this mode's credentials. Called only on a cache miss. */
+    protected abstract SignerClient buildClient(SigningContext context);
+
+    /**
+     * Builds a KMS client over the given HTTP client and provider - the shared bit every mode needs. A
+     * {@code null} region is left unset so the SDK's default region provider chain resolves it
+     * (e.g. from {@code AWS_REGION}).
+     */
+    protected KmsClient client(String region, SdkHttpClient httpClient, AwsCredentialsProvider provider) {
+        KmsClientBuilder builder = KmsClient.builder()
+                .httpClient(httpClient)
+                .credentialsProvider(provider);
+        if (region != null) {
+            builder.region(Region.of(region));
+        }
+        return builder.build();
     }
 
     /** Hashes the PAE with the digest that matches the signing algorithm's suffix (256/384/512). */
