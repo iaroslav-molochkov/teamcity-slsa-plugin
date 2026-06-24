@@ -1,6 +1,5 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Signing the provenance payload failed at runtime (e.g. the backend rejected the request or a
@@ -9,11 +8,11 @@ import org.jetbrains.annotations.NotNull;
  */
 public class SigningException extends RuntimeException {
 
-    public SigningException(@NotNull String message, @NotNull Throwable cause) {
+    public SigningException(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public SigningException(@NotNull String message) {
+    public SigningException(String message) {
         super(message);
     }
 }

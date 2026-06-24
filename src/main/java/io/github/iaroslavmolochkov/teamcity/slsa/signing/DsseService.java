@@ -1,6 +1,5 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
@@ -15,7 +14,7 @@ import java.util.List;
  * touches the package-private {@link Signature}.
  */
 @Component
-public class Dsse {
+public class DsseService {
 
     private static final byte SP = ' ';
 
@@ -24,8 +23,7 @@ public class Dsse {
      * <pre>PAE(type, body) = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body</pre>
      * where SP is a single ASCII space and LEN is the ASCII-decimal byte length.
      */
-    @NotNull
-    public byte[] pae(@NotNull String payloadType, @NotNull byte[] payload) {
+    public byte[] pae(String payloadType, byte[] payload) {
         byte[] typeBytes = payloadType.getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         writeAscii(out, "DSSEv1");
@@ -41,8 +39,7 @@ public class Dsse {
     }
 
     /** Wraps the raw payload bytes and a single raw signature into an envelope, base64-encoding both. */
-    @NotNull
-    public DsseEnvelope envelope(@NotNull byte[] payloadBytes, @NotNull String keyId, @NotNull byte[] signature) {
+    public DsseEnvelope envelope(byte[] payloadBytes, String keyId, byte[] signature) {
         Base64.Encoder b64 = Base64.getEncoder();
         return new DsseEnvelope(
                 b64.encodeToString(payloadBytes),
@@ -50,7 +47,7 @@ public class Dsse {
                 List.of(new Signature(keyId, b64.encodeToString(signature))));
     }
 
-    private static void writeAscii(@NotNull ByteArrayOutputStream out, @NotNull String s) {
+    private static void writeAscii(ByteArrayOutputStream out, String s) {
         out.writeBytes(s.getBytes(StandardCharsets.US_ASCII));
     }
 }

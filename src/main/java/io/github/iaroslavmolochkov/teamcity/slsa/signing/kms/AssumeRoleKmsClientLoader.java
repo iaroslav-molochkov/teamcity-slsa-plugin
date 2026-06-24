@@ -5,7 +5,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.SignerClient;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
@@ -31,20 +30,18 @@ public class AssumeRoleKmsClientLoader implements KmsClientLoader {
     private final KmsClientCache cache;
     private final ConnectionIdService connectionIdService;
 
-    public AssumeRoleKmsClientLoader(@NotNull KmsClientCache cache, @NotNull ConnectionIdService connectionIdService) {
+    public AssumeRoleKmsClientLoader(KmsClientCache cache, ConnectionIdService connectionIdService) {
         this.cache = cache;
         this.connectionIdService = connectionIdService;
     }
 
-    @NotNull
     @Override
     public SignerType type() {
         return SignerType.AWS_KMS_ASSUME_ROLE;
     }
 
-    @NotNull
     @Override
-    public KmsClient load(@NotNull SigningContext context) {
+    public KmsClient load(SigningContext context) {
         String sessionName = context.get(SlsaParams.ASSUME_ROLE_SESSION_NAME);
         AssumeRoleKmsConfig config = new AssumeRoleKmsConfig(
                 context.get(SlsaParams.REGION),
@@ -56,8 +53,7 @@ public class AssumeRoleKmsClientLoader implements KmsClientLoader {
         return cache.get(connectionIdService.id(context), () -> build(config));
     }
 
-    @NotNull
-    private static SignerClient build(@NotNull AssumeRoleKmsConfig config) {
+    private static SignerClient build(AssumeRoleKmsConfig config) {
         Region region = Region.of(config.region());
         SdkHttpClient httpClient = UrlConnectionHttpClient.create();
 

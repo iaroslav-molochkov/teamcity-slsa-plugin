@@ -1,6 +1,5 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
@@ -17,7 +16,7 @@ public class SigningServices {
 
     private final Map<SignerType, SigningService> signingService = new EnumMap<>(SignerType.class);
 
-    public SigningServices(@NotNull List<SigningService> services) {
+    public SigningServices(List<SigningService> services) {
         for (SigningService service : services) {
             for (SignerType type : service.types()) {
                 signingService.put(type, service);
@@ -25,8 +24,7 @@ public class SigningServices {
         }
     }
 
-    @NotNull
-    public DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload) {
+    public DsseEnvelope sign(SigningContext context, byte[] payload) {
         SigningService service = signingService.get(context.type());
         if (service == null) {
             throw new SigningException("No signing service for signer: " + context.type());

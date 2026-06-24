@@ -10,9 +10,9 @@ import java.util.Base64;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class DsseTest {
+class DsseServiceTest {
 
-    private final Dsse dsse = new Dsse();
+    private final DsseService dsse = new DsseService();
 
     // --- pae ---
 

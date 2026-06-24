@@ -2,7 +2,6 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import jetbrains.buildServer.serverSide.InvalidProperty;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
@@ -19,20 +18,18 @@ public class Validators {
 
     private final Map<SignerType, Validator> validators = new EnumMap<>(SignerType.class);
 
-    public Validators(@NotNull List<Validator> validators) {
+    public Validators(List<Validator> validators) {
         for (Validator validator : validators) {
             this.validators.put(validator.type(), validator);
         }
     }
 
-    @NotNull
-    public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
+    public List<InvalidProperty> validate(Map<String, String> params) {
         Validator validator = validators.get(SignerType.fromValue(SigningContext.get(params, SlsaParams.SIGNER)));
         return validator == null ? selectionError(params) : validator.validate(params);
     }
 
-    @NotNull
-    private static List<InvalidProperty> selectionError(@NotNull Map<String, String> params) {
+    private static List<InvalidProperty> selectionError(Map<String, String> params) {
         String raw = SigningContext.get(params, SlsaParams.SIGNER);
         return List.of(new InvalidProperty(SlsaParams.SIGNER,
                 raw == null ? "A signer must be selected" : "Unknown signer: " + raw));

@@ -3,7 +3,6 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.KmsClientLoader;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.KmsSigningService;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.core.SdkBytes;
@@ -31,10 +30,9 @@ import static org.mockito.Mockito.when;
 class KmsSigningServiceTest {
 
     /** A loader that hands back a fixed (mocked) client for its type. */
-    private record StubLoader(@NotNull SignerType type, @NotNull KmsClient client) implements KmsClientLoader {
-        @NotNull
+    private record StubLoader(SignerType type, KmsClient client) implements KmsClientLoader {
         @Override
-        public KmsClient load(@NotNull SigningContext context) {
+        public KmsClient load(SigningContext context) {
             return client;
         }
     }
@@ -47,7 +45,7 @@ class KmsSigningServiceTest {
                 .keyId("arn:key").signature(SdkBytes.fromByteArray(sig))
                 .signingAlgorithm(SigningAlgorithmSpec.ECDSA_SHA_256).build());
 
-        Dsse dsse = new Dsse();
+        DsseService dsse = new DsseService();
         KmsSigningService service = new KmsSigningService(List.of(new StubLoader(SignerType.AWS_KMS_DEFAULT, kms)), dsse);
         assertEquals(Set.of(SignerType.AWS_KMS_DEFAULT), service.types());
 

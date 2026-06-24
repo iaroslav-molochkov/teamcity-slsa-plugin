@@ -1,8 +1,6 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 
@@ -17,38 +15,33 @@ public final class SigningContext {
     private final SignerType type;
     private final Map<String, String> params;
 
-    private SigningContext(@Nullable SignerType type, @NotNull Map<String, String> params) {
+    private SigningContext(SignerType type, Map<String, String> params) {
         this.type = type;
         this.params = params;
     }
 
     /** Wraps the params, resolving the signer type once. Intended to be called on validated params. */
-    @NotNull
-    public static SigningContext of(@NotNull Map<String, String> params) {
+    public static SigningContext of(Map<String, String> params) {
         return new SigningContext(SignerType.fromValue(get(params, SlsaParams.SIGNER)), params);
     }
 
     /** The resolved signer type. Non-null when built from validated params (the only intended use). */
-    @NotNull
     public SignerType type() {
         return type;
     }
 
     /** The trimmed value for {@code key} from these params, or {@code null} if absent or blank. */
-    @Nullable
-    public String get(@NotNull String key) {
+    public String get(String key) {
         return get(params, key);
     }
 
     /** The trimmed value for {@code key}, or {@code null} if absent or blank. */
-    @Nullable
-    public static String get(@NotNull Map<String, String> params, @NotNull String key) {
+    public static String get(Map<String, String> params, String key) {
         return trimToNull(params.get(key));
     }
 
     /** Parses an integer, or returns {@code null} if the value is {@code null} or not a number. */
-    @Nullable
-    public static Integer toIntOrNull(@Nullable String value) {
+    public static Integer toIntOrNull(String value) {
         if (value == null) {
             return null;
         }
@@ -60,8 +53,7 @@ public final class SigningContext {
     }
 
     /** Returns the trimmed string, or {@code null} if it is {@code null} or blank. */
-    @Nullable
-    public static String trimToNull(@Nullable String value) {
+    public static String trimToNull(String value) {
         if (value == null) {
             return null;
         }

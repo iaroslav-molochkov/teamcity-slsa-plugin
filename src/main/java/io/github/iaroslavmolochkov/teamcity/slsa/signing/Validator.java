@@ -1,7 +1,6 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import jetbrains.buildServer.serverSide.InvalidProperty;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
@@ -13,10 +12,8 @@ import java.util.Map;
  */
 public interface Validator {
 
-    @NotNull
     SignerType type();
 
     /** Validation errors for this type's params (empty when valid). */
-    @NotNull
-    List<InvalidProperty> validate(@NotNull Map<String, String> params);
+    List<InvalidProperty> validate(Map<String, String> params);
 }

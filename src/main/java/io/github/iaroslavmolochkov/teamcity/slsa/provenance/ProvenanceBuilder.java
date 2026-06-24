@@ -20,8 +20,6 @@ import jetbrains.buildServer.users.SUser;
 import jetbrains.buildServer.vcs.SVcsModification;
 import jetbrains.buildServer.vcs.VcsRootInstance;
 import jetbrains.buildServer.vcs.VcsRootNotFoundException;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -48,12 +46,11 @@ public class ProvenanceBuilder {
 
     private final SBuildServer server;
 
-    public ProvenanceBuilder(@NotNull SBuildServer server) {
+    public ProvenanceBuilder(SBuildServer server) {
         this.server = server;
     }
 
-    @NotNull
-    public InTotoStatement build(@NotNull SBuild build, @NotNull List<ArtifactSubject> subjects) {
+    public InTotoStatement build(SBuild build, List<ArtifactSubject> subjects) {
         List<Subject> wireSubjects = new ArrayList<>(subjects.size());
 
         for (ArtifactSubject artifact : subjects) {
@@ -81,21 +78,18 @@ public class ProvenanceBuilder {
     }
 
     /** Platform identity — the TeamCity server instance that produced the provenance. */
-    @NotNull
     private String builderId() {
         return trimTrailingSlash(server.getRootUrl());
     }
 
     /** Run identity — the URL of this specific build. */
-    @NotNull
-    private String buildUrl(@NotNull SBuild build) {
+    private String buildUrl(SBuild build) {
         return builderId() + "/viewLog.html?buildId=" + build.getBuildId()
                 + "&buildTypeId=" + build.getBuildTypeExternalId();
     }
 
     // Object-valued: SLSA externalParameters is an arbitrary JSON object (we nest buildParameters).
-    @NotNull
-    private Map<String, Object> externalParameters(@NotNull SBuild build) {
+    private Map<String, Object> externalParameters(SBuild build) {
         Map<String, Object> params = new HashMap<>();
 
         params.put("buildTypeId", build.getBuildTypeExternalId());
@@ -124,8 +118,7 @@ public class ProvenanceBuilder {
         return params;
     }
 
-    @NotNull
-    private Map<String, Object> internalParameters(@NotNull SBuild build) {
+    private Map<String, Object> internalParameters(SBuild build) {
         Map<String, Object> params = new HashMap<>();
         params.put("teamcityVersion", server.getFullServerVersion());
         params.put("projectId", build.getProjectExternalId());
@@ -150,8 +143,7 @@ public class ProvenanceBuilder {
     }
 
     /** The request origin: the triggering user, a snapshot dependency, or the trigger type id. */
-    @NotNull
-    private static String triggeredBy(@NotNull SBuild build) {
+    private static String triggeredBy(SBuild build) {
         TriggeredBy triggeredBy = build.getTriggeredBy();
         SUser user = triggeredBy.getUser();
         if (user != null) {
@@ -164,8 +156,7 @@ public class ProvenanceBuilder {
         return (triggerId != null && !triggerId.isEmpty()) ? triggerId : "unknown";
     }
 
-    @NotNull
-    private List<ResolvedDependency> resolvedDependencies(@NotNull SBuild build) {
+    private List<ResolvedDependency> resolvedDependencies(SBuild build) {
         Map<String, SVcsModification> commits = changesByRootAndVersion(build);
         List<ResolvedDependency> deps = new ArrayList<>();
 
@@ -219,8 +210,7 @@ public class ProvenanceBuilder {
     }
 
     /** Indexes the build's contained changes by {@code <rootId>@<version>} for commit lookup. */
-    @NotNull
-    private Map<String, SVcsModification> changesByRootAndVersion(@NotNull SBuild build) {
+    private Map<String, SVcsModification> changesByRootAndVersion(SBuild build) {
         Map<String, SVcsModification> byRootVersion = new HashMap<>();
 
         for (SVcsModification change : build.getContainingChanges()) {
@@ -237,8 +227,7 @@ public class ProvenanceBuilder {
         return byRootVersion;
     }
 
-    @NotNull
-    private static String gitUri(@NotNull VcsRootInstance root) {
+    private static String gitUri(VcsRootInstance root) {
         String url = root.getProperty("url");
         String base = (url != null && !url.isEmpty()) ? url : root.getName();
         String vcsName = root.getVcsName();
@@ -250,7 +239,7 @@ public class ProvenanceBuilder {
         return base;
     }
 
-    private static void putIfNotEmpty(@NotNull Map<String, String> map, @NotNull String key, @Nullable String value) {
+    private static void putIfNotEmpty(Map<String, String> map, String key, String value) {
         String trimmed = SigningContext.trimToNull(value);
 
         if (trimmed != null) {
@@ -258,8 +247,7 @@ public class ProvenanceBuilder {
         }
     }
 
-    @NotNull
-    private static String firstLine(@Nullable String text) {
+    private static String firstLine(String text) {
         if (text == null) {
             return "";
         }
@@ -269,12 +257,11 @@ public class ProvenanceBuilder {
         return line.length() > 200 ? line.substring(0, 200) + "…" : line;
     }
 
-    @NotNull
     private Map<String, String> builderVersion() {
         return Map.of("teamcity", server.getFullServerVersion());
     }
 
-    private static boolean isSafe(@NotNull String key, @Nullable String value) {
+    private static boolean isSafe(String key, String value) {
         if (value == null) {
             return false;
         }
@@ -286,13 +273,11 @@ public class ProvenanceBuilder {
         return !EncryptUtil.isScrambled(value);
     }
 
-    @Nullable
-    private static String iso(@Nullable Date date) {
+    private static String iso(Date date) {
         return date == null ? null : DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(date.getTime()));
     }
 
-    @NotNull
-    private static String trimTrailingSlash(@NotNull String s) {
+    private static String trimTrailingSlash(String s) {
         return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
     }
 }

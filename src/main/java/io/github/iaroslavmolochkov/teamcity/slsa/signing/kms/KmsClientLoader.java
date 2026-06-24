@@ -2,7 +2,6 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
-import org.jetbrains.annotations.NotNull;
 import software.amazon.awssdk.services.kms.KmsClient;
 
 /**
@@ -12,9 +11,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
  */
 public interface KmsClientLoader {
 
-    @NotNull
     SignerType type();
 
-    @NotNull
-    KmsClient load(@NotNull SigningContext context);
+    KmsClient load(SigningContext context);
 }

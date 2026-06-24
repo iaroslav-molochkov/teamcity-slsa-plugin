@@ -7,7 +7,6 @@ import jetbrains.buildServer.serverSide.BuildServerAdapter;
 import jetbrains.buildServer.serverSide.BuildServerListener;
 import jetbrains.buildServer.serverSide.TeamCityProperties;
 import jetbrains.buildServer.util.EventDispatcher;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.kms.KmsClient;
 
@@ -35,7 +34,7 @@ public class KmsClientCache {
 
     private final Cache<String, SignerClient> clients;
 
-    public KmsClientCache(@NotNull EventDispatcher<BuildServerListener> eventDispatcher) {
+    public KmsClientCache(EventDispatcher<BuildServerListener> eventDispatcher) {
         int maxClients = TeamCityProperties.getInteger(MAX_CLIENTS_PROPERTY, 32);
         long ttlMinutes = TeamCityProperties.getInteger(CLIENT_TTL_MINUTES_PROPERTY, 60);
         clients = Caffeine.newBuilder()
@@ -61,8 +60,7 @@ public class KmsClientCache {
      * on first use. The cache owns the resulting {@link SignerClient}'s lifecycle (closed on eviction
      * or shutdown), so callers must not close it.
      */
-    @NotNull
-    public KmsClient get(@NotNull String connectionKey, @NotNull Supplier<SignerClient> factory) {
+    public KmsClient get(String connectionKey, Supplier<SignerClient> factory) {
         return clients.get(connectionKey, key -> factory.get()).kms();
     }
 

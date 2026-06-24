@@ -1,14 +1,13 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Dsse;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.IOGuard;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -35,24 +34,22 @@ import java.util.Set;
 public class KmsSigningService implements SigningService {
 
     private final Map<SignerType, KmsClientLoader> loaders = new EnumMap<>(SignerType.class);
-    private final Dsse dsse;
+    private final DsseService dsse;
 
-    public KmsSigningService(@NotNull List<KmsClientLoader> loaders, @NotNull Dsse dsse) {
+    public KmsSigningService(List<KmsClientLoader> loaders, DsseService dsse) {
         for (KmsClientLoader loader : loaders) {
             this.loaders.put(loader.type(), loader);
         }
         this.dsse = dsse;
     }
 
-    @NotNull
     @Override
     public Set<SignerType> types() {
         return loaders.keySet();
     }
 
-    @NotNull
     @Override
-    public DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload) {
+    public DsseEnvelope sign(SigningContext context, byte[] payload) {
         KmsClient client = loaders.get(context.type()).load(context);
         String keyId = context.get(SlsaParams.KMS_KEY_ID);
         SigningAlgorithmSpec algorithm = SigningAlgorithmSpec.fromValue(context.get(SlsaParams.SIGNING_ALGORITHM));
@@ -71,8 +68,7 @@ public class KmsSigningService implements SigningService {
     }
 
     /** Hashes the PAE with the digest that matches the signing algorithm's suffix (256/384/512). */
-    @NotNull
-    private static byte[] digest(@NotNull SigningAlgorithmSpec spec, @NotNull byte[] pae) {
+    private static byte[] digest(SigningAlgorithmSpec spec, byte[] pae) {
         String name = spec.toString();
         String alg;
         if (name.endsWith("384")) {

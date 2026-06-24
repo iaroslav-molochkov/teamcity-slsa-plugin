@@ -5,7 +5,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.InvalidProperty;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -20,15 +19,13 @@ public class AssumeRoleKmsValidator implements Validator {
     private static final int MIN_DURATION_SECONDS = 900;
     private static final int MAX_DURATION_SECONDS = 43200;
 
-    @NotNull
     @Override
     public SignerType type() {
         return SignerType.AWS_KMS_ASSUME_ROLE;
     }
 
-    @NotNull
     @Override
-    public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
+    public List<InvalidProperty> validate(Map<String, String> params) {
         List<InvalidProperty> errors = new ArrayList<>();
         Kms.requireRegion(params, errors);
         Kms.requireKeyAndAlgorithm(params, errors);

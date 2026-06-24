@@ -4,7 +4,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.persist.ProvenancePublisher;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Dsse;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningServices;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.ConnectionIdService;
@@ -32,7 +32,7 @@ class ProvenanceServiceTest {
         ConnectionIdService connectionIdService = new ConnectionIdService(List.of(new StaticConnectionKeyHandler()));
         SigningServices services = new SigningServices(List.of(
                 new io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.KmsSigningService(
-                        List.of(new StaticKmsClientLoader(mock(KmsClientCache.class), connectionIdService)), new Dsse())));
+                        List.of(new StaticKmsClientLoader(mock(KmsClientCache.class), connectionIdService)), new DsseService())));
         return new ProvenanceService(
                 validators,
                 mock(ArtifactHasher.class),

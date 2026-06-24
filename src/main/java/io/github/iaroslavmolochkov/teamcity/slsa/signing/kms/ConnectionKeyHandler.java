@@ -4,8 +4,6 @@ import com.dynatrace.hash4j.hashing.HashStream128;
 import com.dynatrace.hash4j.hashing.HashValue128;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
@@ -18,14 +16,12 @@ import java.util.UUID;
  */
 public interface ConnectionKeyHandler {
 
-    @NotNull
     SignerType type();
 
-    @NotNull
-    String id(@NotNull SigningContext context);
+    String id(SigningContext context);
 
     /** Adds one tagged field; a {@code null} value is recorded as absent (distinct from empty). */
-    static void put(@NotNull HashStream128 stream, byte tag, @Nullable String value) {
+    static void put(HashStream128 stream, byte tag, String value) {
         stream.putByte(tag);
         if (value == null) {
             stream.putInt(-1);
@@ -35,8 +31,7 @@ public interface ConnectionKeyHandler {
     }
 
     /** Finalizes the stream to a stable id string. */
-    @NotNull
-    static String digest(@NotNull HashStream128 stream) {
+    static String digest(HashStream128 stream) {
         HashValue128 hash = stream.get();
         return new UUID(hash.getMostSignificantBits(), hash.getLeastSignificantBits()).toString();
     }

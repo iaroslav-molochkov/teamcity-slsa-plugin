@@ -5,7 +5,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.InvalidProperty;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -16,15 +15,13 @@ import java.util.Map;
 @Component
 public class StaticKmsValidator implements Validator {
 
-    @NotNull
     @Override
     public SignerType type() {
         return SignerType.AWS_KMS_STATIC;
     }
 
-    @NotNull
     @Override
-    public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
+    public List<InvalidProperty> validate(Map<String, String> params) {
         List<InvalidProperty> errors = new ArrayList<>();
         Kms.requireRegion(params, errors);
         Kms.requireKeyAndAlgorithm(params, errors);

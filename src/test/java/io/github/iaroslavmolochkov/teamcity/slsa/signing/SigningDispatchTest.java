@@ -2,7 +2,6 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import jetbrains.buildServer.serverSide.InvalidProperty;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -17,23 +16,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SigningDispatchTest {
 
-    private record StubValidator(@NotNull SignerType type, @NotNull List<InvalidProperty> errors) implements Validator {
-        @NotNull
+    private record StubValidator(SignerType type, List<InvalidProperty> errors) implements Validator {
         @Override
-        public List<InvalidProperty> validate(@NotNull Map<String, String> params) {
+        public List<InvalidProperty> validate(Map<String, String> params) {
             return errors;
         }
     }
 
-    private record StubService(@NotNull Set<SignerType> types, @NotNull DsseEnvelope envelope) implements SigningService {
-        @NotNull
+    private record StubService(Set<SignerType> types, DsseEnvelope envelope) implements SigningService {
         @Override
-        public DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload) {
+        public DsseEnvelope sign(SigningContext context, byte[] payload) {
             return envelope;
         }
     }
 
-    private static final DsseEnvelope ENVELOPE = new Dsse().envelope(new byte[]{1}, "key", new byte[]{2});
+    private static final DsseEnvelope ENVELOPE = new DsseService().envelope(new byte[]{1}, "key", new byte[]{2});
 
     // --- Validators ---
 

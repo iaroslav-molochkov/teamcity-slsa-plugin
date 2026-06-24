@@ -3,8 +3,6 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.InvalidProperty;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -27,7 +25,7 @@ final class Kms {
     }
 
     /** Adds errors for the always-required KMS fields (key id and signing algorithm). */
-    static void requireKeyAndAlgorithm(@NotNull Map<String, String> params, @NotNull List<InvalidProperty> errors) {
+    static void requireKeyAndAlgorithm(Map<String, String> params, List<InvalidProperty> errors) {
         if (SigningContext.get(params, SlsaParams.KMS_KEY_ID) == null) {
             errors.add(new InvalidProperty(SlsaParams.KMS_KEY_ID, "KMS key id / ARN is required"));
         }
@@ -40,7 +38,7 @@ final class Kms {
     }
 
     /** Adds an error if the region is missing (for the modes that require an explicit region). */
-    static void requireRegion(@NotNull Map<String, String> params, @NotNull List<InvalidProperty> errors) {
+    static void requireRegion(Map<String, String> params, List<InvalidProperty> errors) {
         if (SigningContext.get(params, SlsaParams.REGION) == null) {
             errors.add(new InvalidProperty(SlsaParams.REGION, "AWS region is required"));
         }
@@ -50,8 +48,7 @@ final class Kms {
      * Builds a KMS client over the given HTTP client and provider. A {@code null} region is left unset
      * so the SDK's default region provider chain resolves it (e.g. from {@code AWS_REGION}).
      */
-    @NotNull
-    static KmsClient client(@Nullable String region, @NotNull SdkHttpClient httpClient, @NotNull AwsCredentialsProvider provider) {
+    static KmsClient client(String region, SdkHttpClient httpClient, AwsCredentialsProvider provider) {
         KmsClientBuilder builder = KmsClient.builder()
                 .httpClient(httpClient)
                 .credentialsProvider(provider);

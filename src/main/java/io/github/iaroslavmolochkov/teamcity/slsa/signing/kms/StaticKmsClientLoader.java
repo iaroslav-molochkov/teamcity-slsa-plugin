@@ -6,8 +6,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -24,20 +22,18 @@ public class StaticKmsClientLoader implements KmsClientLoader {
     private final KmsClientCache cache;
     private final ConnectionIdService connectionIdService;
 
-    public StaticKmsClientLoader(@NotNull KmsClientCache cache, @NotNull ConnectionIdService connectionIdService) {
+    public StaticKmsClientLoader(KmsClientCache cache, ConnectionIdService connectionIdService) {
         this.cache = cache;
         this.connectionIdService = connectionIdService;
     }
 
-    @NotNull
     @Override
     public SignerType type() {
         return SignerType.AWS_KMS_STATIC;
     }
 
-    @NotNull
     @Override
-    public KmsClient load(@NotNull SigningContext context) {
+    public KmsClient load(SigningContext context) {
         StaticKmsConfig config = new StaticKmsConfig(
                 context.get(SlsaParams.REGION),
                 context.get(SlsaParams.ACCESS_KEY_ID),
@@ -45,8 +41,7 @@ public class StaticKmsClientLoader implements KmsClientLoader {
         return cache.get(connectionIdService.id(context), () -> build(config));
     }
 
-    @NotNull
-    private static SignerClient build(@NotNull StaticKmsConfig config) {
+    private static SignerClient build(StaticKmsConfig config) {
         SdkHttpClient httpClient = UrlConnectionHttpClient.create();
         KmsClient kms = Kms.client(config.region(), httpClient,
                 StaticCredentialsProvider.create(AwsBasicCredentials.create(config.accessKeyId(), config.secret())));
@@ -54,8 +49,7 @@ public class StaticKmsClientLoader implements KmsClientLoader {
     }
 
     /** Unscrambles a TeamCity-stored secret; plain values pass through. */
-    @NotNull
-    private static String reveal(@Nullable String value) {
+    private static String reveal(String value) {
         return EncryptUtil.isScrambled(value) ? EncryptUtil.unscramble(value) : value;
     }
 }

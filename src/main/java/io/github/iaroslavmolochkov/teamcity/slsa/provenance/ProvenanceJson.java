@@ -15,10 +15,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 public final class ProvenanceJson {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
-            // Drop null and empty members so the predicate stays compact and matches SLSA examples.
             .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
-            // Deterministic output (sorted map keys) so attestations are stable/diffable; this is why
-            // the builder can use plain HashMaps instead of LinkedHashMaps.
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
 
     private ProvenanceJson() {

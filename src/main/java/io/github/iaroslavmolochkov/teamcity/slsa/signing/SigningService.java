@@ -1,6 +1,5 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
 
@@ -11,9 +10,7 @@ import java.util.Set;
  */
 public interface SigningService {
 
-    @NotNull
     Set<SignerType> types();
 
-    @NotNull
-    DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload);
+    DsseEnvelope sign(SigningContext context, byte[] payload);
 }

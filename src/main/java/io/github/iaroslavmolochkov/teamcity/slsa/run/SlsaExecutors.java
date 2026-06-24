@@ -1,6 +1,5 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.run;
 
-import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,13 +17,11 @@ final class SlsaExecutors {
         return Math.max(2, Runtime.getRuntime().availableProcessors());
     }
 
-    @NotNull
-    static ExecutorService fixedDaemonPool(int threads, @NotNull String namePrefix) {
+    static ExecutorService fixedDaemonPool(int threads, String namePrefix) {
         return Executors.newFixedThreadPool(threads, daemonThreadFactory(namePrefix));
     }
 
-    @NotNull
-    private static ThreadFactory daemonThreadFactory(@NotNull String namePrefix) {
+    private static ThreadFactory daemonThreadFactory(String namePrefix) {
         AtomicInteger counter = new AtomicInteger();
         return runnable -> {
             Thread thread = new Thread(runnable, namePrefix + "-" + counter.incrementAndGet());

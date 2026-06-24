@@ -8,8 +8,6 @@ import jetbrains.buildServer.serverSide.BuildFeature;
 import jetbrains.buildServer.serverSide.BuildTypeIdentity;
 import jetbrains.buildServer.serverSide.PropertiesProcessor;
 import jetbrains.buildServer.web.openapi.PluginDescriptor;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -27,24 +25,21 @@ public class SlsaBuildFeature extends BuildFeature {
     private final String editUrl;
     private final Validators validators;
 
-    public SlsaBuildFeature(@NotNull PluginDescriptor descriptor, @NotNull Validators validators) {
+    public SlsaBuildFeature(PluginDescriptor descriptor, Validators validators) {
         editUrl = descriptor.getPluginResourcesPath("editSlsaProvenanceFeature.jsp");
         this.validators = validators;
     }
 
-    @NotNull
     @Override
     public String getType() {
         return SlsaParams.FEATURE_TYPE;
     }
 
-    @NotNull
     @Override
     public String getDisplayName() {
         return "SLSA provenance attestation";
     }
 
-    @Nullable
     @Override
     public String getEditParametersUrl() {
         return editUrl;
@@ -61,9 +56,8 @@ public class SlsaBuildFeature extends BuildFeature {
         return false;
     }
 
-    @NotNull
     @Override
-    public String describeParameters(@NotNull Map<String, String> params) {
+    public String describeParameters(Map<String, String> params) {
         SignerType signer = SignerType.fromValue(SigningContext.get(params, SlsaParams.SIGNER));
 
         if (signer == null) {
@@ -83,8 +77,7 @@ public class SlsaBuildFeature extends BuildFeature {
         return sb.toString();
     }
 
-    @NotNull
-    private static String credentialsLabel(@NotNull SignerType signer) {
+    private static String credentialsLabel(SignerType signer) {
         return switch (signer) {
             case AWS_KMS_STATIC -> "access key";
             case AWS_KMS_ASSUME_ROLE -> "assume-role";
@@ -92,9 +85,8 @@ public class SlsaBuildFeature extends BuildFeature {
         };
     }
 
-    @Nullable
     @Override
-    public PropertiesProcessor getParametersProcessor(@NotNull BuildTypeIdentity buildTypeIdentity) {
+    public PropertiesProcessor getParametersProcessor(BuildTypeIdentity buildTypeIdentity) {
         return validators::validate;
     }
 }

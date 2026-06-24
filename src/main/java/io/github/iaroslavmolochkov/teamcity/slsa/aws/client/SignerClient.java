@@ -2,7 +2,6 @@ package io.github.iaroslavmolochkov.teamcity.slsa.aws.client;
 
 import com.intellij.openapi.diagnostic.Logger;
 import jetbrains.buildServer.log.Loggers;
-import org.jetbrains.annotations.NotNull;
 import software.amazon.awssdk.services.kms.KmsClient;
 
 import java.util.ArrayList;
@@ -20,12 +19,11 @@ public final class SignerClient implements AutoCloseable {
     private final KmsClient kms;
     private final List<AutoCloseable> closeables;
 
-    public SignerClient(@NotNull KmsClient kms, @NotNull List<AutoCloseable> closeables) {
+    public SignerClient(KmsClient kms, List<AutoCloseable> closeables) {
         this.kms = kms;
         this.closeables = new ArrayList<>(closeables);
     }
 
-    @NotNull
     public KmsClient kms() {
         return kms;
     }
@@ -38,7 +36,7 @@ public final class SignerClient implements AutoCloseable {
         }
     }
 
-    private static void close(@NotNull AutoCloseable closeable) {
+    private static void close(AutoCloseable closeable) {
         try {
             closeable.close();
         } catch (Exception e) {

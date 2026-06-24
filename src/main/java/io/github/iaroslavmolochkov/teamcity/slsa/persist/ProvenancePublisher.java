@@ -5,7 +5,6 @@ import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.SBuild;
 import jetbrains.buildServer.serverSide.artifacts.ArtifactsGuard;
 import jetbrains.buildServer.serverSide.metadata.MetadataStorage;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -37,8 +36,8 @@ public class ProvenancePublisher {
     private final ArtifactsGuard artifactsGuard;
     private final MetadataStorage metadataStorage;
 
-    public ProvenancePublisher(@NotNull ArtifactsGuard artifactsGuard,
-                               @NotNull MetadataStorage metadataStorage) {
+    public ProvenancePublisher(ArtifactsGuard artifactsGuard,
+                               MetadataStorage metadataStorage) {
         this.artifactsGuard = artifactsGuard;
         this.metadataStorage = metadataStorage;
     }
@@ -48,7 +47,7 @@ public class ProvenancePublisher {
      * Best-effort: returns {@code false} (and logs) if the artifacts directory is unavailable or the
      * write fails. A metadata-indexing failure is logged but does not fail publishing.
      */
-    public boolean publish(@NotNull SBuild build, @NotNull byte[] jsonl, @NotNull Map<String, String> metadata) {
+    public boolean publish(SBuild build, byte[] jsonl, Map<String, String> metadata) {
         File artifactsDir;
         try {
             artifactsDir = build.getArtifactsDirectory();

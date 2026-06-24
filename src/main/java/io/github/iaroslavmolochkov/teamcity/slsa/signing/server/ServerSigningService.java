@@ -1,10 +1,15 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.server;
 
 import com.intellij.openapi.diagnostic.Logger;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
 import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.ServerPaths;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -27,7 +32,7 @@ import java.util.Set;
 
 /**
  * The server-key signing service. One job: sign with a local ECDSA P-256 key — the zero-dependency
- * "tick the box" backend, needing no client (it ignores the params). The key pair is generated once and
+ * "tick the box" backend, needing no client (it ignores the context). The key pair is generated once and
  * persisted under the plugin data directory; the public key (written next to it as PEM) is what
  * verifiers use. Weaker than KMS (the private key lives on the server's disk).
  */
@@ -39,27 +44,25 @@ public class ServerSigningService implements SigningService {
 
     private final File keyFile;
     private final File publicKeyPemFile;
-    private final Dsse dsse;
+    private final DsseService dsse;
 
     private KeyPair keyPair;
     private String keyId;
 
-    public ServerSigningService(@NotNull ServerPaths serverPaths, @NotNull Dsse dsse) {
+    public ServerSigningService(ServerPaths serverPaths, DsseService dsse) {
         File dir = new File(serverPaths.getPluginDataDirectory(), "slsa");
         keyFile = new File(dir, "server-signing.key");
         publicKeyPemFile = new File(dir, "server-signing.pub.pem");
         this.dsse = dsse;
     }
 
-    @NotNull
     @Override
     public Set<SignerType> types() {
         return Set.of(SignerType.SERVER);
     }
 
-    @NotNull
     @Override
-    public synchronized DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload) {
+    public synchronized DsseEnvelope sign(SigningContext context, byte[] payload) {
         ensureKey();
         byte[] pae = dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         try {
@@ -73,14 +76,12 @@ public class ServerSigningService implements SigningService {
     }
 
     /** The public key verifiers use to check signatures produced by this service. */
-    @NotNull
     public synchronized PublicKey publicKey() {
         ensureKey();
         return keyPair.getPublic();
     }
 
     /** The DSSE {@code keyid} embedded in envelopes from this service. */
-    @NotNull
     public synchronized String keyId() {
         ensureKey();
         return keyId;
@@ -127,7 +128,7 @@ public class ServerSigningService implements SigningService {
      * it falls back to a best-effort {@link File} chmod after writing.
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private static void writeOwnerOnly(@NotNull Path path, @NotNull byte[] content) throws IOException {
+    private static void writeOwnerOnly(Path path, byte[] content) throws IOException {
         Files.deleteIfExists(path);
         if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {
             Files.createFile(path, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
@@ -142,14 +143,12 @@ public class ServerSigningService implements SigningService {
         }
     }
 
-    @NotNull
-    private static String derToPem(@NotNull byte[] der) {
+    private static String derToPem(byte[] der) {
         String base64 = Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(der);
         return "-----BEGIN PUBLIC KEY-----\n" + base64 + "\n-----END PUBLIC KEY-----\n";
     }
 
-    @NotNull
-    private static byte[] pemToDer(@NotNull String pem) {
+    private static byte[] pemToDer(String pem) {
         String base64 = pem.replaceAll("-----BEGIN [^-]+-----", "")
                 .replaceAll("-----END [^-]+-----", "")
                 .replaceAll("\\s", "");

@@ -12,7 +12,6 @@ import jetbrains.buildServer.serverSide.artifacts.BuildArtifact;
 import jetbrains.buildServer.serverSide.artifacts.BuildArtifacts;
 import jetbrains.buildServer.serverSide.artifacts.BuildArtifactsViewMode;
 import jetbrains.buildServer.util.EventDispatcher;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
@@ -36,7 +35,7 @@ public class ArtifactHasher {
 
     private final ExecutorService pool;
 
-    public ArtifactHasher(@NotNull EventDispatcher<BuildServerListener> eventDispatcher) {
+    public ArtifactHasher(EventDispatcher<BuildServerListener> eventDispatcher) {
         int threads = TeamCityProperties.getInteger(HASH_THREADS_PROPERTY, SlsaExecutors.defaultPoolSize());
         pool = SlsaExecutors.fixedDaemonPool(threads, "slsa-hash");
         eventDispatcher.addListener(new BuildServerAdapter() {
@@ -48,8 +47,7 @@ public class ArtifactHasher {
     }
 
     /** Streams and hashes every file artifact of the build concurrently. */
-    @NotNull
-    public List<ArtifactSubject> hash(@NotNull SBuild build) {
+    public List<ArtifactSubject> hash(SBuild build) {
         BuildArtifacts artifacts = build.getArtifacts(BuildArtifactsViewMode.VIEW_DEFAULT);
 
         if (!artifacts.isAvailable()) {
@@ -87,7 +85,7 @@ public class ArtifactHasher {
         return subjects;
     }
 
-    private ArtifactSubject toSubject(@NotNull SBuild build, @NotNull BuildArtifact artifact) {
+    private ArtifactSubject toSubject(SBuild build, BuildArtifact artifact) {
         //todo retry4j?
         try (InputStream in = artifact.getInputStream()) {
             ArtifactSubject subject = new ArtifactSubject(artifact.getRelativePath(), artifact.getSize(), Sha256.hex(in));

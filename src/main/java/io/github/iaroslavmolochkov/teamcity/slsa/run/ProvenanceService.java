@@ -17,7 +17,6 @@ import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import jetbrains.buildServer.serverSide.SBuild;
 import jetbrains.buildServer.serverSide.SBuildFeatureDescriptor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
@@ -49,11 +48,11 @@ public class ProvenanceService {
     private final SigningServices signingServices;
     private final ProvenancePublisher publisher;
 
-    public ProvenanceService(@NotNull Validators validators,
-                             @NotNull ArtifactHasher hasher,
-                             @NotNull ProvenanceBuilder provenanceBuilder,
-                             @NotNull SigningServices signingServices,
-                             @NotNull ProvenancePublisher publisher) {
+    public ProvenanceService(Validators validators,
+                             ArtifactHasher hasher,
+                             ProvenanceBuilder provenanceBuilder,
+                             SigningServices signingServices,
+                             ProvenancePublisher publisher) {
         this.validators = validators;
         this.hasher = hasher;
         this.provenanceBuilder = provenanceBuilder;
@@ -65,7 +64,7 @@ public class ProvenanceService {
      * Called on the build-finishing thread. Validates the (at most one) provenance feature's params,
      * hashes, signs, and publishes; an invalid config or a signing failure is recorded as a build problem.
      */
-    public void onBuildFinished(@NotNull SBuild build) {
+    public void onBuildFinished(SBuild build) {
         SBuildFeatureDescriptor feature = build.getBuildFeaturesOfType(SlsaParams.FEATURE_TYPE)
                 .stream()
                 .findFirst()
@@ -93,7 +92,7 @@ public class ProvenanceService {
         }
     }
 
-    private void sign(@NotNull SBuild build, @NotNull SigningContext context) {
+    private void sign(SBuild build, SigningContext context) {
         List<ArtifactSubject> subjects = hasher.hash(build);
 
         if (subjects.isEmpty()) {
@@ -119,14 +118,13 @@ public class ProvenanceService {
     }
 
     /** Records a build problem (visible on the build) and logs it. */
-    private void reportProblem(@NotNull SBuild build, @NotNull String reason) {
+    private void reportProblem(SBuild build, String reason) {
         LOG.warn("SLSA: build " + build.getBuildId() + " — " + reason);
         build.addBuildProblem(BuildProblemData.createBuildProblem(PROBLEM_IDENTITY, PROBLEM_TYPE, "SLSA provenance: " + reason));
     }
 
     /** Indexable metadata for the attestation, computed from values already in hand (no re-read). */
-    @NotNull
-    private Map<String, String> metadata(@NotNull DsseEnvelope envelope, @NotNull String signerId, @NotNull byte[] jsonl) {
+    private Map<String, String> metadata(DsseEnvelope envelope, String signerId, byte[] jsonl) {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("artifactPath", ProvenancePublisher.ARTIFACT_PATH);
         metadata.put("sha256", Sha256.hex(jsonl));
