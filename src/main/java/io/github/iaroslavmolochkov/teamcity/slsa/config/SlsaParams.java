@@ -15,8 +15,8 @@ public final class SlsaParams {
     public static final String SIGNER_AWS_KMS_STATIC = "aws-kms-static";
     public static final String SIGNER_AWS_KMS_ASSUME_ROLE = "aws-kms-assume-role";
 
-    /** PEM private key for the {@code server} signer (PKCS#8, PKCS#1 or SEC1). Scrambled at rest. */
-    public static final String SERVER_PRIVATE_KEY = "secure:slsa.server.privateKey";
+    /** Absolute path to a PEM private key file on the server for the {@code server} signer (PKCS#8/PKCS#1/SEC1). */
+    public static final String SERVER_PRIVATE_KEY_PATH = "slsa.server.privateKeyPath";
 
     public static final String REGION = "slsa.aws.region";
     public static final String KMS_KEY_ID = "slsa.kms.keyId";

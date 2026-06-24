@@ -5,8 +5,11 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.server.ServerKeyParser;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.server.ServerSigningService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
@@ -24,11 +27,13 @@ class ServerSigningServiceTest {
             new ServerSigningService(new ServerKeyParser(new Sha256Handler()), new DsseService());
 
     @Test
-    void signsWithSuppliedKeyAndVerifies() throws Exception {
+    void signsWithSuppliedKeyAndVerifies(@TempDir Path dir) throws Exception {
         KeyPair pair = ec();
+        Path keyFile = dir.resolve("key.pem");
+        Files.writeString(keyFile, pkcs8Pem(pair));
         byte[] payload = "{\"_type\":\"https://in-toto.io/Statement/v1\"}".getBytes(StandardCharsets.UTF_8);
 
-        DsseEnvelope envelope = service.sign(context(pair), payload);
+        DsseEnvelope envelope = service.sign(context(keyFile.toString()), payload);
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
         assertEquals("sha256:" + new Sha256Handler().hex(pair.getPublic().getEncoded()),
@@ -41,10 +46,10 @@ class ServerSigningServiceTest {
         assertTrue(verifier.verify(Base64.getDecoder().decode(envelope.signatures().get(0).sig())));
     }
 
-    private static SigningContext context(KeyPair pair) {
+    private static SigningContext context(String keyPath) {
         return new SigningContext(Map.of(
                 SlsaParams.SIGNER, SlsaParams.SIGNER_SERVER,
-                SlsaParams.SERVER_PRIVATE_KEY, pkcs8Pem(pair)));
+                SlsaParams.SERVER_PRIVATE_KEY_PATH, keyPath));
     }
 
     private static KeyPair ec() throws Exception {

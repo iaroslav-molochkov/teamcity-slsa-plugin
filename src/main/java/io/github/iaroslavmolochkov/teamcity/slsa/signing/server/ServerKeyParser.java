@@ -1,7 +1,6 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.server;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
-import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -15,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -36,12 +37,19 @@ public class ServerKeyParser {
         this.sha256 = sha256;
     }
 
-    /**
-     * Parses the stored PEM (unscrambling it first if TeamCity stored it as a {@code secure:} value).
-     * Throws {@link InvalidServerKeyException} if the value is not a usable EC or RSA private key.
-     */
-    public ServerKey parse(String storedPem) {
-        String pem = EncryptUtil.isScrambled(storedPem) ? EncryptUtil.unscramble(storedPem) : storedPem;
+    /** Reads the PEM key file at {@code path} (server-side) and parses it. */
+    public ServerKey fromPath(String path) {
+        String pem;
+        try {
+            pem = Files.readString(Path.of(path));
+        } catch (IOException | RuntimeException e) {
+            throw new InvalidServerKeyException("could not read key file: " + path, e);
+        }
+        return parse(pem);
+    }
+
+    /** Parses a PEM private key into a {@link ServerKey}. */
+    public ServerKey parse(String pem) {
         PrivateKey privateKey = readPrivateKey(pem);
         PublicKey publicKey = derivePublicKey(privateKey);
         String keyId = "sha256:" + sha256.hex(publicKey.getEncoded());

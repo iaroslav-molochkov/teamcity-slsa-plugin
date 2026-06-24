@@ -2,8 +2,11 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.server;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -63,6 +66,23 @@ class ServerKeyParserTest {
 
         assertEquals("SHA256withRSA", key.signatureAlgorithm());
         assertArrayEquals(pair.getPublic().getEncoded(), key.publicKey().getEncoded());
+    }
+
+    @Test
+    void readsKeyFromFile(@TempDir Path dir) throws Exception {
+        KeyPair pair = ec("secp256r1");
+        Path keyFile = dir.resolve("key.pem");
+        Files.writeString(keyFile, pkcs8Pem(pair));
+
+        ServerKey key = parser.fromPath(keyFile.toString());
+
+        assertEquals("SHA256withECDSA", key.signatureAlgorithm());
+        assertArrayEquals(pair.getPublic().getEncoded(), key.publicKey().getEncoded());
+    }
+
+    @Test
+    void rejectsMissingFile(@TempDir Path dir) {
+        assertThrows(InvalidServerKeyException.class, () -> parser.fromPath(dir.resolve("nope.pem").toString()));
     }
 
     @Test

@@ -6,9 +6,8 @@
 
 <tr>
   <td colspan="2">
-    <em>Generates a SLSA v1.0 provenance attestation for this configuration's build artifacts and
-      signs it on the server. The signed DSSE envelope is published as the
-      <code>slsa/provenance.intoto.jsonl</code> artifact.</em>
+    <em>Generates and signs SLSA v1.0 provenance for this configuration's artifacts, server-side,
+      published as the <code>slsa/provenance.intoto.jsonl</code> artifact.</em>
   </td>
 </tr>
 
@@ -21,45 +20,38 @@
       <props:option value="aws-kms-static">AWS KMS &mdash; access key</props:option>
       <props:option value="aws-kms-assume-role">AWS KMS &mdash; assume an IAM role</props:option>
     </props:selectProperty>
-    <span class="smallNote">"Server key" signs with a private key you supply below &mdash; you keep the matching
-      public key and give it to verifiers. The AWS KMS signers (key never leaves AWS) are recommended for
-      real assurance; their settings further below apply only to them. The default provider chain reads
-      env vars, profile, container or instance role on the server; "access key" uses the fields below;
-      "assume role" assumes the role below over the default chain.</span>
+    <span class="smallNote">Where the signing key lives. AWS KMS (key never leaves AWS) is recommended;
+      the server key reads a PEM from the server's disk.</span>
   </td>
 </tr>
 
-<l:settingsGroup title="Server key (for the &quot;Server key&quot; signer)">
-  <tr>
-    <th><label for="secure:slsa.server.privateKey">Private key (PEM): <l:star/></label></th>
-    <td>
-      <props:passwordProperty name="secure:slsa.server.privateKey" className="longField"/>
-      <span class="smallNote">An EC or RSA private key in PEM &mdash; PKCS#8 (<code>-----BEGIN PRIVATE KEY-----</code>),
-        PKCS#1 (<code>-----BEGIN RSA PRIVATE KEY-----</code>) or SEC1 (<code>-----BEGIN EC PRIVATE KEY-----</code>).
-        Encrypted keys are not supported. Stored encrypted. The DSSE <code>keyid</code> is derived from the
-        key as <code>sha256:&lt;public key&gt;</code>; you keep the matching public key and give it to verifiers.</span>
-    </td>
-  </tr>
-</l:settingsGroup>
+<tr class="slsa-server">
+  <th><label for="slsa.server.privateKeyPath">Private key file: <l:star/></label></th>
+  <td>
+    <props:textProperty name="slsa.server.privateKeyPath" className="longField"/>
+    <span class="smallNote">Absolute path to an EC or RSA PEM key on the server (PKCS#8, PKCS#1 or SEC1),
+      readable only by the server process (e.g. <code>chmod 600</code>). Keep the matching public key for
+      verifiers; the DSSE <code>keyid</code> is <code>sha256:&lt;public key&gt;</code>.</span>
+  </td>
+</tr>
 
-<tr>
+<tr class="slsa-kms">
   <th><label for="slsa.aws.region">AWS region: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.aws.region" className="longField"/>
-    <span class="smallNote">e.g. <code>us-east-1</code>. The KMS key's region. Optional for the default
-      provider chain (resolved from the environment, e.g. <code>AWS_REGION</code>); required otherwise.</span>
+    <span class="smallNote">The KMS key's region, e.g. <code>us-east-1</code>. Optional for the default provider chain; required otherwise.</span>
   </td>
 </tr>
 
-<tr>
+<tr class="slsa-kms">
   <th><label for="slsa.kms.keyId">KMS key id / ARN: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.kms.keyId" className="longField"/>
-    <span class="smallNote">An asymmetric SIGN_VERIFY key &mdash; key id, alias (<code>alias/&hellip;</code>) or full ARN.</span>
+    <span class="smallNote">Asymmetric SIGN_VERIFY key: id, alias, or ARN.</span>
   </td>
 </tr>
 
-<tr>
+<tr class="slsa-kms">
   <th><label for="slsa.kms.signingAlgorithm">Signing algorithm: <l:star/></label></th>
   <td>
     <props:selectProperty name="slsa.kms.signingAlgorithm" className="mediumField">
@@ -71,47 +63,71 @@
   </td>
 </tr>
 
-<tr>
-  <th><label for="slsa.aws.accessKeyId">Access key id:</label></th>
+<tr class="slsa-static">
+  <th><label for="slsa.aws.accessKeyId">Access key id: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.aws.accessKeyId" className="longField"/>
-    <span class="smallNote">Required only for the "AWS KMS &mdash; access key" signer.</span>
   </td>
 </tr>
 
-<tr>
-  <th><label for="secure:slsa.aws.secretAccessKey">Secret access key:</label></th>
+<tr class="slsa-static">
+  <th><label for="secure:slsa.aws.secretAccessKey">Secret access key: <l:star/></label></th>
   <td>
     <props:passwordProperty name="secure:slsa.aws.secretAccessKey" className="longField"/>
-    <span class="smallNote">Stored encrypted. Required only for the "AWS KMS &mdash; access key" signer.</span>
+    <span class="smallNote">Stored encrypted.</span>
   </td>
 </tr>
 
-<l:settingsGroup title="Assume role (for the &quot;AWS KMS &mdash; assume an IAM role&quot; signer)">
-  <tr>
-    <th><label for="slsa.aws.assumeRole.arn">Role ARN:</label></th>
-    <td>
-      <props:textProperty name="slsa.aws.assumeRole.arn" className="longField"/>
-      <span class="smallNote">If set, the server assumes this role (scoped to <code>kms:Sign</code>) before signing.</span>
-    </td>
-  </tr>
-  <tr>
-    <th><label for="slsa.aws.assumeRole.sessionName">Session name:</label></th>
-    <td><props:textProperty name="slsa.aws.assumeRole.sessionName" className="longField"/></td>
-  </tr>
-  <tr>
-    <th><label for="slsa.aws.assumeRole.externalId">External id:</label></th>
-    <td><props:textProperty name="slsa.aws.assumeRole.externalId" className="longField"/></td>
-  </tr>
-  <tr>
-    <th><label for="slsa.aws.assumeRole.durationSeconds">Session duration (s):</label></th>
-    <td><props:textProperty name="slsa.aws.assumeRole.durationSeconds" className="mediumField"/></td>
-  </tr>
-  <tr>
-    <th><label for="slsa.aws.stsEndpoint">STS endpoint:</label></th>
-    <td>
-      <props:textProperty name="slsa.aws.stsEndpoint" className="longField"/>
-      <span class="smallNote">Optional STS endpoint override, e.g. a regional or VPC endpoint.</span>
-    </td>
-  </tr>
-</l:settingsGroup>
+<tr class="slsa-assume">
+  <th><label for="slsa.aws.assumeRole.arn">Role ARN: <l:star/></label></th>
+  <td>
+    <props:textProperty name="slsa.aws.assumeRole.arn" className="longField"/>
+    <span class="smallNote">Assumed (scoped to <code>kms:Sign</code>) before signing.</span>
+  </td>
+</tr>
+
+<tr class="slsa-assume">
+  <th><label for="slsa.aws.assumeRole.sessionName">Session name:</label></th>
+  <td><props:textProperty name="slsa.aws.assumeRole.sessionName" className="longField"/></td>
+</tr>
+
+<tr class="slsa-assume">
+  <th><label for="slsa.aws.assumeRole.externalId">External id:</label></th>
+  <td><props:textProperty name="slsa.aws.assumeRole.externalId" className="longField"/></td>
+</tr>
+
+<tr class="slsa-assume">
+  <th><label for="slsa.aws.assumeRole.durationSeconds">Session duration (s):</label></th>
+  <td><props:textProperty name="slsa.aws.assumeRole.durationSeconds" className="mediumField"/></td>
+</tr>
+
+<tr class="slsa-assume">
+  <th><label for="slsa.aws.stsEndpoint">STS endpoint:</label></th>
+  <td>
+    <props:textProperty name="slsa.aws.stsEndpoint" className="longField"/>
+    <span class="smallNote">Optional STS endpoint override (regional or VPC).</span>
+  </td>
+</tr>
+
+<script type="text/javascript">
+  (function () {
+    var $signer = $j("select[name='slsa.signer']");
+    function refresh() {
+      var v = $signer.val();
+      $j(".slsa-server, .slsa-kms, .slsa-static, .slsa-assume").hide();
+      if (v === "server") {
+        $j(".slsa-server").show();
+      } else {
+        $j(".slsa-kms").show();
+        if (v === "aws-kms-static") {
+          $j(".slsa-static").show();
+        }
+        if (v === "aws-kms-assume-role") {
+          $j(".slsa-assume").show();
+        }
+      }
+    }
+    $signer.change(refresh);
+    refresh();
+  })();
+</script>

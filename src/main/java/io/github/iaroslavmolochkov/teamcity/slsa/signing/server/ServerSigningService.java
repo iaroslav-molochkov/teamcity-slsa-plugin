@@ -13,7 +13,7 @@ import java.security.GeneralSecurityException;
 import java.security.Signature;
 import java.util.Set;
 
-/** Signs the DSSE PAE with the user-supplied PEM private key; stateless, the key lives in the feature config. */
+/** Signs the DSSE PAE with the PEM private key read from the server-side path in the feature config; stateless. */
 @Component
 public class ServerSigningService implements SigningService {
 
@@ -32,7 +32,7 @@ public class ServerSigningService implements SigningService {
 
     @Override
     public DsseEnvelope sign(SigningContext context, byte[] payload) {
-        ServerKey key = keyParser.parse(context.get(SlsaParams.SERVER_PRIVATE_KEY));
+        ServerKey key = keyParser.fromPath(context.get(SlsaParams.SERVER_PRIVATE_KEY_PATH));
         byte[] pae = dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         try {
             Signature signer = Signature.getInstance(key.signatureAlgorithm());
