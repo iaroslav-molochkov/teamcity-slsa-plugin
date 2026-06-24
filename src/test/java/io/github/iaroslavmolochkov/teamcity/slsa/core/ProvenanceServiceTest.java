@@ -49,7 +49,6 @@ class ProvenanceServiceTest {
     @Test
     void reportsBuildProblemForInvalidConfig() {
         SBuildFeatureDescriptor feature = mock(SBuildFeatureDescriptor.class);
-        // static-keys KMS selected but region/key/algorithm/keys missing -> invalid
         when(feature.getParameters()).thenReturn(Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC));
 
         SBuild build = mock(SBuild.class);

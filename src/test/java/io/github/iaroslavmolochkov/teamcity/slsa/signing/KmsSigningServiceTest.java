@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 
 class KmsSigningServiceTest {
 
-    /** A loader that hands back a fixed (mocked) client for its type. */
     private record StubLoader(SignerType type, KmsClient client) implements KmsClientLoader {
         @Override
         public KmsClient load(SigningContext context) {

@@ -122,7 +122,7 @@ public class ProvenanceService {
 
     /** Records a build problem (visible on the build) and logs it. */
     private void reportProblem(SBuild build, String reason) {
-        log.warn("SLSA: build " + build.getBuildId() + " — " + reason);
+        log.warn("SLSA: build " + build.getBuildId() + " - " + reason);
         build.addBuildProblem(BuildProblemData.createBuildProblem(PROBLEM_IDENTITY, PROBLEM_TYPE, "SLSA provenance: " + reason));
     }
 

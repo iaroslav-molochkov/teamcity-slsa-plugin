@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.kms.KmsClient;
 
 import java.time.Duration;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /** Caches {@link KmsClient}s by connection key so builds sharing a connection reuse one client. */
@@ -20,7 +21,7 @@ public class KmsClientCache {
     public static final String MAX_CLIENTS_PROPERTY = "teamcity.slsa.maxKmsClients";
     public static final String CLIENT_TTL_MINUTES_PROPERTY = "teamcity.slsa.kmsClientTtlMinutes";
 
-    private final Cache<String, SignerClient> clients;
+    private final Cache<UUID, SignerClient> clients;
 
     public KmsClientCache(EventDispatcher<BuildServerListener> eventDispatcher) {
         int maxClients = TeamCityProperties.getInteger(MAX_CLIENTS_PROPERTY, 32);
@@ -28,7 +29,7 @@ public class KmsClientCache {
         clients = Caffeine.newBuilder()
                 .maximumSize(maxClients)
                 .expireAfterAccess(Duration.ofMinutes(ttlMinutes))
-                .removalListener((String key, SignerClient client, RemovalCause cause) -> {
+                .removalListener((UUID key, SignerClient client, RemovalCause cause) -> {
                     if (client != null) {
                         client.close();
                     }
@@ -48,7 +49,7 @@ public class KmsClientCache {
      * on first use. The cache owns the resulting {@link SignerClient}'s lifecycle (closed on eviction
      * or shutdown), so callers must not close it.
      */
-    public KmsClient get(String connectionKey, Supplier<SignerClient> factory) {
+    public KmsClient get(UUID connectionKey, Supplier<SignerClient> factory) {
         return clients.get(connectionKey, key -> factory.get()).kms();
     }
 

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -22,7 +23,7 @@ class KmsClientCacheTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static Supplier<SignerClient> factoryOfNewClients() {
+    private static Supplier<SignerClient> clientFactory() {
         Supplier<SignerClient> factory = mock(Supplier.class);
         when(factory.get()).thenAnswer(inv -> new SignerClient(mock(KmsClient.class), List.of()));
         return factory;
@@ -31,10 +32,11 @@ class KmsClientCacheTest {
     @Test
     void buildsOncePerConnectionKey() {
         KmsClientCache cache = newCache();
-        Supplier<SignerClient> factory = factoryOfNewClients();
+        Supplier<SignerClient> factory = clientFactory();
 
-        KmsClient a = cache.get("conn-1", factory);
-        KmsClient b = cache.get("conn-1", factory);
+        UUID connectionKey = UUID.randomUUID();
+        KmsClient a = cache.get(connectionKey, factory);
+        KmsClient b = cache.get(connectionKey, factory);
 
         assertSame(a, b);
         verify(factory, times(1)).get();
@@ -44,8 +46,8 @@ class KmsClientCacheTest {
     void buildsDistinctClientPerConnectionKey() {
         KmsClientCache cache = newCache();
 
-        KmsClient a = cache.get("conn-1", factoryOfNewClients());
-        KmsClient b = cache.get("conn-2", factoryOfNewClients());
+        KmsClient a = cache.get(UUID.randomUUID(), clientFactory());
+        KmsClient b = cache.get(UUID.randomUUID(), clientFactory());
 
         assertNotSame(a, b);
     }

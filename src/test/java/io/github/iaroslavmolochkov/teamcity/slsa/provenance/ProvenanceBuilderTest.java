@@ -49,8 +49,8 @@ class ProvenanceBuilderTest {
         when(build.getAgentName()).thenReturn("agent-1");
         when(build.getBuildOwnParameters()).thenReturn(ownParams);
         when(build.getRevisions()).thenReturn(List.of());
-        when(build.getStartDate()).thenReturn(new Date(1000));   // 1970-01-01T00:00:01Z
-        when(build.getFinishDate()).thenReturn(new Date(5000));  // 1970-01-01T00:00:05Z
+        when(build.getStartDate()).thenReturn(new Date(1000));
+        when(build.getFinishDate()).thenReturn(new Date(5000));
         when(build.getProjectExternalId()).thenReturn("MyProj");
 
         stubPlatform(build);
@@ -74,7 +74,6 @@ class ProvenanceBuilderTest {
         assertEquals("dist/app.jar", statement.subject().get(0).name());
         assertEquals("abcd1234", statement.subject().get(0).digest().get("sha256"));
 
-        // builder.id is the platform (server) URL; invocationId is the specific run.
         assertEquals("https://tc.example.com", statement.predicate().runDetails().builder().id());
         String invocation = "https://tc.example.com/viewLog.html?buildId=42&buildTypeId=MyProj_Build";
         assertEquals(invocation, statement.predicate().runDetails().metadata().invocationId());
@@ -118,7 +117,7 @@ class ProvenanceBuilderTest {
         when(commit.getVersion()).thenReturn("abc123");
         when(commit.getUserName()).thenReturn("Jane Dev");
         when(commit.getDescription()).thenReturn("Fix the bug\n\nlong details");
-        when(commit.getVcsDate()).thenReturn(new Date(2000)); // 1970-01-01T00:00:02Z
+        when(commit.getVcsDate()).thenReturn(new Date(2000));
 
         SBuild build = mock(SBuild.class);
         when(build.getBuildId()).thenReturn(1L);
@@ -150,7 +149,6 @@ class ProvenanceBuilderTest {
         assertEquals("Fix the bug", dep.annotations().get("message"));
         assertEquals("1970-01-01T00:00:02Z", dep.annotations().get("committedAt"));
 
-        // The grouped, package-private records must still serialize through Jackson end-to-end.
         String json = new String(new ProvenanceJsonHandler().toBytes(statement), java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(json.contains("\"gitCommit\":\"abc123\""), json);
         assertTrue(json.contains("\"predicateType\":\"" + InTotoStatement.SLSA_PREDICATE_TYPE + "\""), json);
@@ -183,10 +181,9 @@ class ProvenanceBuilderTest {
         when(build.getBuildOwnParameters()).thenReturn(Map.of());
         when(build.getStartDate()).thenReturn(new Date(0));
         when(build.getFinishDate()).thenReturn(new Date(0));
-        when(build.getRevisions()).thenReturn(List.of());          // no VCS, so only the build dep appears
+        when(build.getRevisions()).thenReturn(List.of());
         stubPlatform(build);
         BuildPromotion promotion = mock(BuildPromotion.class);
-        // Listed twice (e.g. snapshot + artifact dependency on the same build) — must be deduped.
         doReturn(List.of(dependency, dependency)).when(promotion).getDependencies();
         when(build.getBuildPromotion()).thenReturn(promotion);
 
@@ -201,13 +198,12 @@ class ProvenanceBuilderTest {
         assertEquals("Lib_Build #3.2", deps.get(0).name());
     }
 
-    /** Stubs the platform-side calls every build maps through, with neutral defaults tests can override. */
     private static void stubPlatform(SBuild build) {
         TriggeredBy triggeredBy = mock(TriggeredBy.class);
         when(triggeredBy.getTriggerId()).thenReturn("vcsTrigger");
         when(build.getTriggeredBy()).thenReturn(triggeredBy);
 
-        when(build.getAgent()).thenReturn(mock(SBuildAgent.class)); // getHostName() -> null, so it's omitted
+        when(build.getAgent()).thenReturn(mock(SBuildAgent.class));
 
         BuildPromotion promotion = mock(BuildPromotion.class);
         when(promotion.getDependencies()).thenReturn(List.of());

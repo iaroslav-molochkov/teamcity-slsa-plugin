@@ -118,7 +118,7 @@ public class ArtifactHasher {
         return subjects;
     }
 
-    @SuppressWarnings("unchecked") // retry4j's fluent config() returns a raw builder, dropping the type
+    @SuppressWarnings("unchecked")
     private ArtifactSubject toSubject(SBuild build, BuildArtifact artifact) {
         try {
             CallExecutor<ArtifactSubject> executor = new CallExecutorBuilder<ArtifactSubject>()

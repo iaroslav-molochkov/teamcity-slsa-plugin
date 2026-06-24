@@ -18,7 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ServerKeyParserTest {
 
-    /** A real OpenSSL-generated P-256 keypair (PKCS#8 private + its SPKI public). */
     private static final String OPENSSL_EC_PRIVATE = """
             -----BEGIN PRIVATE KEY-----
             MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgxRaiCnOyJC2f96ft
@@ -84,7 +83,6 @@ class ServerKeyParserTest {
         return generator.generateKeyPair();
     }
 
-    /** A PKCS#8 PEM of the private key — what {@code getEncoded()} produces, framed. */
     private static String pkcs8Pem(KeyPair pair) {
         String body = Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII))
                 .encodeToString(pair.getPrivate().getEncoded());

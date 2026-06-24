@@ -29,7 +29,7 @@ public abstract class AbstractKmsClientLoader implements KmsClientLoader {
     protected abstract SignerClient build(SigningContext context);
 
     /**
-     * Builds a KMS client over the given HTTP client and provider — the shared bit every mode needs. A
+     * Builds a KMS client over the given HTTP client and provider - the shared bit every mode needs. A
      * {@code null} region is left unset so the SDK's default region provider chain resolves it
      * (e.g. from {@code AWS_REGION}).
      */

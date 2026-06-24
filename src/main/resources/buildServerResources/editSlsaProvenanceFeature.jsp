@@ -17,11 +17,11 @@
   <td>
     <props:selectProperty name="slsa.signer" className="mediumField">
       <props:option value="server">Server key (your PEM private key)</props:option>
-      <props:option value="aws-kms-default">AWS KMS — default provider chain</props:option>
-      <props:option value="aws-kms-static">AWS KMS — access key</props:option>
-      <props:option value="aws-kms-assume-role">AWS KMS — assume an IAM role</props:option>
+      <props:option value="aws-kms-default">AWS KMS &mdash; default provider chain</props:option>
+      <props:option value="aws-kms-static">AWS KMS &mdash; access key</props:option>
+      <props:option value="aws-kms-assume-role">AWS KMS &mdash; assume an IAM role</props:option>
     </props:selectProperty>
-    <span class="smallNote">"Server key" signs with a private key you supply below — you keep the matching
+    <span class="smallNote">"Server key" signs with a private key you supply below &mdash; you keep the matching
       public key and give it to verifiers. The AWS KMS signers (key never leaves AWS) are recommended for
       real assurance; their settings further below apply only to them. The default provider chain reads
       env vars, profile, container or instance role on the server; "access key" uses the fields below;
@@ -34,7 +34,7 @@
     <th><label for="secure:slsa.server.privateKey">Private key (PEM): <l:star/></label></th>
     <td>
       <props:passwordProperty name="secure:slsa.server.privateKey" className="longField"/>
-      <span class="smallNote">An EC or RSA private key in PEM — PKCS#8 (<code>-----BEGIN PRIVATE KEY-----</code>),
+      <span class="smallNote">An EC or RSA private key in PEM &mdash; PKCS#8 (<code>-----BEGIN PRIVATE KEY-----</code>),
         PKCS#1 (<code>-----BEGIN RSA PRIVATE KEY-----</code>) or SEC1 (<code>-----BEGIN EC PRIVATE KEY-----</code>).
         Encrypted keys are not supported. Stored encrypted. The DSSE <code>keyid</code> is derived from the
         key as <code>sha256:&lt;public key&gt;</code>; you keep the matching public key and give it to verifiers.</span>
@@ -55,7 +55,7 @@
   <th><label for="slsa.kms.keyId">KMS key id / ARN: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.kms.keyId" className="longField"/>
-    <span class="smallNote">An asymmetric SIGN_VERIFY key — key id, alias (<code>alias/&hellip;</code>) or full ARN.</span>
+    <span class="smallNote">An asymmetric SIGN_VERIFY key &mdash; key id, alias (<code>alias/&hellip;</code>) or full ARN.</span>
   </td>
 </tr>
 
@@ -75,7 +75,7 @@
   <th><label for="slsa.aws.accessKeyId">Access key id:</label></th>
   <td>
     <props:textProperty name="slsa.aws.accessKeyId" className="longField"/>
-    <span class="smallNote">Required only for the "AWS KMS — access key" signer.</span>
+    <span class="smallNote">Required only for the "AWS KMS &mdash; access key" signer.</span>
   </td>
 </tr>
 
@@ -83,11 +83,11 @@
   <th><label for="secure:slsa.aws.secretAccessKey">Secret access key:</label></th>
   <td>
     <props:passwordProperty name="secure:slsa.aws.secretAccessKey" className="longField"/>
-    <span class="smallNote">Stored encrypted. Required only for the "AWS KMS — access key" signer.</span>
+    <span class="smallNote">Stored encrypted. Required only for the "AWS KMS &mdash; access key" signer.</span>
   </td>
 </tr>
 
-<l:settingsGroup title="Assume role (for the &quot;AWS KMS — assume an IAM role&quot; signer)">
+<l:settingsGroup title="Assume role (for the &quot;AWS KMS &mdash; assume an IAM role&quot; signer)">
   <tr>
     <th><label for="slsa.aws.assumeRole.arn">Role ARN:</label></th>
     <td>

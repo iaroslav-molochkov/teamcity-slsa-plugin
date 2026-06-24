@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /** Derives a connection's stable client-cache id by dispatching to its {@link ConnectionKeyHandler}. */
 @Component
@@ -21,7 +22,7 @@ public class ConnectionIdService {
         }
     }
 
-    public String id(SigningContext context) {
+    public UUID id(SigningContext context) {
         ConnectionKeyHandler handler = connectionKeyHandlers.get(context.type());
         if (handler == null) {
             throw new SigningException("No connection-key handler for signer: " + context.type());

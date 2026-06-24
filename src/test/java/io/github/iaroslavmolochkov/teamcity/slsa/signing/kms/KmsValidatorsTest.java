@@ -73,9 +73,9 @@ class KmsValidatorsTest {
 
     @Test
     void assumeRoleRejectsOutOfRangeDuration() {
-        assertTrue(errorKeys(assumeRoleValidator, durationParams("100"))    // below 900
+        assertTrue(errorKeys(assumeRoleValidator, durationParams("100"))
                 .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
-        assertTrue(errorKeys(assumeRoleValidator, durationParams("99999"))  // above 43200
+        assertTrue(errorKeys(assumeRoleValidator, durationParams("99999"))
                 .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
     }
 

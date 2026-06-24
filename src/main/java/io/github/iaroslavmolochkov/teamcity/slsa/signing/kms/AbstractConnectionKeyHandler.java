@@ -14,12 +14,12 @@ public abstract class AbstractConnectionKeyHandler implements ConnectionKeyHandl
     private static final Hasher128 HASHER = Hashing.murmur3_128();
 
     @Override
-    public final String id(SigningContext context) {
+    public final UUID id(SigningContext context) {
         HashStream128 stream = HASHER.hashStream();
         stream.putString(context.type().value());
         funnel(stream, context);
         HashValue128 hash = stream.get();
-        return new UUID(hash.getMostSignificantBits(), hash.getLeastSignificantBits()).toString();
+        return new UUID(hash.getMostSignificantBits(), hash.getLeastSignificantBits());
     }
 
     /** Adds this mode's identifying fields to the stream (via {@link #put}). */

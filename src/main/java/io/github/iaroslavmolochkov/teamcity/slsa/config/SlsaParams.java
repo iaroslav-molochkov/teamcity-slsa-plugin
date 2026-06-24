@@ -6,7 +6,7 @@ public final class SlsaParams {
     public static final String FEATURE_TYPE = "slsa.provenance";
 
     /**
-     * The single discriminator: which signer, and (for KMS) how it gets credentials. Required — the
+     * The single discriminator: which signer, and (for KMS) how it gets credentials. Required - the
      * UI/DSL always provides it. Each value maps to a {@code Validator} and a {@code SigningService}.
      */
     public static final String SIGNER = "slsa.signer";

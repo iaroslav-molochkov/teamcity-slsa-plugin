@@ -32,7 +32,6 @@ class SigningDispatchTest {
 
     private static final DsseEnvelope ENVELOPE = new DsseService().envelope(new byte[]{1}, "key", new byte[]{2});
 
-    // --- Validators ---
 
     private Validators validators(List<InvalidProperty> serverErrors) {
         return new Validators(List.of(new StubValidator(SignerType.SERVER, serverErrors)));
@@ -56,7 +55,6 @@ class SigningDispatchTest {
                 .validate(new SigningContext(Map.of(SlsaParams.SIGNER, "server"))).isEmpty());
     }
 
-    // --- SigningServices ---
 
     private SigningServices services() {
         return new SigningServices(List.of(new StubService(Set.of(SignerType.SERVER), ENVELOPE)));

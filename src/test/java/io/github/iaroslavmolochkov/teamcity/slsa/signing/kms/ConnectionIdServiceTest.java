@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -19,7 +20,7 @@ class ConnectionIdServiceTest {
     private final ConnectionIdService ids = new ConnectionIdService(List.of(
             new DefaultConnectionKeyHandler(), new StaticConnectionKeyHandler(), new AssumeRoleConnectionKeyHandler()));
 
-    private String id(String... kv) {
+    private UUID id(String... kv) {
         Map<String, String> map = new HashMap<>();
         for (int i = 0; i < kv.length; i += 2) {
             map.put(kv[i], kv[i + 1]);
@@ -47,7 +48,6 @@ class ConnectionIdServiceTest {
 
     @Test
     void avoidsConcatenationAmbiguityTrap() {
-        // ["a","ab"] vs ["aa","b"] would collide under naive concatenation; length-framing must not.
         assertNotEquals(
                 id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC,
                         SlsaParams.REGION, "a", SlsaParams.ACCESS_KEY_ID, "ab", SlsaParams.SECRET_ACCESS_KEY, "x"),
@@ -65,7 +65,6 @@ class ConnectionIdServiceTest {
 
     @Test
     void absentOptionalFieldDiffersFromPresent() {
-        // externalId absent (→ -1 marker) must not collide with externalId present.
         assertNotEquals(
                 id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_ASSUME_ROLE,
                         SlsaParams.REGION, "us-east-1", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"),

@@ -72,12 +72,12 @@ public class ProvenanceBuilder {
         return new InTotoStatement(InTotoStatement.TYPE, wireSubjects, InTotoStatement.SLSA_PREDICATE_TYPE, predicate);
     }
 
-    /** Platform identity — the TeamCity server instance that produced the provenance. */
+    /** Platform identity - the TeamCity server instance that produced the provenance. */
     private String builderId() {
         return trimTrailingSlash(server.getRootUrl());
     }
 
-    /** Run identity — the URL of this specific build. */
+    /** Run identity - the URL of this specific build. */
     private String buildUrl(SBuild build) {
         return builderId() + "/viewLog.html?buildId=" + build.getBuildId()
                 + "&buildTypeId=" + build.getBuildTypeExternalId();
@@ -247,7 +247,7 @@ public class ProvenanceBuilder {
 
         int newline = text.indexOf('\n');
         String line = (newline >= 0 ? text.substring(0, newline) : text).trim();
-        return line.length() > 200 ? line.substring(0, 200) + "…" : line;
+        return line.length() > 200 ? line.substring(0, 200) + "..." : line;
     }
 
     private Map<String, String> builderVersion() {

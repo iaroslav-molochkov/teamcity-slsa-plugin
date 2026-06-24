@@ -14,7 +14,7 @@ public class DsseService {
     private static final byte SP = ' ';
 
     /**
-     * Pre-Authentication Encoding — the exact bytes signed:
+     * Pre-Authentication Encoding - the exact bytes signed:
      * <pre>PAE(type, body) = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body</pre>
      * where SP is a single ASCII space and LEN is the ASCII-decimal byte length.
      */

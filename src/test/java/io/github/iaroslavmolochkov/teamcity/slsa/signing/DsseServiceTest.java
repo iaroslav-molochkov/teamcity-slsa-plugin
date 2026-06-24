@@ -15,7 +15,6 @@ class DsseServiceTest {
 
     private final DsseService dsse = new DsseService();
 
-    // --- pae ---
 
     @Test
     void paeMatchesDsseSpecExample() {
@@ -26,9 +25,8 @@ class DsseServiceTest {
 
     @Test
     void paeUsesByteLengthNotCharLength() {
-        // "héllo" is 6 UTF-8 bytes (é = 2 bytes) but 5 chars; PAE must use the byte length.
-        byte[] pae = dsse.pae("t", "héllo".getBytes(StandardCharsets.UTF_8));
-        assertEquals("DSSEv1 1 t 6 héllo", new String(pae, StandardCharsets.UTF_8));
+        byte[] pae = dsse.pae("t", "h\u00e9llo".getBytes(StandardCharsets.UTF_8));
+        assertEquals("DSSEv1 1 t 6 h\u00e9llo", new String(pae, StandardCharsets.UTF_8));
     }
 
     @Test
@@ -44,7 +42,6 @@ class DsseServiceTest {
         assertArrayEquals(prefix, head);
     }
 
-    // --- envelope ---
 
     @Test
     void envelopeBase64EncodesPayloadAndSignature() {
