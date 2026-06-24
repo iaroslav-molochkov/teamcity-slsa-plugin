@@ -1,7 +1,7 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validator;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractKmsValidator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +14,7 @@ import java.util.Map;
  * region is optional (resolved from the environment, e.g. {@code AWS_REGION}, like the credentials).
  */
 @Component
-public class DefaultKmsValidator implements Validator {
+public class DefaultKmsValidator extends AbstractKmsValidator {
 
     @Override
     public SignerType type() {
@@ -24,7 +24,7 @@ public class DefaultKmsValidator implements Validator {
     @Override
     public List<InvalidProperty> validate(Map<String, String> params) {
         List<InvalidProperty> errors = new ArrayList<>();
-        Kms.requireKeyAndAlgorithm(params, errors);
+        requireKeyAndAlgorithm(params, errors);
         return errors;
     }
 }

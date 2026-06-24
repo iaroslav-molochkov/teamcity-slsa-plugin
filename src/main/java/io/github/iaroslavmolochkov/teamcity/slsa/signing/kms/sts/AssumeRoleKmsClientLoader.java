@@ -1,10 +1,12 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.sts;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.SignerClient;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractKmsClientLoader;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.ConnectionIdService;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
@@ -25,14 +27,10 @@ import java.util.List;
  * auto-refreshing provider are tracked as closeables so the cache can release them on eviction.
  */
 @Component
-public class AssumeRoleKmsClientLoader implements KmsClientLoader {
-
-    private final KmsClientCache cache;
-    private final ConnectionIdService connectionIdService;
+public class AssumeRoleKmsClientLoader extends AbstractKmsClientLoader {
 
     public AssumeRoleKmsClientLoader(KmsClientCache cache, ConnectionIdService connectionIdService) {
-        this.cache = cache;
-        this.connectionIdService = connectionIdService;
+        super(cache, connectionIdService);
     }
 
     @Override
@@ -41,39 +39,31 @@ public class AssumeRoleKmsClientLoader implements KmsClientLoader {
     }
 
     @Override
-    public KmsClient load(SigningContext context) {
-        String sessionName = context.get(SlsaParams.ASSUME_ROLE_SESSION_NAME);
-        AssumeRoleKmsConfig config = new AssumeRoleKmsConfig(
-                context.get(SlsaParams.REGION),
-                context.get(SlsaParams.ASSUME_ROLE_ARN),
-                sessionName == null ? SlsaParams.DEFAULT_SESSION_NAME : sessionName,
-                context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID),
-                SigningContext.toIntOrNull(context.get(SlsaParams.ASSUME_ROLE_DURATION_SECONDS)),
-                context.get(SlsaParams.STS_ENDPOINT));
-        return cache.get(connectionIdService.id(context), () -> build(config));
-    }
-
-    private static SignerClient build(AssumeRoleKmsConfig config) {
-        Region region = Region.of(config.region());
+    protected SignerClient build(SigningContext context) {
+        String region = context.get(SlsaParams.REGION);
         SdkHttpClient httpClient = UrlConnectionHttpClient.create();
 
         StsClientBuilder stsBuilder = StsClient.builder()
-                .region(region)
+                .region(Region.of(region))
                 .httpClient(httpClient)
                 .credentialsProvider(DefaultCredentialsProvider.builder().build());
-        if (config.stsEndpoint() != null) {
-            stsBuilder.endpointOverride(URI.create(config.stsEndpoint()));
+        String stsEndpoint = context.get(SlsaParams.STS_ENDPOINT);
+        if (stsEndpoint != null) {
+            stsBuilder.endpointOverride(URI.create(stsEndpoint));
         }
         StsClient sts = stsBuilder.build();
 
+        String sessionName = context.get(SlsaParams.ASSUME_ROLE_SESSION_NAME);
         AssumeRoleRequest.Builder request = AssumeRoleRequest.builder()
-                .roleArn(config.roleArn())
-                .roleSessionName(config.sessionName());
-        if (config.externalId() != null) {
-            request.externalId(config.externalId());
+                .roleArn(context.get(SlsaParams.ASSUME_ROLE_ARN))
+                .roleSessionName(sessionName == null ? SlsaParams.DEFAULT_SESSION_NAME : sessionName);
+        String externalId = context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID);
+        if (externalId != null) {
+            request.externalId(externalId);
         }
-        if (config.durationSeconds() != null) {
-            request.durationSeconds(config.durationSeconds());
+        Integer duration = SigningContext.toIntOrNull(context.get(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+        if (duration != null) {
+            request.durationSeconds(duration);
         }
 
         StsAssumeRoleCredentialsProvider provider = StsAssumeRoleCredentialsProvider.builder()
@@ -81,7 +71,7 @@ public class AssumeRoleKmsClientLoader implements KmsClientLoader {
                 .refreshRequest(request.build())
                 .build();
 
-        KmsClient kms = Kms.client(config.region(), httpClient, provider);
+        KmsClient kms = client(region, httpClient, provider);
         return new SignerClient(kms, List.of(httpClient, sts, provider));
     }
 }

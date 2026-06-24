@@ -1,11 +1,10 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.sts;
 
 import com.dynatrace.hash4j.hashing.HashStream128;
-import com.dynatrace.hash4j.hashing.Hasher128;
-import com.dynatrace.hash4j.hashing.Hashing;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractConnectionKeyHandler;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,9 +13,7 @@ import org.springframework.stereotype.Component;
  * per-request details, not connection identity, so they're excluded.
  */
 @Component
-public class AssumeRoleConnectionKeyHandler implements ConnectionKeyHandler {
-
-    private static final Hasher128 HASHER = Hashing.murmur3_128();
+public class AssumeRoleConnectionKeyHandler extends AbstractConnectionKeyHandler {
 
     private static final byte REGION = 1;
     private static final byte ROLE_ARN = 2;
@@ -29,13 +26,10 @@ public class AssumeRoleConnectionKeyHandler implements ConnectionKeyHandler {
     }
 
     @Override
-    public String id(SigningContext context) {
-        HashStream128 stream = HASHER.hashStream();
-        stream.putString(context.type().value());
-        ConnectionKeyHandler.put(stream, REGION, context.get(SlsaParams.REGION));
-        ConnectionKeyHandler.put(stream, ROLE_ARN, context.get(SlsaParams.ASSUME_ROLE_ARN));
-        ConnectionKeyHandler.put(stream, EXTERNAL_ID, context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID));
-        ConnectionKeyHandler.put(stream, STS_ENDPOINT, context.get(SlsaParams.STS_ENDPOINT));
-        return ConnectionKeyHandler.digest(stream);
+    protected void funnel(HashStream128 stream, SigningContext context) {
+        put(stream, REGION, context.get(SlsaParams.REGION));
+        put(stream, ROLE_ARN, context.get(SlsaParams.ASSUME_ROLE_ARN));
+        put(stream, EXTERNAL_ID, context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID));
+        put(stream, STS_ENDPOINT, context.get(SlsaParams.STS_ENDPOINT));
     }
 }

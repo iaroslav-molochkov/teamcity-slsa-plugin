@@ -1,0 +1,42 @@
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
+
+import com.dynatrace.hash4j.hashing.HashStream128;
+import com.dynatrace.hash4j.hashing.HashValue128;
+import com.dynatrace.hash4j.hashing.Hasher128;
+import com.dynatrace.hash4j.hashing.Hashing;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+
+import java.util.UUID;
+
+/**
+ * Skeletal {@link ConnectionKeyHandler}: owns the one collision-safe hashing scheme so each mode only
+ * declares its own fields. {@link #id} seeds a fresh stream with the type discriminator, lets the
+ * subclass {@link #funnel} its fields (length-framed, null-safe via {@link #put}), and finalizes to
+ * a stable id. The framing is defined once here.
+ */
+public abstract class AbstractConnectionKeyHandler implements ConnectionKeyHandler {
+
+    private static final Hasher128 HASHER = Hashing.murmur3_128();
+
+    @Override
+    public final String id(SigningContext context) {
+        HashStream128 stream = HASHER.hashStream();
+        stream.putString(context.type().value());
+        funnel(stream, context);
+        HashValue128 hash = stream.get();
+        return new UUID(hash.getMostSignificantBits(), hash.getLeastSignificantBits()).toString();
+    }
+
+    /** Adds this mode's identifying fields to the stream (via {@link #put}). */
+    protected abstract void funnel(HashStream128 stream, SigningContext context);
+
+    /** Adds one tagged field; a {@code null} value is recorded as absent (distinct from empty). */
+    protected void put(HashStream128 stream, byte tag, String value) {
+        stream.putByte(tag);
+        if (value == null) {
+            stream.putInt(-1);
+        } else {
+            stream.putString(value);
+        }
+    }
+}

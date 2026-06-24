@@ -6,8 +6,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 
 /**
  * Builds (or fetches from cache) the KMS client for one AWS credentials mode. Selected by
- * {@link #type()}; the {@link KmsSigningService} picks the right loader from the context's type. The
- * "construct or get from cache" job lives here — separate from validation and from signing.
+ * {@link #type()}; {@link AbstractKmsClientLoader} provides the cache lookup and the shared client build.
  */
 public interface KmsClientLoader {
 

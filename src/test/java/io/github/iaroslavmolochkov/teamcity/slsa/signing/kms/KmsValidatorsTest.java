@@ -1,6 +1,9 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp.DefaultKmsValidator;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsValidator;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.sts.AssumeRoleKmsValidator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.junit.jupiter.api.Test;
 

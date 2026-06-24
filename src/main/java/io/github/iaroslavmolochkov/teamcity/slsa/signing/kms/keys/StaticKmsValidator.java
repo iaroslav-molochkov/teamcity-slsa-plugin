@@ -1,9 +1,9 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractKmsValidator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +13,7 @@ import java.util.Map;
 
 /** Validates the static-keys KMS signer: region, key, algorithm, and the access key id + secret. */
 @Component
-public class StaticKmsValidator implements Validator {
+public class StaticKmsValidator extends AbstractKmsValidator {
 
     @Override
     public SignerType type() {
@@ -23,8 +23,8 @@ public class StaticKmsValidator implements Validator {
     @Override
     public List<InvalidProperty> validate(Map<String, String> params) {
         List<InvalidProperty> errors = new ArrayList<>();
-        Kms.requireRegion(params, errors);
-        Kms.requireKeyAndAlgorithm(params, errors);
+        requireRegion(params, errors);
+        requireKeyAndAlgorithm(params, errors);
         if (SigningContext.get(params, SlsaParams.ACCESS_KEY_ID) == null) {
             errors.add(new InvalidProperty(SlsaParams.ACCESS_KEY_ID, "Access key id is required for static credentials"));
         }

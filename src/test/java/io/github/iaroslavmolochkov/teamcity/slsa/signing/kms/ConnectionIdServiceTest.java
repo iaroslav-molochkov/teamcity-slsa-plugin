@@ -2,6 +2,9 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp.DefaultConnectionKeyHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticConnectionKeyHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.sts.AssumeRoleConnectionKeyHandler;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;

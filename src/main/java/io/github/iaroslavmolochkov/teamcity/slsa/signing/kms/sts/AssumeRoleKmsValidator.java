@@ -1,9 +1,9 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.sts;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractKmsValidator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +13,7 @@ import java.util.Map;
 
 /** Validates the assume-role KMS signer: region, key, algorithm, the role ARN, and any duration. */
 @Component
-public class AssumeRoleKmsValidator implements Validator {
+public class AssumeRoleKmsValidator extends AbstractKmsValidator {
 
     // AWS STS AssumeRole DurationSeconds limits: 15 minutes to 12 hours.
     private static final int MIN_DURATION_SECONDS = 900;
@@ -27,8 +27,8 @@ public class AssumeRoleKmsValidator implements Validator {
     @Override
     public List<InvalidProperty> validate(Map<String, String> params) {
         List<InvalidProperty> errors = new ArrayList<>();
-        Kms.requireRegion(params, errors);
-        Kms.requireKeyAndAlgorithm(params, errors);
+        requireRegion(params, errors);
+        requireKeyAndAlgorithm(params, errors);
         if (SigningContext.get(params, SlsaParams.ASSUME_ROLE_ARN) == null) {
             errors.add(new InvalidProperty(SlsaParams.ASSUME_ROLE_ARN, "Role ARN is required to assume a role"));
         }

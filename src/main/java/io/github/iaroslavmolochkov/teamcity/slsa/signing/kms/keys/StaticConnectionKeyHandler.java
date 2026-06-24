@@ -1,11 +1,10 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys;
 
 import com.dynatrace.hash4j.hashing.HashStream128;
-import com.dynatrace.hash4j.hashing.Hasher128;
-import com.dynatrace.hash4j.hashing.Hashing;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractConnectionKeyHandler;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,9 +13,7 @@ import org.springframework.stereotype.Component;
  * secrets never collide — no need to unscramble just to derive an identity.
  */
 @Component
-public class StaticConnectionKeyHandler implements ConnectionKeyHandler {
-
-    private static final Hasher128 HASHER = Hashing.murmur3_128();
+public class StaticConnectionKeyHandler extends AbstractConnectionKeyHandler {
 
     private static final byte REGION = 1;
     private static final byte ACCESS_KEY_ID = 2;
@@ -28,12 +25,9 @@ public class StaticConnectionKeyHandler implements ConnectionKeyHandler {
     }
 
     @Override
-    public String id(SigningContext context) {
-        HashStream128 stream = HASHER.hashStream();
-        stream.putString(context.type().value());
-        ConnectionKeyHandler.put(stream, REGION, context.get(SlsaParams.REGION));
-        ConnectionKeyHandler.put(stream, ACCESS_KEY_ID, context.get(SlsaParams.ACCESS_KEY_ID));
-        ConnectionKeyHandler.put(stream, SECRET, context.get(SlsaParams.SECRET_ACCESS_KEY));
-        return ConnectionKeyHandler.digest(stream);
+    protected void funnel(HashStream128 stream, SigningContext context) {
+        put(stream, REGION, context.get(SlsaParams.REGION));
+        put(stream, ACCESS_KEY_ID, context.get(SlsaParams.ACCESS_KEY_ID));
+        put(stream, SECRET, context.get(SlsaParams.SECRET_ACCESS_KEY));
     }
 }

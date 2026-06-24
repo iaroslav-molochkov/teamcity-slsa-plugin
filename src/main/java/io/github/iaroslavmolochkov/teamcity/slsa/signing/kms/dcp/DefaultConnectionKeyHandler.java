@@ -1,18 +1,15 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp;
 
 import com.dynatrace.hash4j.hashing.HashStream128;
-import com.dynatrace.hash4j.hashing.Hasher128;
-import com.dynatrace.hash4j.hashing.Hashing;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractConnectionKeyHandler;
 import org.springframework.stereotype.Component;
 
 /** Default-provider-chain connections are identified by region alone (creds come from the environment). */
 @Component
-public class DefaultConnectionKeyHandler implements ConnectionKeyHandler {
-
-    private static final Hasher128 HASHER = Hashing.murmur3_128();
+public class DefaultConnectionKeyHandler extends AbstractConnectionKeyHandler {
 
     private static final byte REGION = 1;
 
@@ -22,10 +19,7 @@ public class DefaultConnectionKeyHandler implements ConnectionKeyHandler {
     }
 
     @Override
-    public String id(SigningContext context) {
-        HashStream128 stream = HASHER.hashStream();
-        stream.putString(context.type().value());
-        ConnectionKeyHandler.put(stream, REGION, context.get(SlsaParams.REGION));
-        return ConnectionKeyHandler.digest(stream);
+    protected void funnel(HashStream128 stream, SigningContext context) {
+        put(stream, REGION, context.get(SlsaParams.REGION));
     }
 }
