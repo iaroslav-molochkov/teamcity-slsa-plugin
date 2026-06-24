@@ -67,14 +67,11 @@ public class ProvenanceBuilder {
                         internalParameters(build),
                         resolvedDependencies(build)),
                 new RunDetails(
-                        //todo why is it empty list? if it's useless then drop it, otherwise pop it
-                        new SlsaPlatform(builderId(), builderVersion(), List.of()),
+                        new SlsaPlatform(builderId(), builderVersion()),
                         new RunMetadata(
                                 buildUrl(build),
                                 iso(build.getStartDate()),
-                                iso(build.getFinishDate())),
-                        //todo same thing
-                        List.of()));
+                                iso(build.getFinishDate()))));
 
         return new InTotoStatement(InTotoStatement.TYPE, wireSubjects, InTotoStatement.SLSA_PREDICATE_TYPE, predicate);
     }
