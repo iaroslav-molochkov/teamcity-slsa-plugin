@@ -14,7 +14,7 @@
 <tr>
   <th><label for="slsa.signer">Signer:</label></th>
   <td>
-    <props:selectProperty name="slsa.signer" className="mediumField">
+    <props:selectProperty name="slsa.signer" id="slsaSigner" className="mediumField" onchange="BS.Slsa.updateSignerFields()">
       <props:option value="server">Server key (your PEM private key)</props:option>
       <props:option value="aws-kms-default">AWS KMS &mdash; default provider chain</props:option>
       <props:option value="aws-kms-static">AWS KMS &mdash; access key</props:option>
@@ -110,24 +110,22 @@
 </tr>
 
 <script type="text/javascript">
-  (function () {
-    var $signer = $j("select[name='slsa.signer']");
-    function refresh() {
-      var v = $signer.val();
+  BS.Slsa = {
+    updateSignerFields: function () {
+      var signer = $('slsaSigner').value;
       $j(".slsa-server, .slsa-kms, .slsa-static, .slsa-assume").hide();
-      if (v === "server") {
+      if (signer === "server") {
         $j(".slsa-server").show();
       } else {
         $j(".slsa-kms").show();
-        if (v === "aws-kms-static") {
+        if (signer === "aws-kms-static") {
           $j(".slsa-static").show();
         }
-        if (v === "aws-kms-assume-role") {
+        if (signer === "aws-kms-assume-role") {
           $j(".slsa-assume").show();
         }
       }
     }
-    $signer.change(refresh);
-    refresh();
-  })();
+  };
+  BS.Slsa.updateSignerFields();
 </script>
