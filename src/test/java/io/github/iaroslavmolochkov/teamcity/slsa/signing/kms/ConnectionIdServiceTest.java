@@ -24,7 +24,7 @@ class ConnectionIdServiceTest {
         for (int i = 0; i < kv.length; i += 2) {
             map.put(kv[i], kv[i + 1]);
         }
-        return ids.id(SigningContext.of(map));
+        return ids.id(new SigningContext(map));
     }
 
     @Test

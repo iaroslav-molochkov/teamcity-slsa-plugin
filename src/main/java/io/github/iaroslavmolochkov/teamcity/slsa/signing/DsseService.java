@@ -47,7 +47,7 @@ public class DsseService {
                 List.of(new Signature(keyId, b64.encodeToString(signature))));
     }
 
-    private static void writeAscii(ByteArrayOutputStream out, String s) {
+    private void writeAscii(ByteArrayOutputStream out, String s) {
         out.writeBytes(s.getBytes(StandardCharsets.US_ASCII));
     }
 }

@@ -1,5 +1,6 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.server.KeyInitializationException;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.server.ServerSigningService;
 
@@ -31,7 +32,7 @@ class ServerSigningServiceTest {
         ServerSigningService service = service(dataDir);
 
         byte[] payload = "{\"_type\":\"https://in-toto.io/Statement/v1\"}".getBytes(StandardCharsets.UTF_8);
-        DsseEnvelope envelope = service.sign(SigningContext.of(Map.of()), payload);
+        DsseEnvelope envelope = service.sign(new SigningContext(Map.of()), payload);
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
         assertEquals(service.keyId(), envelope.signatures().get(0).keyid());
@@ -70,6 +71,6 @@ class ServerSigningServiceTest {
     private static ServerSigningService service(File dataDir) {
         ServerPaths serverPaths = mock(ServerPaths.class);
         when(serverPaths.getPluginDataDirectory()).thenReturn(dataDir);
-        return new ServerSigningService(serverPaths, new DsseService());
+        return new ServerSigningService(serverPaths, new DsseService(), new Sha256Handler());
     }
 }

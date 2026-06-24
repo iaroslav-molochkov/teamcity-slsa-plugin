@@ -5,43 +5,38 @@ import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import java.util.Map;
 
 /**
- * The validated feature params for one build, with the {@link SignerType} resolved once. Created right
- * after validation passes and threaded through the rest of the path (sign, connection id), so the type
- * is never re-derived and downstream code reads params through one place. Also the home for the small
- * param-reading helpers (trim-to-null, lenient int) that used to live in a separate util.
+ * The feature params for one build, with the {@link SignerType} resolved once. Built right after the
+ * feature is read and threaded through validation, signing, and connection id, so the type is never
+ * re-derived and downstream code reads params through one place.
  */
 public final class SigningContext {
 
     private final SignerType type;
     private final Map<String, String> params;
 
-    private SigningContext(SignerType type, Map<String, String> params) {
-        this.type = type;
+    public SigningContext(Map<String, String> params) {
         this.params = params;
+        this.type = SignerType.fromValue(get(SlsaParams.SIGNER));
     }
 
-    /** Wraps the params, resolving the signer type once. Intended to be called on validated params. */
-    public static SigningContext of(Map<String, String> params) {
-        return new SigningContext(SignerType.fromValue(get(params, SlsaParams.SIGNER)), params);
-    }
-
-    /** The resolved signer type. Non-null when built from validated params (the only intended use). */
+    /** The resolved signer type, or {@code null} if absent/unknown (a validation error). */
     public SignerType type() {
         return type;
     }
 
-    /** The trimmed value for {@code key} from these params, or {@code null} if absent or blank. */
-    public String get(String key) {
-        return get(params, key);
-    }
-
     /** The trimmed value for {@code key}, or {@code null} if absent or blank. */
-    public static String get(Map<String, String> params, String key) {
-        return trimToNull(params.get(key));
+    public String get(String key) {
+        String value = params.get(key);
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
-    /** Parses an integer, or returns {@code null} if the value is {@code null} or not a number. */
-    public static Integer toIntOrNull(String value) {
+    /** The value for {@code key} parsed as an int, or {@code null} if absent or not a number. */
+    public Integer getInt(String key) {
+        String value = get(key);
         if (value == null) {
             return null;
         }
@@ -50,14 +45,5 @@ public final class SigningContext {
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    /** Returns the trimmed string, or {@code null} if it is {@code null} or blank. */
-    public static String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 }

@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class Sha256Test {
+class Sha256HandlerTest {
 
     @Test
     void digestsEmptyInput() throws IOException {
@@ -29,11 +29,11 @@ class Sha256Test {
     @Test
     void streamingAndByteDigestsAgree() throws IOException {
         String input = "x".repeat(100_000);
-        assertEquals(hexOf(input), Sha256.hex(input.getBytes(StandardCharsets.UTF_8)));
+        assertEquals(hexOf(input), new Sha256Handler().hex(input.getBytes(StandardCharsets.UTF_8)));
         assertTrue(hexOf(input).matches("[0-9a-f]{64}"));
     }
 
     private static String hexOf(String s) throws IOException {
-        return Sha256.hex(new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8)));
+        return new Sha256Handler().hex(new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8)));
     }
 }

@@ -1,12 +1,12 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.run;
+package io.github.iaroslavmolochkov.teamcity.slsa.core;
 
 import com.intellij.openapi.diagnostic.Logger;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.persist.ProvenancePublisher;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ArtifactSubject;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
-import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJson;
-import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJsonHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningServices;
@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 @Component
 public class ProvenanceService {
 
-    private static final Logger LOG = Loggers.SERVER;
+    private static final Logger log = Loggers.SERVER;
 
     private static final String PROBLEM_IDENTITY = "slsaProvenanceConfig";
     private static final String PROBLEM_TYPE = "slsaProvenanceConfig";
@@ -45,19 +45,25 @@ public class ProvenanceService {
     private final Validators validators;
     private final ArtifactHasher hasher;
     private final ProvenanceBuilder provenanceBuilder;
+    private final ProvenanceJsonHandler provenanceJsonHandler;
     private final SigningServices signingServices;
     private final ProvenancePublisher publisher;
+    private final Sha256Handler sha256;
 
     public ProvenanceService(Validators validators,
                              ArtifactHasher hasher,
                              ProvenanceBuilder provenanceBuilder,
+                             ProvenanceJsonHandler provenanceJsonHandler,
                              SigningServices signingServices,
-                             ProvenancePublisher publisher) {
+                             ProvenancePublisher publisher,
+                             Sha256Handler sha256) {
         this.validators = validators;
         this.hasher = hasher;
         this.provenanceBuilder = provenanceBuilder;
+        this.provenanceJsonHandler = provenanceJsonHandler;
         this.signingServices = signingServices;
         this.publisher = publisher;
+        this.sha256 = sha256;
     }
 
     /**
@@ -74,8 +80,8 @@ public class ProvenanceService {
             return;
         }
 
-        Map<String, String> params = feature.getParameters();
-        List<InvalidProperty> errors = validators.validate(params);
+        SigningContext context = new SigningContext(feature.getParameters());
+        List<InvalidProperty> errors = validators.validate(context);
 
         if (!errors.isEmpty()) {
             reportProblem(build, errors.stream()
@@ -85,9 +91,9 @@ public class ProvenanceService {
         }
 
         try {
-            sign(build, SigningContext.of(params));
+            sign(build, context);
         } catch (Exception e) {
-            LOG.warnAndDebugDetails("SLSA: signing failed for build " + build.getBuildId(), e);
+            log.warnAndDebugDetails("SLSA: signing failed for build " + build.getBuildId(), e);
             reportProblem(build, e.getMessage());
         }
     }
@@ -96,30 +102,30 @@ public class ProvenanceService {
         List<ArtifactSubject> subjects = hasher.hash(build);
 
         if (subjects.isEmpty()) {
-            LOG.info("SLSA: build " + build.getBuildId() + " has the provenance feature but produced no artifacts");
+            log.info("SLSA: build " + build.getBuildId() + " has the provenance feature but produced no artifacts");
             return;
         }
 
         InTotoStatement statement = provenanceBuilder.build(build, subjects);
-        byte[] payload = ProvenanceJson.toBytes(statement);
+        byte[] payload = provenanceJsonHandler.toBytes(statement);
 
         DsseEnvelope envelope = signingServices.sign(context, payload);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        out.writeBytes(ProvenanceJson.toBytes(envelope));
+        out.writeBytes(provenanceJsonHandler.toBytes(envelope));
         out.write('\n');
         byte[] jsonl = out.toByteArray();
 
         String signerId = context.type().value();
         if (publisher.publish(build, jsonl, metadata(envelope, signerId, jsonl))) {
-            LOG.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
+            log.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
                     + subjects.size() + " subject(s)) via '" + signerId + "' signer");
         }
     }
 
     /** Records a build problem (visible on the build) and logs it. */
     private void reportProblem(SBuild build, String reason) {
-        LOG.warn("SLSA: build " + build.getBuildId() + " — " + reason);
+        log.warn("SLSA: build " + build.getBuildId() + " — " + reason);
         build.addBuildProblem(BuildProblemData.createBuildProblem(PROBLEM_IDENTITY, PROBLEM_TYPE, "SLSA provenance: " + reason));
     }
 
@@ -127,7 +133,7 @@ public class ProvenanceService {
     private Map<String, String> metadata(DsseEnvelope envelope, String signerId, byte[] jsonl) {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("artifactPath", ProvenancePublisher.ARTIFACT_PATH);
-        metadata.put("sha256", Sha256.hex(jsonl));
+        metadata.put("sha256", sha256.hex(jsonl));
         metadata.put("payloadType", envelope.payloadType());
         metadata.put("signer", signerId);
         String keyId = envelope.keyId();

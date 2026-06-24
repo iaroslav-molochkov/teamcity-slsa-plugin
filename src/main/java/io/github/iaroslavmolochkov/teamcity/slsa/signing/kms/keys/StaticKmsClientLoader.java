@@ -34,13 +34,12 @@ public class StaticKmsClientLoader extends AbstractKmsClientLoader {
     protected SignerClient build(SigningContext context) {
         SdkHttpClient httpClient = UrlConnectionHttpClient.create();
         AwsBasicCredentials credentials = AwsBasicCredentials.create(
-                context.get(SlsaParams.ACCESS_KEY_ID), reveal(context.get(SlsaParams.SECRET_ACCESS_KEY)));
+                context.get(SlsaParams.ACCESS_KEY_ID), tryUnscramble(context.get(SlsaParams.SECRET_ACCESS_KEY)));
         KmsClient kms = client(context.get(SlsaParams.REGION), httpClient, StaticCredentialsProvider.create(credentials));
         return new SignerClient(kms, List.of(httpClient));
     }
 
-    /** Unscrambles a TeamCity-stored secret; plain values pass through. */
-    private static String reveal(String value) {
+    private String tryUnscramble(String value) {
         return EncryptUtil.isScrambled(value) ? EncryptUtil.unscramble(value) : value;
     }
 }

@@ -1,27 +1,28 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.provenance;
 
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 
 /**
  * Computes SHA-256 digests. SLSA provenance identifies each subject (artifact)
  * by its content digest, so this is the core hashing primitive of the plugin.
  */
-public final class Sha256 {
+@Component
+public class Sha256Handler {
 
-    // 64 KiB keeps syscall overhead low when streaming multi-GB artifacts.
     private static final int BUFFER_SIZE = 64 * 1024;
-
-    private Sha256() {
-    }
+    private static final HexFormat hexFormat = HexFormat.of();
 
     /**
      * Streams the given input and returns its SHA-256 digest as a lowercase hex string.
      * The caller is responsible for closing the stream.
      */
-    public static String hex(InputStream in) throws IOException {
+    public String hex(InputStream in) throws IOException {
         MessageDigest digest = newDigest();
         byte[] buffer = new byte[BUFFER_SIZE];
         int read;
@@ -32,25 +33,19 @@ public final class Sha256 {
     }
 
     /** Returns the SHA-256 digest of the given bytes as a lowercase hex string. */
-    public static String hex(byte[] bytes) {
+    public String hex(byte[] bytes) {
         return toHex(newDigest().digest(bytes));
     }
 
-    private static MessageDigest newDigest() {
+    private MessageDigest newDigest() {
         try {
             return MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            // SHA-256 is guaranteed to be available on every JVM.
             throw new IllegalStateException("SHA-256 not available", e);
         }
     }
 
-    private static String toHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(Character.forDigit((b >> 4) & 0xF, 16));
-            sb.append(Character.forDigit(b & 0xF, 16));
-        }
-        return sb.toString();
+    private String toHex(byte[] bytes) {
+        return hexFormat.formatHex(bytes);
     }
 }

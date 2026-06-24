@@ -58,7 +58,8 @@ public class SlsaBuildFeature extends BuildFeature {
 
     @Override
     public String describeParameters(Map<String, String> params) {
-        SignerType signer = SignerType.fromValue(SigningContext.get(params, SlsaParams.SIGNER));
+        SigningContext context = new SigningContext(params);
+        SignerType signer = context.type();
 
         if (signer == null) {
             return "No signer selected";
@@ -67,9 +68,9 @@ public class SlsaBuildFeature extends BuildFeature {
             return "Sign artifacts with the server's local key";
         }
 
-        String keyId = SigningContext.get(params, SlsaParams.KMS_KEY_ID);
+        String keyId = context.get(SlsaParams.KMS_KEY_ID);
         StringBuilder sb = new StringBuilder("Sign artifacts with KMS key ").append(keyId == null ? "(not set)" : keyId);
-        String region = SigningContext.get(params, SlsaParams.REGION);
+        String region = context.get(SlsaParams.REGION);
         if (region != null) {
             sb.append(" in ").append(region);
         }
@@ -77,7 +78,7 @@ public class SlsaBuildFeature extends BuildFeature {
         return sb.toString();
     }
 
-    private static String credentialsLabel(SignerType signer) {
+    private String credentialsLabel(SignerType signer) {
         return switch (signer) {
             case AWS_KMS_STATIC -> "access key";
             case AWS_KMS_ASSUME_ROLE -> "assume-role";
@@ -87,6 +88,6 @@ public class SlsaBuildFeature extends BuildFeature {
 
     @Override
     public PropertiesProcessor getParametersProcessor(BuildTypeIdentity buildTypeIdentity) {
-        return validators::validate;
+        return params -> validators.validate(new SigningContext(params));
     }
 }

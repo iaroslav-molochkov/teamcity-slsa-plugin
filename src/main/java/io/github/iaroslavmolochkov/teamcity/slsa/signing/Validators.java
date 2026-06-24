@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Resolves the signer type from the params and runs the matching {@link Validator} (looked up in a map,
- * no branching on type). Backs both the UI parameters processor and the build-time pre-check. Selecting
- * an absent or unknown signer is itself a validation error.
+ * Runs the {@link Validator} matching the context's signer type (looked up in a map, no branching).
+ * Backs both the UI parameters processor and the build-time pre-check. Selecting an absent or unknown
+ * signer is itself a validation error.
  */
 @Component
 public class Validators {
@@ -24,13 +24,13 @@ public class Validators {
         }
     }
 
-    public List<InvalidProperty> validate(Map<String, String> params) {
-        Validator validator = validators.get(SignerType.fromValue(SigningContext.get(params, SlsaParams.SIGNER)));
-        return validator == null ? selectionError(params) : validator.validate(params);
+    public List<InvalidProperty> validate(SigningContext context) {
+        Validator validator = validators.get(context.type());
+        return validator == null ? selectionError(context) : validator.validate(context);
     }
 
-    private static List<InvalidProperty> selectionError(Map<String, String> params) {
-        String raw = SigningContext.get(params, SlsaParams.SIGNER);
+    private List<InvalidProperty> selectionError(SigningContext context) {
+        String raw = context.get(SlsaParams.SIGNER);
         return List.of(new InvalidProperty(SlsaParams.SIGNER,
                 raw == null ? "A signer must be selected" : "Unknown signer: " + raw));
     }

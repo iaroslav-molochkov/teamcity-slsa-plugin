@@ -1,8 +1,7 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.run;
+package io.github.iaroslavmolochkov.teamcity.slsa.core;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ArtifactSubject;
-import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
-import jetbrains.buildServer.serverSide.BuildServerListener;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import jetbrains.buildServer.serverSide.SBuild;
 import jetbrains.buildServer.serverSide.artifacts.BuildArtifact;
 import jetbrains.buildServer.serverSide.artifacts.BuildArtifacts;
@@ -25,7 +24,7 @@ class ArtifactHasherTest {
 
     @SuppressWarnings("unchecked")
     private ArtifactHasher newHasher() {
-        return new ArtifactHasher(mock(EventDispatcher.class));
+        return new ArtifactHasher(mock(EventDispatcher.class), new Sha256Handler());
     }
 
     @Test
@@ -41,7 +40,7 @@ class ArtifactHasherTest {
         assertEquals(files.size(), subjects.size());
         for (int i = 0; i < files.size(); i++) {
             assertEquals("dir/file-" + i + ".bin", subjects.get(i).path());
-            assertEquals(Sha256.hex(("content-" + i).getBytes(StandardCharsets.UTF_8)), subjects.get(i).sha256());
+            assertEquals(new Sha256Handler().hex(("content-" + i).getBytes(StandardCharsets.UTF_8)), subjects.get(i).sha256());
         }
     }
 

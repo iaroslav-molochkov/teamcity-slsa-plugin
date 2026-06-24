@@ -1,7 +1,7 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.server;
 
 import com.intellij.openapi.diagnostic.Logger;
-import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
@@ -45,15 +45,17 @@ public class ServerSigningService implements SigningService {
     private final File keyFile;
     private final File publicKeyPemFile;
     private final DsseService dsse;
+    private final Sha256Handler sha256;
 
     private KeyPair keyPair;
     private String keyId;
 
-    public ServerSigningService(ServerPaths serverPaths, DsseService dsse) {
+    public ServerSigningService(ServerPaths serverPaths, DsseService dsse, Sha256Handler sha256) {
         File dir = new File(serverPaths.getPluginDataDirectory(), "slsa");
         keyFile = new File(dir, "server-signing.key");
         publicKeyPemFile = new File(dir, "server-signing.pub.pem");
         this.dsse = dsse;
+        this.sha256 = sha256;
     }
 
     @Override
@@ -93,7 +95,7 @@ public class ServerSigningService implements SigningService {
         }
         try {
             keyPair = keyFile.isFile() ? load() : generateAndPersist();
-            keyId = "sha256:" + Sha256.hex(keyPair.getPublic().getEncoded());
+            keyId = "sha256:" + sha256.hex(keyPair.getPublic().getEncoded());
         } catch (Exception e) {
             throw new KeyInitializationException("Failed to initialize the server signing key at " + keyFile, e);
         }
@@ -115,7 +117,6 @@ public class ServerSigningService implements SigningService {
 
         Files.createDirectories(keyFile.getParentFile().toPath());
         writeOwnerOnly(keyFile.toPath(), generated.getPrivate().getEncoded());
-        // The public key is meant to be shared, so default permissions are fine.
         Files.writeString(publicKeyPemFile.toPath(), derToPem(generated.getPublic().getEncoded()), StandardCharsets.UTF_8);
 
         LOG.info("SLSA: generated server signing key at " + keyFile + "; public key: " + publicKeyPemFile);
@@ -128,7 +129,7 @@ public class ServerSigningService implements SigningService {
      * it falls back to a best-effort {@link File} chmod after writing.
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private static void writeOwnerOnly(Path path, byte[] content) throws IOException {
+    private void writeOwnerOnly(Path path, byte[] content) throws IOException {
         Files.deleteIfExists(path);
         if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {
             Files.createFile(path, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
@@ -143,12 +144,12 @@ public class ServerSigningService implements SigningService {
         }
     }
 
-    private static String derToPem(byte[] der) {
+    private String derToPem(byte[] der) {
         String base64 = Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(der);
         return "-----BEGIN PUBLIC KEY-----\n" + base64 + "\n-----END PUBLIC KEY-----\n";
     }
 
-    private static byte[] pemToDer(String pem) {
+    private byte[] pemToDer(String pem) {
         String base64 = pem.replaceAll("-----BEGIN [^-]+-----", "")
                 .replaceAll("-----END [^-]+-----", "")
                 .replaceAll("\\s", "");

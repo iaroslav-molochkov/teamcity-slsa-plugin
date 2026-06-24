@@ -1,13 +1,13 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractKmsValidator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Validates the default-provider-chain KMS signer. Only the key id and algorithm are required; the
@@ -22,9 +22,9 @@ public class DefaultKmsValidator extends AbstractKmsValidator {
     }
 
     @Override
-    public List<InvalidProperty> validate(Map<String, String> params) {
+    public List<InvalidProperty> validate(SigningContext context) {
         List<InvalidProperty> errors = new ArrayList<>();
-        requireKeyAndAlgorithm(params, errors);
+        requireKeyAndAlgorithm(context, errors);
         return errors;
     }
 }

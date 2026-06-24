@@ -23,7 +23,7 @@ import java.util.Map;
 @Component
 public class ProvenancePublisher {
 
-    private static final Logger LOG = Loggers.SERVER;
+    private static final Logger log = Loggers.SERVER;
 
     /** Directory (relative to the build's artifact root) and file name of the attestation. */
     public static final String ARTIFACT_DIR = "slsa";
@@ -52,7 +52,7 @@ public class ProvenancePublisher {
         try {
             artifactsDir = build.getArtifactsDirectory();
         } catch (Exception e) {
-            LOG.warnAndDebugDetails("SLSA: artifacts directory unavailable for build " + build.getBuildId(), e);
+            log.warnAndDebugDetails("SLSA: artifacts directory unavailable for build " + build.getBuildId(), e);
             return false;
         }
 
@@ -62,7 +62,7 @@ public class ProvenancePublisher {
             Files.createDirectories(target.getParentFile().toPath());
             Files.write(target.toPath(), jsonl);
         } catch (Exception e) {
-            LOG.warnAndDebugDetails("SLSA: failed to write provenance artifact for build " + build.getBuildId(), e);
+            log.warnAndDebugDetails("SLSA: failed to write provenance artifact for build " + build.getBuildId(), e);
             return false;
         } finally {
             artifactsGuard.unlockWriting(artifactsDir);
@@ -71,7 +71,7 @@ public class ProvenancePublisher {
         try {
             metadataStorage.addBuildEntry(build.getBuildId(), METADATA_PROVIDER_ID, ARTIFACT_PATH, metadata, true);
         } catch (Exception e) {
-            LOG.warnAndDebugDetails("SLSA: failed to index provenance metadata for build " + build.getBuildId(), e);
+            log.warnAndDebugDetails("SLSA: failed to index provenance metadata for build " + build.getBuildId(), e);
         }
         return true;
     }

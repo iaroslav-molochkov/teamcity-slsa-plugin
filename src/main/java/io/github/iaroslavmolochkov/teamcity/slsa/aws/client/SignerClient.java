@@ -14,7 +14,7 @@ import java.util.List;
  */
 public final class SignerClient implements AutoCloseable {
 
-    private static final Logger LOG = Loggers.SERVER;
+    private static final Logger log = Loggers.SERVER;
 
     private final KmsClient kms;
     private final List<AutoCloseable> closeables;
@@ -36,11 +36,11 @@ public final class SignerClient implements AutoCloseable {
         }
     }
 
-    private static void close(AutoCloseable closeable) {
+    private void close(AutoCloseable closeable) {
         try {
             closeable.close();
         } catch (Exception e) {
-            LOG.warnAndDebugDetails("SLSA: failed to close " + closeable.getClass().getSimpleName(), e);
+            log.warnAndDebugDetails("SLSA: failed to close " + closeable.getClass().getSimpleName(), e);
         }
     }
 }

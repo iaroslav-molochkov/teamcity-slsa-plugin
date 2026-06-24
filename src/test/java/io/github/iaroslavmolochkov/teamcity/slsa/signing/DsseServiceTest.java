@@ -1,7 +1,8 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJsonHandler;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -63,7 +64,7 @@ class DsseServiceTest {
         DsseEnvelope envelope = dsse.envelope(
                 "payload".getBytes(StandardCharsets.UTF_8), "keyid-1", new byte[]{1, 2, 3});
 
-        JsonNode json = ProvenanceJson.mapper().readTree(ProvenanceJson.toBytes(envelope));
+        JsonNode json = new ObjectMapper().readTree(new ProvenanceJsonHandler().toBytes(envelope));
         assertEquals(Base64.getEncoder().encodeToString("payload".getBytes(StandardCharsets.UTF_8)),
                 json.get("payload").asText());
         assertEquals(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, json.get("payloadType").asText());

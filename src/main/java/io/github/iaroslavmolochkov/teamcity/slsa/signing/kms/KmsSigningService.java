@@ -68,7 +68,7 @@ public class KmsSigningService implements SigningService {
     }
 
     /** Hashes the PAE with the digest that matches the signing algorithm's suffix (256/384/512). */
-    private static byte[] digest(SigningAlgorithmSpec spec, byte[] pae) {
+    private byte[] digest(SigningAlgorithmSpec spec, byte[] pae) {
         String name = spec.toString();
         String alg;
         if (name.endsWith("384")) {

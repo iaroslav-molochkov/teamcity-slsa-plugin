@@ -61,7 +61,7 @@ public class AssumeRoleKmsClientLoader extends AbstractKmsClientLoader {
         if (externalId != null) {
             request.externalId(externalId);
         }
-        Integer duration = SigningContext.toIntOrNull(context.get(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+        Integer duration = context.getInt(SlsaParams.ASSUME_ROLE_DURATION_SECONDS);
         if (duration != null) {
             request.durationSeconds(duration);
         }

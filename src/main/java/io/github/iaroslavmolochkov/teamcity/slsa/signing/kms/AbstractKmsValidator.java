@@ -7,7 +7,6 @@ import jetbrains.buildServer.serverSide.InvalidProperty;
 import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Skeletal {@link Validator} for the KMS modes: the checks common to every mode — key id + algorithm
@@ -16,11 +15,11 @@ import java.util.Map;
  */
 public abstract class AbstractKmsValidator implements Validator {
 
-    protected void requireKeyAndAlgorithm(Map<String, String> params, List<InvalidProperty> errors) {
-        if (SigningContext.get(params, SlsaParams.KMS_KEY_ID) == null) {
+    protected void requireKeyAndAlgorithm(SigningContext context, List<InvalidProperty> errors) {
+        if (context.get(SlsaParams.KMS_KEY_ID) == null) {
             errors.add(new InvalidProperty(SlsaParams.KMS_KEY_ID, "KMS key id / ARN is required"));
         }
-        String algorithm = SigningContext.get(params, SlsaParams.SIGNING_ALGORITHM);
+        String algorithm = context.get(SlsaParams.SIGNING_ALGORITHM);
         if (algorithm == null) {
             errors.add(new InvalidProperty(SlsaParams.SIGNING_ALGORITHM, "Signing algorithm is required"));
         } else if (SigningAlgorithmSpec.fromValue(algorithm) == SigningAlgorithmSpec.UNKNOWN_TO_SDK_VERSION) {
@@ -28,8 +27,8 @@ public abstract class AbstractKmsValidator implements Validator {
         }
     }
 
-    protected void requireRegion(Map<String, String> params, List<InvalidProperty> errors) {
-        if (SigningContext.get(params, SlsaParams.REGION) == null) {
+    protected void requireRegion(SigningContext context, List<InvalidProperty> errors) {
+        if (context.get(SlsaParams.REGION) == null) {
             errors.add(new InvalidProperty(SlsaParams.REGION, "AWS region is required"));
         }
     }

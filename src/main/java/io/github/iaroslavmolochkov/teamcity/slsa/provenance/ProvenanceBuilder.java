@@ -12,9 +12,8 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.BuildDefinition
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.ResolvedDependency;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunDetails;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunMetadata;
-import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaBuilder;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPlatform;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPredicate;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
 import jetbrains.buildServer.users.SUser;
 import jetbrains.buildServer.vcs.SVcsModification;
@@ -54,8 +53,7 @@ public class ProvenanceBuilder {
         List<Subject> wireSubjects = new ArrayList<>(subjects.size());
 
         for (ArtifactSubject artifact : subjects) {
-            //todo just inline, no point in this static
-            wireSubjects.add(Subject.sha256(artifact.path(), artifact.sha256()));
+            wireSubjects.add(new Subject(artifact.path(), Map.of("sha256", artifact.sha256())));
         }
 
         SlsaPredicate predicate = new SlsaPredicate(
@@ -66,7 +64,7 @@ public class ProvenanceBuilder {
                         resolvedDependencies(build)),
                 new RunDetails(
                         //todo why is it empty list? if it's useless then drop it, otherwise pop it
-                        new SlsaBuilder(builderId(), builderVersion(), List.of()),
+                        new SlsaPlatform(builderId(), builderVersion(), List.of()),
                         new RunMetadata(
                                 buildUrl(build),
                                 iso(build.getStartDate()),
@@ -88,7 +86,6 @@ public class ProvenanceBuilder {
                 + "&buildTypeId=" + build.getBuildTypeExternalId();
     }
 
-    // Object-valued: SLSA externalParameters is an arbitrary JSON object (we nest buildParameters).
     private Map<String, Object> externalParameters(SBuild build) {
         Map<String, Object> params = new HashMap<>();
 
@@ -143,7 +140,7 @@ public class ProvenanceBuilder {
     }
 
     /** The request origin: the triggering user, a snapshot dependency, or the trigger type id. */
-    private static String triggeredBy(SBuild build) {
+    private String triggeredBy(SBuild build) {
         TriggeredBy triggeredBy = build.getTriggeredBy();
         SUser user = triggeredBy.getUser();
         if (user != null) {
@@ -174,7 +171,6 @@ public class ProvenanceBuilder {
             SVcsModification commit = commits.get(root.getId() + "@" + revisionSha);
 
             if (commit != null) {
-                // Only insert present values — never null entries (keeps the map honest for isEmpty()).
                 putIfNotEmpty(annotations, "author", commit.getUserName());
                 putIfNotEmpty(annotations, "message", firstLine(commit.getDescription()));
                 putIfNotEmpty(annotations, "committedAt", iso(commit.getVcsDate()));
@@ -219,15 +215,13 @@ public class ProvenanceBuilder {
             } catch (VcsRootNotFoundException e) {
                 //todo fail build? or at least log?
 
-                // Root deleted since the build — we just lose commit enrichment; the gitCommit
-                // digest still comes from the build revision, so the attestation is unaffected.
             }
         }
 
         return byRootVersion;
     }
 
-    private static String gitUri(VcsRootInstance root) {
+    private String gitUri(VcsRootInstance root) {
         String url = root.getProperty("url");
         String base = (url != null && !url.isEmpty()) ? url : root.getName();
         String vcsName = root.getVcsName();
@@ -239,15 +233,17 @@ public class ProvenanceBuilder {
         return base;
     }
 
-    private static void putIfNotEmpty(Map<String, String> map, String key, String value) {
-        String trimmed = SigningContext.trimToNull(value);
-
-        if (trimmed != null) {
+    private void putIfNotEmpty(Map<String, String> map, String key, String value) {
+        if (value == null) {
+            return;
+        }
+        String trimmed = value.trim();
+        if (!trimmed.isEmpty()) {
             map.put(key, trimmed);
         }
     }
 
-    private static String firstLine(String text) {
+    private String firstLine(String text) {
         if (text == null) {
             return "";
         }
@@ -261,7 +257,7 @@ public class ProvenanceBuilder {
         return Map.of("teamcity", server.getFullServerVersion());
     }
 
-    private static boolean isSafe(String key, String value) {
+    private boolean isSafe(String key, String value) {
         if (value == null) {
             return false;
         }
@@ -273,11 +269,11 @@ public class ProvenanceBuilder {
         return !EncryptUtil.isScrambled(value);
     }
 
-    private static String iso(Date date) {
+    private String iso(Date date) {
         return date == null ? null : DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(date.getTime()));
     }
 
-    private static String trimTrailingSlash(String s) {
+    private String trimTrailingSlash(String s) {
         return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
     }
 }

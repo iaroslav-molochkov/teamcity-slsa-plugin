@@ -54,7 +54,7 @@ class KmsSigningServiceTest {
                 SlsaParams.KMS_KEY_ID, "arn:key",
                 SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256");
         byte[] payload = "{\"_type\":\"x\"}".getBytes(StandardCharsets.UTF_8);
-        DsseEnvelope envelope = service.sign(SigningContext.of(params), payload);
+        DsseEnvelope envelope = service.sign(new SigningContext(params), payload);
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
         assertArrayEquals(sig, Base64.getDecoder().decode(envelope.signatures().get(0).sig()));

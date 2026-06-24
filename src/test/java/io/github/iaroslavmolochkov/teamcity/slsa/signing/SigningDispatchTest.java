@@ -18,7 +18,7 @@ class SigningDispatchTest {
 
     private record StubValidator(SignerType type, List<InvalidProperty> errors) implements Validator {
         @Override
-        public List<InvalidProperty> validate(Map<String, String> params) {
+        public List<InvalidProperty> validate(SigningContext context) {
             return errors;
         }
     }
@@ -40,19 +40,20 @@ class SigningDispatchTest {
 
     @Test
     void requiresSignerSelection() {
-        assertEquals(SlsaParams.SIGNER, validators(List.of()).validate(Map.of()).get(0).getPropertyName());
+        assertEquals(SlsaParams.SIGNER,
+                validators(List.of()).validate(new SigningContext(Map.of())).get(0).getPropertyName());
     }
 
     @Test
     void rejectsUnknownSigner() {
-        assertFalse(validators(List.of()).validate(Map.of(SlsaParams.SIGNER, "nope")).isEmpty());
+        assertFalse(validators(List.of()).validate(new SigningContext(Map.of(SlsaParams.SIGNER, "nope"))).isEmpty());
     }
 
     @Test
     void delegatesValidationToSelectedValidator() {
-        assertTrue(validators(List.of()).validate(Map.of(SlsaParams.SIGNER, "server")).isEmpty());
+        assertTrue(validators(List.of()).validate(new SigningContext(Map.of(SlsaParams.SIGNER, "server"))).isEmpty());
         assertFalse(validators(List.of(new InvalidProperty("x", "bad")))
-                .validate(Map.of(SlsaParams.SIGNER, "server")).isEmpty());
+                .validate(new SigningContext(Map.of(SlsaParams.SIGNER, "server"))).isEmpty());
     }
 
     // --- SigningServices ---
@@ -63,12 +64,12 @@ class SigningDispatchTest {
 
     @Test
     void routesPayloadToServiceByType() {
-        assertSame(ENVELOPE, services().sign(SigningContext.of(Map.of(SlsaParams.SIGNER, "server")), new byte[]{0}));
+        assertSame(ENVELOPE, services().sign(new SigningContext(Map.of(SlsaParams.SIGNER, "server")), new byte[]{0}));
     }
 
     @Test
     void throwsWhenNoServiceForType() {
         assertThrows(SigningException.class,
-                () -> services().sign(SigningContext.of(Map.of(SlsaParams.SIGNER, "nope")), new byte[]{0}));
+                () -> services().sign(new SigningContext(Map.of(SlsaParams.SIGNER, "nope")), new byte[]{0}));
     }
 }

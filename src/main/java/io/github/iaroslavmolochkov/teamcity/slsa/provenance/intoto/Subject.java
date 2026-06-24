@@ -10,8 +10,4 @@ import java.util.Map;
  * @param digest e.g. {@code {"sha256": "abc..."}}
  */
 public record Subject(String name, Map<String, String> digest) {
-
-    public static Subject sha256(String name, String hexDigest) {
-        return new Subject(name, Map.of("sha256", hexDigest));
-    }
 }

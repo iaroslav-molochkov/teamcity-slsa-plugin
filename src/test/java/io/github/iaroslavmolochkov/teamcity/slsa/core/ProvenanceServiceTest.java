@@ -1,9 +1,11 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.run;
+package io.github.iaroslavmolochkov.teamcity.slsa.core;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.persist.ProvenancePublisher;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJsonHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningServices;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
@@ -37,8 +39,10 @@ class ProvenanceServiceTest {
                 validators,
                 mock(ArtifactHasher.class),
                 mock(ProvenanceBuilder.class),
+                new ProvenanceJsonHandler(),
                 services,
-                mock(ProvenancePublisher.class));
+                mock(ProvenancePublisher.class),
+                new Sha256Handler());
     }
 
     @Test

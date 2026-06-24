@@ -1,4 +1,4 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.run;
+package io.github.iaroslavmolochkov.teamcity.slsa.core;
 
 import jetbrains.buildServer.serverSide.BuildServerAdapter;
 import jetbrains.buildServer.serverSide.BuildServerListener;

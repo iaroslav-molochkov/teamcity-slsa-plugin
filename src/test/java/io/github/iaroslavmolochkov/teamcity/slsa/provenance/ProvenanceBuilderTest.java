@@ -151,7 +151,7 @@ class ProvenanceBuilderTest {
         assertEquals("1970-01-01T00:00:02Z", dep.annotations().get("committedAt"));
 
         // The grouped, package-private records must still serialize through Jackson end-to-end.
-        String json = new String(ProvenanceJson.toBytes(statement), java.nio.charset.StandardCharsets.UTF_8);
+        String json = new String(new ProvenanceJsonHandler().toBytes(statement), java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(json.contains("\"gitCommit\":\"abc123\""), json);
         assertTrue(json.contains("\"predicateType\":\"" + InTotoStatement.SLSA_PREDICATE_TYPE + "\""), json);
         assertTrue(json.contains("git+https://github.com/acme/app.git"), json);
