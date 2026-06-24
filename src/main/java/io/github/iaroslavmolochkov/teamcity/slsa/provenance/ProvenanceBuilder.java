@@ -14,7 +14,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunDetails;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunMetadata;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaBuilder;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPredicate;
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
 import jetbrains.buildServer.users.SUser;
 import jetbrains.buildServer.vcs.SVcsModification;
@@ -251,7 +251,7 @@ public class ProvenanceBuilder {
     }
 
     private static void putIfNotEmpty(@NotNull Map<String, String> map, @NotNull String key, @Nullable String value) {
-        String trimmed = Params.trimToNull(value);
+        String trimmed = SigningContext.trimToNull(value);
 
         if (trimmed != null) {
             map.put(key, trimmed);

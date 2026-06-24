@@ -60,11 +60,38 @@ class KmsValidatorsTest {
 
     @Test
     void assumeRoleRejectsNonNumericDuration() {
-        assertTrue(keys(assumeRoleValidator.validate(Map.of(
+        assertTrue(keys(assumeRoleValidator.validate(durationParams("soon")))
+                .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+    }
+
+    @Test
+    void assumeRoleRejectsOutOfRangeDuration() {
+        assertTrue(keys(assumeRoleValidator.validate(durationParams("100")))   // below 900
+                .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+        assertTrue(keys(assumeRoleValidator.validate(durationParams("99999"))) // above 43200
+                .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+    }
+
+    @Test
+    void assumeRoleAcceptsInRangeDuration() {
+        assertFalse(keys(assumeRoleValidator.validate(durationParams("3600")))
+                .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+    }
+
+    @Test
+    void assumeRoleAllowsAbsentDuration() {
+        var errors = keys(assumeRoleValidator.validate(Map.of(
+                SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "k",
+                SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
+                SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r")));
+        assertFalse(errors.contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+    }
+
+    private static Map<String, String> durationParams(String duration) {
+        return Map.of(
                 SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "k",
                 SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
                 SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r",
-                SlsaParams.ASSUME_ROLE_DURATION_SECONDS, "soon")))
-                .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+                SlsaParams.ASSUME_ROLE_DURATION_SECONDS, duration);
     }
 }

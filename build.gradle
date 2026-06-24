@@ -24,6 +24,7 @@ dependencies {
     server('software.amazon.awssdk:url-connection-client') { exclude group: 'org.slf4j' }
     server 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     server 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    server 'com.dynatrace.hash4j:hash4j:0.28.0'
 
     provided "org.jetbrains.teamcity:server-core:${teamcityVersion}"
 
@@ -34,6 +35,7 @@ dependencies {
     compileOnly 'software.amazon.awssdk:url-connection-client'
     compileOnly 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     compileOnly 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    compileOnly 'com.dynatrace.hash4j:hash4j:0.28.0'
 
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -44,6 +46,7 @@ dependencies {
     testImplementation 'software.amazon.awssdk:auth'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     testImplementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    testImplementation 'com.dynatrace.hash4j:hash4j:0.28.0'
     testImplementation 'org.mockito:mockito-core:5.14.2'
 }
 

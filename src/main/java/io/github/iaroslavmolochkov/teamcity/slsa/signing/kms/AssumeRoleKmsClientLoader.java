@@ -4,7 +4,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.SignerClient;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -19,7 +19,6 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Builds a KMS client whose credentials come from assuming an IAM role via STS, with the default chain
@@ -30,9 +29,11 @@ import java.util.Map;
 public class AssumeRoleKmsClientLoader implements KmsClientLoader {
 
     private final KmsClientCache cache;
+    private final ConnectionIdService connectionIdService;
 
-    public AssumeRoleKmsClientLoader(@NotNull KmsClientCache cache) {
+    public AssumeRoleKmsClientLoader(@NotNull KmsClientCache cache, @NotNull ConnectionIdService connectionIdService) {
         this.cache = cache;
+        this.connectionIdService = connectionIdService;
     }
 
     @NotNull
@@ -43,19 +44,16 @@ public class AssumeRoleKmsClientLoader implements KmsClientLoader {
 
     @NotNull
     @Override
-    public KmsClient load(@NotNull Map<String, String> params) {
-        String sessionName = Params.get(params, SlsaParams.ASSUME_ROLE_SESSION_NAME);
+    public KmsClient load(@NotNull SigningContext context) {
+        String sessionName = context.get(SlsaParams.ASSUME_ROLE_SESSION_NAME);
         AssumeRoleKmsConfig config = new AssumeRoleKmsConfig(
-                Params.get(params, SlsaParams.REGION),
-                Params.get(params, SlsaParams.ASSUME_ROLE_ARN),
+                context.get(SlsaParams.REGION),
+                context.get(SlsaParams.ASSUME_ROLE_ARN),
                 sessionName == null ? SlsaParams.DEFAULT_SESSION_NAME : sessionName,
-                Params.get(params, SlsaParams.ASSUME_ROLE_EXTERNAL_ID),
-                Params.toIntOrNull(Params.get(params, SlsaParams.ASSUME_ROLE_DURATION_SECONDS)),
-                Params.get(params, SlsaParams.STS_ENDPOINT));
-        String connectionKey = Kms.connectionKey("assume-role", config.region(), config.roleArn(),
-                config.externalId() == null ? "" : config.externalId(),
-                config.stsEndpoint() == null ? "" : config.stsEndpoint());
-        return cache.get(connectionKey, () -> build(config));
+                context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID),
+                SigningContext.toIntOrNull(context.get(SlsaParams.ASSUME_ROLE_DURATION_SECONDS)),
+                context.get(SlsaParams.STS_ENDPOINT));
+        return cache.get(connectionIdService.id(context), () -> build(config));
     }
 
     @NotNull

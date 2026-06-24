@@ -1,7 +1,5 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
@@ -10,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Routes a built payload to the {@link SigningService} for the params' signer type (map lookup, no
+ * Routes a built payload to the {@link SigningService} for the context's signer type (map lookup, no
  * branching). Reached only after {@link Validators} has accepted the params, so the type resolves to a
  * registered service.
  */
@@ -28,12 +26,11 @@ public class SigningServices {
     }
 
     @NotNull
-    public DsseEnvelope sign(@NotNull Map<String, String> params, @NotNull byte[] payload) {
-        SignerType type = SignerType.fromValue(Params.get(params, SlsaParams.SIGNER));
-        SigningService service = signingService.get(type);
+    public DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload) {
+        SigningService service = signingService.get(context.type());
         if (service == null) {
-            throw new SigningException("No signing service for signer: " + Params.get(params, SlsaParams.SIGNER));
+            throw new SigningException("No signing service for signer: " + context.type());
         }
-        return service.sign(params, payload);
+        return service.sign(context, payload);
     }
 }

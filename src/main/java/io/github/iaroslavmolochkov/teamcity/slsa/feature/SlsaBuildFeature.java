@@ -3,7 +3,7 @@ package io.github.iaroslavmolochkov.teamcity.slsa.feature;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.BuildFeature;
 import jetbrains.buildServer.serverSide.BuildTypeIdentity;
 import jetbrains.buildServer.serverSide.PropertiesProcessor;
@@ -64,7 +64,7 @@ public class SlsaBuildFeature extends BuildFeature {
     @NotNull
     @Override
     public String describeParameters(@NotNull Map<String, String> params) {
-        SignerType signer = SignerType.fromValue(Params.get(params, SlsaParams.SIGNER));
+        SignerType signer = SignerType.fromValue(SigningContext.get(params, SlsaParams.SIGNER));
 
         if (signer == null) {
             return "No signer selected";
@@ -73,9 +73,9 @@ public class SlsaBuildFeature extends BuildFeature {
             return "Sign artifacts with the server's local key";
         }
 
-        String keyId = Params.get(params, SlsaParams.KMS_KEY_ID);
+        String keyId = SigningContext.get(params, SlsaParams.KMS_KEY_ID);
         StringBuilder sb = new StringBuilder("Sign artifacts with KMS key ").append(keyId == null ? "(not set)" : keyId);
-        String region = Params.get(params, SlsaParams.REGION);
+        String region = SigningContext.get(params, SlsaParams.REGION);
         if (region != null) {
             sb.append(" in ").append(region);
         }

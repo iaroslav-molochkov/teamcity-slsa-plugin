@@ -28,7 +28,7 @@ class ServerSigningServiceTest {
         ServerSigningService service = service(dataDir);
 
         byte[] payload = "{\"_type\":\"https://in-toto.io/Statement/v1\"}".getBytes(StandardCharsets.UTF_8);
-        DsseEnvelope envelope = service.sign(Map.of(), payload);
+        DsseEnvelope envelope = service.sign(SigningContext.of(Map.of()), payload);
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
         assertEquals(service.keyId(), envelope.signatures().get(0).keyid());

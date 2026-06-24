@@ -23,7 +23,6 @@ import java.security.spec.ECGenParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -60,7 +59,7 @@ public class ServerSigningService implements SigningService {
 
     @NotNull
     @Override
-    public synchronized DsseEnvelope sign(@NotNull Map<String, String> params, @NotNull byte[] payload) {
+    public synchronized DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload) {
         ensureKey();
         byte[] pae = dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         try {

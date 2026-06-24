@@ -28,7 +28,7 @@ class SigningDispatchTest {
     private record StubService(@NotNull Set<SignerType> types, @NotNull DsseEnvelope envelope) implements SigningService {
         @NotNull
         @Override
-        public DsseEnvelope sign(@NotNull Map<String, String> params, @NotNull byte[] payload) {
+        public DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload) {
             return envelope;
         }
     }
@@ -66,11 +66,12 @@ class SigningDispatchTest {
 
     @Test
     void routesPayloadToServiceByType() {
-        assertSame(ENVELOPE, services().sign(Map.of(SlsaParams.SIGNER, "server"), new byte[]{0}));
+        assertSame(ENVELOPE, services().sign(SigningContext.of(Map.of(SlsaParams.SIGNER, "server")), new byte[]{0}));
     }
 
     @Test
     void throwsWhenNoServiceForType() {
-        assertThrows(SigningException.class, () -> services().sign(Map.of(SlsaParams.SIGNER, "nope"), new byte[]{0}));
+        assertThrows(SigningException.class,
+                () -> services().sign(SigningContext.of(Map.of(SlsaParams.SIGNER, "nope")), new byte[]{0}));
     }
 }

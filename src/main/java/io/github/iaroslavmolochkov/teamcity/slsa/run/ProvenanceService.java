@@ -9,10 +9,9 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJson;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningServices;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validators;
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.InvalidProperty;
@@ -87,14 +86,14 @@ public class ProvenanceService {
         }
 
         try {
-            sign(build, params);
+            sign(build, SigningContext.of(params));
         } catch (Exception e) {
             LOG.warnAndDebugDetails("SLSA: signing failed for build " + build.getBuildId(), e);
             reportProblem(build, e.getMessage());
         }
     }
 
-    private void sign(@NotNull SBuild build, @NotNull Map<String, String> params) {
+    private void sign(@NotNull SBuild build, @NotNull SigningContext context) {
         List<ArtifactSubject> subjects = hasher.hash(build);
 
         if (subjects.isEmpty()) {
@@ -105,14 +104,14 @@ public class ProvenanceService {
         InTotoStatement statement = provenanceBuilder.build(build, subjects);
         byte[] payload = ProvenanceJson.toBytes(statement);
 
-        DsseEnvelope envelope = signingServices.sign(params, payload);
+        DsseEnvelope envelope = signingServices.sign(context, payload);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.writeBytes(ProvenanceJson.toBytes(envelope));
         out.write('\n');
         byte[] jsonl = out.toByteArray();
 
-        String signerId = SignerType.fromValue(Params.get(params, SlsaParams.SIGNER)).value();
+        String signerId = context.type().value();
         if (publisher.publish(build, jsonl, metadata(envelope, signerId, jsonl))) {
             LOG.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
                     + subjects.size() + " subject(s)) via '" + signerId + "' signer");

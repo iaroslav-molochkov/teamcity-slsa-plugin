@@ -6,7 +6,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.IOGuard;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
@@ -52,11 +52,10 @@ public class KmsSigningService implements SigningService {
 
     @NotNull
     @Override
-    public DsseEnvelope sign(@NotNull Map<String, String> params, @NotNull byte[] payload) {
-        SignerType type = SignerType.fromValue(Params.get(params, SlsaParams.SIGNER));
-        KmsClient client = loaders.get(type).load(params);
-        String keyId = Params.get(params, SlsaParams.KMS_KEY_ID);
-        SigningAlgorithmSpec algorithm = Kms.algorithm(params);
+    public DsseEnvelope sign(@NotNull SigningContext context, @NotNull byte[] payload) {
+        KmsClient client = loaders.get(context.type()).load(context);
+        String keyId = context.get(SlsaParams.KMS_KEY_ID);
+        SigningAlgorithmSpec algorithm = SigningAlgorithmSpec.fromValue(context.get(SlsaParams.SIGNING_ALGORITHM));
 
         byte[] pae = dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
         byte[] digest = digest(algorithm, pae);

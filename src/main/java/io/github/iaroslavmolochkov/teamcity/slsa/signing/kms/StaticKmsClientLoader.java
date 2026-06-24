@@ -4,7 +4,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.SignerClient;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -16,16 +16,17 @@ import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 
 import java.util.List;
-import java.util.Map;
 
 /** Builds a KMS client from an explicit access key id + secret (the secret is unscrambled here). */
 @Component
 public class StaticKmsClientLoader implements KmsClientLoader {
 
     private final KmsClientCache cache;
+    private final ConnectionIdService connectionIdService;
 
-    public StaticKmsClientLoader(@NotNull KmsClientCache cache) {
+    public StaticKmsClientLoader(@NotNull KmsClientCache cache, @NotNull ConnectionIdService connectionIdService) {
         this.cache = cache;
+        this.connectionIdService = connectionIdService;
     }
 
     @NotNull
@@ -36,13 +37,12 @@ public class StaticKmsClientLoader implements KmsClientLoader {
 
     @NotNull
     @Override
-    public KmsClient load(@NotNull Map<String, String> params) {
+    public KmsClient load(@NotNull SigningContext context) {
         StaticKmsConfig config = new StaticKmsConfig(
-                Params.get(params, SlsaParams.REGION),
-                Params.get(params, SlsaParams.ACCESS_KEY_ID),
-                reveal(Params.get(params, SlsaParams.SECRET_ACCESS_KEY)));
-        String connectionKey = Kms.connectionKey("static", config.region(), config.accessKeyId(), config.secret());
-        return cache.get(connectionKey, () -> build(config));
+                context.get(SlsaParams.REGION),
+                context.get(SlsaParams.ACCESS_KEY_ID),
+                reveal(context.get(SlsaParams.SECRET_ACCESS_KEY)));
+        return cache.get(connectionIdService.id(context), () -> build(config));
     }
 
     @NotNull

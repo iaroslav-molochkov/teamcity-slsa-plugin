@@ -1,8 +1,7 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
-import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256;
-import io.github.iaroslavmolochkov.teamcity.slsa.util.Params;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -13,7 +12,6 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.KmsClientBuilder;
 import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -30,10 +28,10 @@ final class Kms {
 
     /** Adds errors for the always-required KMS fields (key id and signing algorithm). */
     static void requireKeyAndAlgorithm(@NotNull Map<String, String> params, @NotNull List<InvalidProperty> errors) {
-        if (Params.get(params, SlsaParams.KMS_KEY_ID) == null) {
+        if (SigningContext.get(params, SlsaParams.KMS_KEY_ID) == null) {
             errors.add(new InvalidProperty(SlsaParams.KMS_KEY_ID, "KMS key id / ARN is required"));
         }
-        String algorithm = Params.get(params, SlsaParams.SIGNING_ALGORITHM);
+        String algorithm = SigningContext.get(params, SlsaParams.SIGNING_ALGORITHM);
         if (algorithm == null) {
             errors.add(new InvalidProperty(SlsaParams.SIGNING_ALGORITHM, "Signing algorithm is required"));
         } else if (SigningAlgorithmSpec.fromValue(algorithm) == SigningAlgorithmSpec.UNKNOWN_TO_SDK_VERSION) {
@@ -43,14 +41,9 @@ final class Kms {
 
     /** Adds an error if the region is missing (for the modes that require an explicit region). */
     static void requireRegion(@NotNull Map<String, String> params, @NotNull List<InvalidProperty> errors) {
-        if (Params.get(params, SlsaParams.REGION) == null) {
+        if (SigningContext.get(params, SlsaParams.REGION) == null) {
             errors.add(new InvalidProperty(SlsaParams.REGION, "AWS region is required"));
         }
-    }
-
-    @NotNull
-    static SigningAlgorithmSpec algorithm(@NotNull Map<String, String> params) {
-        return SigningAlgorithmSpec.fromValue(Params.get(params, SlsaParams.SIGNING_ALGORITHM));
     }
 
     /**
@@ -66,11 +59,5 @@ final class Kms {
             builder.region(Region.of(region));
         }
         return builder.build();
-    }
-
-    /** A stable hash over the connection-relevant fields; used to cache the KMS client. */
-    @NotNull
-    static String connectionKey(@NotNull String... parts) {
-        return Sha256.hex(String.join("\n", parts).getBytes(StandardCharsets.UTF_8));
     }
 }

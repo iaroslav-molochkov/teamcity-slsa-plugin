@@ -48,6 +48,7 @@
 <tr>
   <th><label for="slsa.kms.signingAlgorithm">Signing algorithm: <l:star/></label></th>
   <td>
+    <!--gather that from sdk and then put here as bean values/prop values?-->
     <props:selectProperty name="slsa.kms.signingAlgorithm" className="mediumField">
       <props:option value="ECDSA_SHA_256">ECDSA_SHA_256</props:option>
       <props:option value="ECDSA_SHA_384">ECDSA_SHA_384</props:option>
