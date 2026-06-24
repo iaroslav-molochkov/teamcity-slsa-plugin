@@ -62,17 +62,10 @@
 <tr>
   <th><label for="slsa.kms.signingAlgorithm">Signing algorithm: <l:star/></label></th>
   <td>
-    <!--gather that from sdk and then put here as bean values/prop values?-->
     <props:selectProperty name="slsa.kms.signingAlgorithm" className="mediumField">
-      <props:option value="ECDSA_SHA_256">ECDSA_SHA_256</props:option>
-      <props:option value="ECDSA_SHA_384">ECDSA_SHA_384</props:option>
-      <props:option value="ECDSA_SHA_512">ECDSA_SHA_512</props:option>
-      <props:option value="RSASSA_PSS_SHA_256">RSASSA_PSS_SHA_256</props:option>
-      <props:option value="RSASSA_PSS_SHA_384">RSASSA_PSS_SHA_384</props:option>
-      <props:option value="RSASSA_PSS_SHA_512">RSASSA_PSS_SHA_512</props:option>
-      <props:option value="RSASSA_PKCS1_V1_5_SHA_256">RSASSA_PKCS1_V1_5_SHA_256</props:option>
-      <props:option value="RSASSA_PKCS1_V1_5_SHA_384">RSASSA_PKCS1_V1_5_SHA_384</props:option>
-      <props:option value="RSASSA_PKCS1_V1_5_SHA_512">RSASSA_PKCS1_V1_5_SHA_512</props:option>
+      <c:forEach var="algorithm" items="${signingAlgorithms}">
+        <props:option value="${algorithm}"><c:out value="${algorithm}"/></props:option>
+      </c:forEach>
     </props:selectProperty>
     <span class="smallNote">Must match the KMS key spec (e.g. <code>ECDSA_SHA_256</code> for an ECC_NIST_P256 key).</span>
   </td>

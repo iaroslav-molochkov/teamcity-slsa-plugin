@@ -26,7 +26,7 @@ public class SlsaBuildFeature extends BuildFeature {
     private final Validators validators;
 
     public SlsaBuildFeature(PluginDescriptor descriptor, Validators validators) {
-        editUrl = descriptor.getPluginResourcesPath("editSlsaProvenanceFeature.jsp");
+        editUrl = descriptor.getPluginResourcesPath(SlsaEditFeatureController.EDIT_PATH);
         this.validators = validators;
     }
 
