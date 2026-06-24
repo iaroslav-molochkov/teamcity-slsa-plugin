@@ -1,76 +1,61 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
+import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.server.KeyInitializationException;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.server.ServerKeyParser;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.server.ServerSigningService;
-
-import jetbrains.buildServer.serverSide.ServerPaths;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.Signature;
+import java.security.spec.ECGenParameterSpec;
 import java.util.Base64;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class ServerSigningServiceTest {
 
-    @Test
-    void signsWithLocalKeyAndVerifies(@TempDir File dataDir) throws Exception {
-        ServerSigningService service = service(dataDir);
+    private final ServerSigningService service =
+            new ServerSigningService(new ServerKeyParser(new Sha256Handler()), new DsseService());
 
+    @Test
+    void signsWithSuppliedKeyAndVerifies() throws Exception {
+        KeyPair pair = ec();
         byte[] payload = "{\"_type\":\"https://in-toto.io/Statement/v1\"}".getBytes(StandardCharsets.UTF_8);
-        DsseEnvelope envelope = service.sign(new SigningContext(Map.of()), payload);
+
+        DsseEnvelope envelope = service.sign(context(pair), payload);
 
         assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
-        assertEquals(service.keyId(), envelope.signatures().get(0).keyid());
+        assertEquals("sha256:" + new Sha256Handler().hex(pair.getPublic().getEncoded()),
+                envelope.signatures().get(0).keyid());
 
         byte[] pae = new DsseService().pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
-        byte[] sig = Base64.getDecoder().decode(envelope.signatures().get(0).sig());
         Signature verifier = Signature.getInstance("SHA256withECDSA");
-        verifier.initVerify(service.publicKey());
+        verifier.initVerify(pair.getPublic());
         verifier.update(pae);
-        assertTrue(verifier.verify(sig));
+        assertTrue(verifier.verify(Base64.getDecoder().decode(envelope.signatures().get(0).sig())));
     }
 
-    @Test
-    void persistsKeyAcrossInstances(@TempDir File dataDir) {
-        assertEquals(service(dataDir).keyId(), service(dataDir).keyId());
+    private static SigningContext context(KeyPair pair) {
+        return new SigningContext(Map.of(
+                SlsaParams.SIGNER, SlsaParams.SIGNER_SERVER,
+                SlsaParams.SERVER_PRIVATE_KEY, pkcs8Pem(pair)));
     }
 
-    @Test
-    void privateKeyIsOwnerOnlyOnPosix(@TempDir File dataDir) throws Exception {
-        service(dataDir).keyId(); // generate
-        Path key = new File(new File(dataDir, "slsa"), "server-signing.key").toPath();
-        assumeTrue(key.getFileSystem().supportedFileAttributeViews().contains("posix"));
-        assertEquals(PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(key));
+    private static KeyPair ec() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+        generator.initialize(new ECGenParameterSpec("secp256r1"));
+        return generator.generateKeyPair();
     }
 
-    @Test
-    void corruptKeyRaisesKeyInitializationException(@TempDir File dataDir) throws Exception {
-        File slsaDir = new File(dataDir, "slsa");
-        Files.createDirectories(slsaDir.toPath());
-        Files.writeString(new File(slsaDir, "server-signing.key").toPath(), "not a key");
-        Files.writeString(new File(slsaDir, "server-signing.pub.pem").toPath(), "not a pem");
-
-        assertThrows(KeyInitializationException.class, () -> service(dataDir).keyId());
-    }
-
-    private static ServerSigningService service(File dataDir) {
-        ServerPaths serverPaths = mock(ServerPaths.class);
-        when(serverPaths.getPluginDataDirectory()).thenReturn(dataDir);
-        return new ServerSigningService(serverPaths, new DsseService(), new Sha256Handler());
+    private static String pkcs8Pem(KeyPair pair) {
+        String body = Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII))
+                .encodeToString(pair.getPrivate().getEncoded());
+        return "-----BEGIN PRIVATE KEY-----\n" + body + "\n-----END PRIVATE KEY-----\n";
     }
 }

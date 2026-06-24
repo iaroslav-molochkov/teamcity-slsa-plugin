@@ -1,0 +1,134 @@
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.server;
+
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
+import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
+import org.bouncycastle.jce.spec.ECParameterSpec;
+import org.bouncycastle.math.ec.FixedPointCombMultiplier;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.PEMParser;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.io.StringReader;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.spec.ECPoint;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPublicKeySpec;
+
+/**
+ * Parses a user-supplied PEM private key into a {@link ServerKey}: it accepts PKCS#8
+ * ({@code BEGIN PRIVATE KEY}), PKCS#1 ({@code BEGIN RSA PRIVATE KEY}) and SEC1
+ * ({@code BEGIN EC PRIVATE KEY}) via BouncyCastle's {@link PEMParser}, derives the public key from the
+ * private one (EC by scalar-multiplying the curve generator, RSA from the CRT modulus/exponent), and
+ * computes the default DSSE {@code keyId} as {@code sha256:<X.509 public key>}.
+ *
+ * <p>The keys handed back are produced by the platform JCA providers (not BouncyCastle), so signing and
+ * verification never cross provider boundaries. Encrypted PEM keys are not supported.
+ */
+@Component
+public class ServerKeyParser {
+
+    private final Sha256Handler sha256;
+
+    public ServerKeyParser(Sha256Handler sha256) {
+        this.sha256 = sha256;
+    }
+
+    /**
+     * Parses the stored PEM (unscrambling it first if TeamCity stored it as a {@code secure:} value).
+     * Throws {@link IllegalArgumentException} if the value is not a usable EC or RSA private key.
+     */
+    public ServerKey parse(String storedPem) {
+        String pem = EncryptUtil.isScrambled(storedPem) ? EncryptUtil.unscramble(storedPem) : storedPem;
+        PrivateKey privateKey = readPrivateKey(pem);
+        PublicKey publicKey = derivePublicKey(privateKey);
+        String keyId = "sha256:" + sha256.hex(publicKey.getEncoded());
+        return new ServerKey(privateKey, publicKey, signatureAlgorithm(privateKey), keyId);
+    }
+
+    private PrivateKey readPrivateKey(String pem) {
+        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
+            Object object = parser.readObject();
+            if (object == null) {
+                throw new IllegalArgumentException("no PEM private key found");
+            }
+            PrivateKeyInfo info = switch (object) {
+                case PEMKeyPair keyPair -> keyPair.getPrivateKeyInfo();
+                case PrivateKeyInfo pkcs8 -> pkcs8;
+                default -> throw new IllegalArgumentException(
+                        "unsupported PEM object: " + object.getClass().getSimpleName()
+                                + " (encrypted keys are not supported)");
+            };
+            byte[] pkcs8 = info.getEncoded();
+            PrivateKey ec = tryLoad("EC", pkcs8);
+            return ec != null ? ec : require(tryLoad("RSA", pkcs8));
+        } catch (IOException e) {
+            throw new IllegalArgumentException("could not read PEM private key", e);
+        }
+    }
+
+    private PrivateKey tryLoad(String algorithm, byte[] pkcs8) {
+        try {
+            return KeyFactory.getInstance(algorithm).generatePrivate(new PKCS8EncodedKeySpec(pkcs8));
+        } catch (GeneralSecurityException e) {
+            return null;
+        }
+    }
+
+    private PrivateKey require(PrivateKey key) {
+        if (key == null) {
+            throw new IllegalArgumentException("not an EC or RSA private key");
+        }
+        return key;
+    }
+
+    private PublicKey derivePublicKey(PrivateKey privateKey) {
+        try {
+            return switch (privateKey) {
+                case ECPrivateKey ec -> deriveEcPublicKey(ec);
+                case RSAPrivateCrtKey rsa -> KeyFactory.getInstance("RSA")
+                        .generatePublic(new RSAPublicKeySpec(rsa.getModulus(), rsa.getPublicExponent()));
+                default -> throw new IllegalArgumentException(
+                        "cannot derive public key for " + privateKey.getAlgorithm() + " key");
+            };
+        } catch (GeneralSecurityException e) {
+            throw new IllegalArgumentException("could not derive public key", e);
+        }
+    }
+
+    private PublicKey deriveEcPublicKey(ECPrivateKey ec) throws GeneralSecurityException {
+        ECParameterSpec bcSpec = EC5Util.convertSpec(ec.getParams());
+        org.bouncycastle.math.ec.ECPoint q =
+                new FixedPointCombMultiplier().multiply(bcSpec.getG(), ec.getS()).normalize();
+        ECPoint w = new ECPoint(q.getAffineXCoord().toBigInteger(), q.getAffineYCoord().toBigInteger());
+        return KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(w, ec.getParams()));
+    }
+
+    private String signatureAlgorithm(PrivateKey privateKey) {
+        return switch (privateKey) {
+            case ECPrivateKey ec -> ecSignatureAlgorithm(ec);
+            case RSAPrivateCrtKey ignored -> "SHA256withRSA";
+            default -> throw new IllegalArgumentException(
+                    "unsupported key type: " + privateKey.getAlgorithm());
+        };
+    }
+
+    private String ecSignatureAlgorithm(ECPrivateKey ec) {
+        int fieldSize = ec.getParams().getCurve().getField().getFieldSize();
+        if (fieldSize <= 256) {
+            return "SHA256withECDSA";
+        }
+        if (fieldSize <= 384) {
+            return "SHA384withECDSA";
+        }
+        return "SHA512withECDSA";
+    }
+}

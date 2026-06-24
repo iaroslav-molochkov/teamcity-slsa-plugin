@@ -16,17 +16,31 @@
   <th><label for="slsa.signer">Signer:</label></th>
   <td>
     <props:selectProperty name="slsa.signer" className="mediumField">
-      <props:option value="server">Server key (local, quick start)</props:option>
+      <props:option value="server">Server key (your PEM private key)</props:option>
       <props:option value="aws-kms-default">AWS KMS — default provider chain</props:option>
       <props:option value="aws-kms-static">AWS KMS — access key</props:option>
       <props:option value="aws-kms-assume-role">AWS KMS — assume an IAM role</props:option>
     </props:selectProperty>
-    <span class="smallNote">Server key works out of the box. The AWS KMS signers (key never leaves AWS)
-      are recommended for real assurance; the AWS settings below apply only to them. The default
-      provider chain reads env vars, profile, container or instance role on the server; "access key"
-      uses the fields below; "assume role" assumes the role below over the default chain.</span>
+    <span class="smallNote">"Server key" signs with a private key you supply below — you keep the matching
+      public key and give it to verifiers. The AWS KMS signers (key never leaves AWS) are recommended for
+      real assurance; their settings further below apply only to them. The default provider chain reads
+      env vars, profile, container or instance role on the server; "access key" uses the fields below;
+      "assume role" assumes the role below over the default chain.</span>
   </td>
 </tr>
+
+<l:settingsGroup title="Server key (for the &quot;Server key&quot; signer)">
+  <tr>
+    <th><label for="secure:slsa.server.privateKey">Private key (PEM): <l:star/></label></th>
+    <td>
+      <props:passwordProperty name="secure:slsa.server.privateKey" className="longField"/>
+      <span class="smallNote">An EC or RSA private key in PEM — PKCS#8 (<code>-----BEGIN PRIVATE KEY-----</code>),
+        PKCS#1 (<code>-----BEGIN RSA PRIVATE KEY-----</code>) or SEC1 (<code>-----BEGIN EC PRIVATE KEY-----</code>).
+        Encrypted keys are not supported. Stored encrypted. The DSSE <code>keyid</code> is derived from the
+        key as <code>sha256:&lt;public key&gt;</code>; you keep the matching public key and give it to verifiers.</span>
+    </td>
+  </tr>
+</l:settingsGroup>
 
 <tr>
   <th><label for="slsa.aws.region">AWS region: <l:star/></label></th>
