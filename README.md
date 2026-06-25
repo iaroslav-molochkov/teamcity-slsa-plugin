@@ -87,22 +87,6 @@ reuse the client and its refreshed session credentials; evicted clients are clos
 The signing identity should be dedicated and least-privileged, and must not be shared with
 credentials that are injected into build agents.
 
-## Layout
-
-| Path | Purpose |
-| --- | --- |
-| `feature/SlsaBuildFeature`, `SlsaEditFeatureController`, `config/SlsaParams` | The `slsa.provenance` build feature, its settings controller, and its parameter keys |
-| `buildServerResources/editSlsaProvenanceFeature.jsp` | The feature's settings form (TeamCity taglibs) |
-| `provenance/ProvenanceBuilder` + `provenance/intoto`, `provenance/slsa` | In-toto/SLSA model records + Jackson serialization (`ProvenanceJsonHandler`) |
-| `signing/dsse` (`DsseService`, `DsseEnvelope`) | DSSE PAE encoding and envelope |
-| `signing/SigningService`, `SigningHandler`, `signing/kms/**`, `signing/server/**` | Signer dispatch and per-signer handlers/validators |
-| `aws/client/KmsClientCache`, `SignerClient` | KMS client caching and lifecycle |
-| `core/ArtifactHasher`, `ProvenanceService`, `ArtifactProvenanceListener` | Artifact hashing and the build → sign → publish orchestration on `buildFinished` |
-| `persist/ProvenancePublisher` | Publishes the artifact and indexes metadata |
-
-Spring wiring is annotation-driven (`@Component` + `<context:component-scan>` in
-`META-INF/build-server-plugin-teamcity-slsa.xml`).
-
 ## Building
 
 ```bash
