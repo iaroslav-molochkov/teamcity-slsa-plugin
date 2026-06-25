@@ -31,7 +31,7 @@ public class SlsaBuildFeature extends BuildFeature {
 
     @Override
     public String getDisplayName() {
-        return "SLSA provenance attestation";
+        return "SLSA Provenance Attestation";
     }
 
     @Override

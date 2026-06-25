@@ -7,7 +7,7 @@
 <tr>
   <td colspan="2">
     <em>Generates and signs SLSA v1.0 provenance for this configuration's artifacts, server-side,
-      published as the <code>slsa/provenance.intoto.jsonl</code> artifact.</em>
+      published as the <code>provenance.intoto.jsonl</code> artifact.</em>
   </td>
 </tr>
 

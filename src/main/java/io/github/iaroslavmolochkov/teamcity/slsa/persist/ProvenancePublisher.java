@@ -11,16 +11,15 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.Map;
 
-/** Writes the signed envelope as the {@code slsa/provenance.intoto.jsonl} build artifact and indexes its metadata. */
+/** Writes the signed envelope as the {@code provenance.intoto.jsonl} build artifact and indexes its metadata. */
 @Component
 public class ProvenancePublisher {
 
     private static final Logger log = Loggers.SERVER;
 
-    /** Directory (relative to the build's artifact root) and file name of the attestation. */
-    public static final String ARTIFACT_DIR = "slsa";
+    /** File name (and artifact path, relative to the build's artifact root) of the attestation. */
     public static final String ARTIFACT_NAME = "provenance.intoto.jsonl";
-    public static final String ARTIFACT_PATH = ARTIFACT_DIR + "/" + ARTIFACT_NAME;
+    public static final String ARTIFACT_PATH = ARTIFACT_NAME;
 
     /** Metadata provider id under which entries are stored/queried. */
     public static final String METADATA_PROVIDER_ID = "slsa-provenance";
@@ -48,10 +47,10 @@ public class ProvenancePublisher {
             return false;
         }
 
-        File target = new File(new File(artifactsDir, ARTIFACT_DIR), ARTIFACT_NAME);
+        File target = new File(artifactsDir, ARTIFACT_NAME);
         artifactsGuard.lockWriting(artifactsDir);
         try {
-            Files.createDirectories(target.getParentFile().toPath());
+            Files.createDirectories(artifactsDir.toPath());
             Files.write(target.toPath(), jsonl);
         } catch (Exception e) {
             log.warnAndDebugDetails("SLSA: failed to write provenance artifact for build " + build.getBuildId(), e);
