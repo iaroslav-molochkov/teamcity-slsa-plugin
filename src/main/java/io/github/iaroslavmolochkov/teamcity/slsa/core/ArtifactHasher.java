@@ -39,6 +39,7 @@ public class ArtifactHasher {
     private static final Logger log = Loggers.SERVER;
 
     public static final String HASH_THREADS_PROPERTY = "teamcity.slsa.hashThreads";
+    private static final int DEFAULT_HASH_THREADS = 4;
 
     private static final int MAX_HASH_ATTEMPTS = 4;
 
@@ -54,7 +55,7 @@ public class ArtifactHasher {
 
     public ArtifactHasher(EventDispatcher<BuildServerListener> eventDispatcher, Sha256Handler sha256) {
         this.sha256 = sha256;
-        int threads = TeamCityProperties.getInteger(HASH_THREADS_PROPERTY, Math.max(2, Runtime.getRuntime().availableProcessors()));
+        int threads = TeamCityProperties.getInteger(HASH_THREADS_PROPERTY, DEFAULT_HASH_THREADS);
         pool = Executors.newFixedThreadPool(threads, daemonThreadFactory("slsa-hash"));
         eventDispatcher.addListener(new BuildServerAdapter() {
             @Override

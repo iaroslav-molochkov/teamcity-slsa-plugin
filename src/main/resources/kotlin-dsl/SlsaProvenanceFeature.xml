@@ -2,8 +2,8 @@
 <dsl-extension kind="buildFeature" type="slsa.provenance" generateDslJar="true">
   <class name="SlsaProvenance">
     <description>
-      Generates and signs SLSA v1.0 provenance for a finished build's artifacts, server-side, and
-      publishes it as the provenance.intoto.jsonl artifact.
+      Generates and signs SLSA v1.0 provenance for the build's artifacts, server-side, and publishes
+      the provenance.intoto.jsonl artifact.
     </description>
   </class>
 
@@ -16,13 +16,13 @@
   <params>
     <param name="slsa.signer" dslName="signer" type="compound" mandatory="true">
       <description>
-        Where the signing key lives and, for AWS KMS, how the server obtains credentials.
+        Signing key location and, for AWS KMS, the credentials source.
       </description>
 
       <option name="serverKey" value="server">
         <param name="slsa.server.privateKeyPath" dslName="privateKeyPath" type="string" mandatory="true">
           <description>
-            Absolute path, on the server, to an EC or RSA PEM private key (PKCS#8, PKCS#1, or SEC1).
+            Absolute path to a PEM private key on the server (EC or RSA; PKCS#8, PKCS#1, or SEC1).
           </description>
         </param>
       </option>
@@ -30,7 +30,7 @@
       <option name="kmsDefaultChain" value="aws-kms-default">
         <param name="slsa.aws.region" dslName="region" type="string">
           <description>
-            Region of the KMS key (e.g. us-east-1). Optional for the default provider chain.
+            KMS key region (e.g. us-east-1). Optional for the default provider chain.
           </description>
         </param>
         <param name="slsa.kms.keyId" dslName="keyId" type="string" mandatory="true">
@@ -40,7 +40,7 @@
         </param>
         <param name="slsa.kms.signingAlgorithm" dslName="signingAlgorithm" type="string" mandatory="true">
           <description>
-            KMS signing algorithm matching the key spec (e.g. ECDSA_SHA_256).
+            Must match the key spec (e.g. ECDSA_SHA_256).
           </description>
         </param>
       </option>
@@ -48,7 +48,7 @@
       <option name="kmsAccessKey" value="aws-kms-static">
         <param name="slsa.aws.region" dslName="region" type="string" mandatory="true">
           <description>
-            Region of the KMS key (e.g. us-east-1).
+            KMS key region (e.g. us-east-1).
           </description>
         </param>
         <param name="slsa.kms.keyId" dslName="keyId" type="string" mandatory="true">
@@ -58,7 +58,7 @@
         </param>
         <param name="slsa.kms.signingAlgorithm" dslName="signingAlgorithm" type="string" mandatory="true">
           <description>
-            KMS signing algorithm matching the key spec (e.g. ECDSA_SHA_256).
+            Must match the key spec (e.g. ECDSA_SHA_256).
           </description>
         </param>
         <param name="slsa.aws.accessKeyId" dslName="accessKeyId" type="string" mandatory="true">
@@ -76,7 +76,7 @@
       <option name="kmsAssumeRole" value="aws-kms-assume-role">
         <param name="slsa.aws.region" dslName="region" type="string" mandatory="true">
           <description>
-            Region of the KMS key (e.g. us-east-1).
+            KMS key region (e.g. us-east-1).
           </description>
         </param>
         <param name="slsa.kms.keyId" dslName="keyId" type="string" mandatory="true">
@@ -86,27 +86,27 @@
         </param>
         <param name="slsa.kms.signingAlgorithm" dslName="signingAlgorithm" type="string" mandatory="true">
           <description>
-            KMS signing algorithm matching the key spec (e.g. ECDSA_SHA_256).
+            Must match the key spec (e.g. ECDSA_SHA_256).
           </description>
         </param>
         <param name="slsa.aws.assumeRole.arn" dslName="roleArn" type="string" mandatory="true">
           <description>
-            IAM role to assume (scoped to kms:Sign) before signing.
+            IAM role assumed before signing. Scope it to kms:Sign.
           </description>
         </param>
         <param name="slsa.aws.assumeRole.sessionName" dslName="sessionName" type="string">
           <description>
-            Assumed-role session name. Defaults to teamcity-slsa-signer.
+            Assumed-role session name. Default: teamcity-slsa-signer.
           </description>
         </param>
         <param name="slsa.aws.assumeRole.externalId" dslName="externalId" type="string">
           <description>
-            External id required by some cross-account role trust policies.
+            External id for the role's trust policy, if required.
           </description>
         </param>
         <param name="slsa.aws.assumeRole.durationSeconds" dslName="durationSeconds" type="string">
           <description>
-            Lifetime of the temporary credentials, in seconds.
+            Temporary-credential lifetime, in seconds.
           </description>
         </param>
         <param name="slsa.aws.stsEndpoint" dslName="stsEndpoint" type="string">
@@ -119,7 +119,7 @@
 
     <param name="slsa.failBuildOnError" dslName="failBuildOnError" type="boolean" trueValue="true" falseValue="">
       <description>
-        Fail the build when provenance cannot be produced. Off by default (a failure only logs a warning).
+        Fail the build when provenance cannot be produced. Off by default (logs a warning).
       </description>
     </param>
   </params>
@@ -127,7 +127,7 @@
   <examples>
     <example>
       <description>
-        Sign provenance with an AWS KMS key, using the server's default credentials provider chain.
+        Sign with an AWS KMS key using the server's default credentials provider chain.
       </description>
       <code>
         slsaProvenance {
@@ -141,8 +141,7 @@
     </example>
     <example>
       <description>
-        Sign provenance with an AWS KMS key by assuming a dedicated kms:Sign-scoped IAM role, and fail
-        the build if provenance cannot be produced.
+        Sign with an AWS KMS key by assuming a kms:Sign-scoped IAM role, and fail the build on error.
       </description>
       <code>
         slsaProvenance {
@@ -158,7 +157,7 @@
     </example>
     <example>
       <description>
-        Sign provenance with a PEM private key stored on the TeamCity server.
+        Sign with a PEM private key stored on the TeamCity server.
       </description>
       <code>
         slsaProvenance {

@@ -34,13 +34,13 @@ was produced by this build, and that the description has not been altered.
 ## 3. Configure the server URL (required for correct output)
 
 The provenance records the identity of the build platform as an absolute URL (for example,
-`https://teamcity.example.com/bs`). This value is read from the TeamCity **server URL**
+`https://teamcity.example.com<context-path>`). This value is read from the TeamCity **server URL**
 setting, because at the moment a build finishes there is no incoming web request from which
 to infer the address.
 
 Set it under **Administration → Global Settings → Server URL** to the exact address users
-reach the server at, including any context path (the trailing path segment such as `/bs`
-that some deployments use). If this is wrong, the provenance will name the platform
+reach the server at, including any context path (the URL path prefix some deployments are
+served under). If this is wrong, the provenance will name the platform
 incorrectly, which weakens its value to verifiers.
 
 ---

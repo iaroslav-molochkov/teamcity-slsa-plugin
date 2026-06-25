@@ -6,8 +6,8 @@
 
 <tr>
   <td colspan="2">
-    <em>Generates and signs SLSA v1.0 provenance for this configuration's artifacts, server-side,
-      published as the <code>provenance.intoto.jsonl</code> artifact.</em>
+    <em>Generates and signs SLSA v1.0 provenance for the build's artifacts, server-side, and
+      publishes the <code>provenance.intoto.jsonl</code> artifact.</em>
   </td>
 </tr>
 
@@ -20,8 +20,7 @@
       <props:option value="aws-kms-static">AWS KMS &mdash; access key</props:option>
       <props:option value="aws-kms-assume-role">AWS KMS &mdash; assume an IAM role</props:option>
     </props:selectProperty>
-    <span class="smallNote">Where the signing key lives. AWS KMS (key never leaves AWS) is recommended;
-      the server key reads a PEM from the server's disk.</span>
+    <span class="smallNote">Signing key location and, for AWS KMS, the credentials source.</span>
   </td>
 </tr>
 
@@ -29,7 +28,7 @@
   <th><label for="slsa.failBuildOnError">Fail build on error:</label></th>
   <td>
     <props:checkboxProperty name="slsa.failBuildOnError"/>
-    <span class="smallNote">Off by default: a provenance failure only logs a warning. Enable to fail the build instead.</span>
+    <span class="smallNote">When off (default), a provenance failure logs a warning; when on, it fails the build.</span>
   </td>
 </tr>
 
@@ -37,9 +36,8 @@
   <th><label for="slsa.server.privateKeyPath">Private key file: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.server.privateKeyPath" className="longField"/>
-    <span class="smallNote">Absolute path to an EC or RSA PEM key on the server (PKCS#8, PKCS#1 or SEC1),
-      readable only by the server process (e.g. <code>chmod 600</code>). Keep the matching public key for
-      verifiers; the DSSE <code>keyid</code> is <code>sha256:&lt;public key&gt;</code>.</span>
+    <span class="smallNote">Absolute path to a PEM private key on the server (EC or RSA; PKCS#8, PKCS#1,
+      or SEC1), readable only by the server process.</span>
   </td>
 </tr>
 
@@ -47,7 +45,7 @@
   <th><label for="slsa.aws.region">AWS region: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.aws.region" className="longField"/>
-    <span class="smallNote">The KMS key's region, e.g. <code>us-east-1</code>. Optional for the default provider chain; required otherwise.</span>
+    <span class="smallNote">KMS key region (e.g. <code>us-east-1</code>). Optional for the default provider chain; required otherwise.</span>
   </td>
 </tr>
 
@@ -67,7 +65,7 @@
         <props:option value="${algorithm}"><c:out value="${algorithm}"/></props:option>
       </c:forEach>
     </props:selectProperty>
-    <span class="smallNote">Must match the KMS key spec (e.g. <code>ECDSA_SHA_256</code> for an ECC_NIST_P256 key).</span>
+    <span class="smallNote">Must match the key spec (e.g. <code>ECDSA_SHA_256</code> for an ECC_NIST_P256 key).</span>
   </td>
 </tr>
 
@@ -90,7 +88,7 @@
   <th><label for="slsa.aws.assumeRole.arn">Role ARN: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.aws.assumeRole.arn" className="longField"/>
-    <span class="smallNote">Assumed (scoped to <code>kms:Sign</code>) before signing.</span>
+    <span class="smallNote">Assumed before signing. Scope it to <code>kms:Sign</code>.</span>
   </td>
 </tr>
 
@@ -113,7 +111,7 @@
   <th><label for="slsa.aws.stsEndpoint">STS endpoint:</label></th>
   <td>
     <props:textProperty name="slsa.aws.stsEndpoint" className="longField"/>
-    <span class="smallNote">Optional STS endpoint override (regional or VPC).</span>
+    <span class="smallNote">STS endpoint override (regional or VPC).</span>
   </td>
 </tr>
 
