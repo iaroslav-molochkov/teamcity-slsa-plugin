@@ -17,7 +17,7 @@ import java.util.List;
 public class AwsKmsValidator implements Validator {
 
     private static final int MIN_DURATION_SECONDS = 900;
-    private static final int MAX_DURATION_SECONDS = 43200;
+    private static final int MAX_DURATION_SECONDS = 43_200;
 
     @Override
     public SignerType type() {
@@ -56,6 +56,7 @@ public class AwsKmsValidator implements Validator {
             String raw = context.get(SlsaParams.CREDENTIALS);
             errors.add(new InvalidProperty(SlsaParams.CREDENTIALS,
                     raw == null ? "A credentials method must be selected" : "Unknown credentials method: " + raw));
+
             return;
         }
 
