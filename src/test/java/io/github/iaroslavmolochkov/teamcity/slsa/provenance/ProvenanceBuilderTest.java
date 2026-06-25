@@ -40,6 +40,8 @@ class ProvenanceBuilderTest {
         when(webLinks.getRootUrlByProjectExternalId(any())).thenReturn("https://tc.example.com");
 
         SBuild build = mock(SBuild.class);
+        when(webLinks.getViewResultsUrl(build))
+                .thenReturn("https://tc.example.com/buildConfiguration/MyProj_Build/42");
         when(build.getBuildId()).thenReturn(42L);
         when(build.getBuildTypeExternalId()).thenReturn("MyProj_Build");
         when(build.getFullName()).thenReturn("MyProj / Build");
@@ -77,24 +79,63 @@ class ProvenanceBuilderTest {
         assertEquals("abcd1234", statement.subject().get(0).digest().get("sha256"));
 
         assertEquals("https://tc.example.com", statement.predicate().runDetails().builder().id());
-        assertEquals("https://tc.example.com/build/42",
+        assertEquals("https://tc.example.com/buildConfiguration/MyProj_Build/42",
                 statement.predicate().runDetails().metadata().invocationId());
         assertEquals("1970-01-01T00:00:01Z", statement.predicate().runDetails().metadata().startedOn());
         assertEquals("1970-01-01T00:00:05Z", statement.predicate().runDetails().metadata().finishedOn());
 
         Map<String, Object> external = statement.predicate().buildDefinition().externalParameters();
         assertEquals("MyProj_Build", external.get("buildTypeId"));
-        assertEquals("1.0.1", external.get("buildNumber"));
         assertEquals("user:jdoe", external.get("triggeredBy"));
         assertEquals("main", external.get("branch"));
         assertEquals(true, external.get("branchIsDefault"));
         assertFalse(external.containsKey("buildParameters"), "no redundant raw-parameter dump");
+        assertFalse(external.containsKey("buildNumber"), "platform-assigned number is internal");
 
         Map<String, Object> internal = statement.predicate().buildDefinition().internalParameters();
         assertEquals("MyProj", internal.get("projectId"));
+        assertEquals("1.0.1", internal.get("buildNumber"));
         assertEquals("agent-host-1", internal.get("agentHostName"));
         assertEquals("2026.1", internal.get("agentVersion"));
         assertFalse(internal.containsKey("personal"), "non-personal builds omit the flag");
+    }
+
+    @Test
+    void fallsBackToPromotionFinishDateWhenRunningBuildHasNone() {
+        SBuildServer server = mock(SBuildServer.class);
+        when(server.getFullServerVersion()).thenReturn("TeamCity 2026.1");
+
+        WebLinks webLinks = mock(WebLinks.class);
+        when(webLinks.getRootUrlByProjectExternalId(any())).thenReturn("https://tc.example.com");
+
+        SBuild build = mock(SBuild.class);
+        when(build.getBuildId()).thenReturn(1L);
+        when(build.getBuildTypeExternalId()).thenReturn("Bt");
+        when(build.getFullName()).thenReturn("P / Bt");
+        when(build.getBuildNumber()).thenReturn("1");
+        when(build.getBranch()).thenReturn(null);
+        when(build.getAgentName()).thenReturn("a");
+        when(build.getRevisions()).thenReturn(List.of());
+        when(build.getStartDate()).thenReturn(new Date(1000));
+        when(build.getFinishDate()).thenReturn(null);
+
+        TriggeredBy triggeredBy = mock(TriggeredBy.class);
+        when(triggeredBy.getTriggerId()).thenReturn("vcsTrigger");
+        when(build.getTriggeredBy()).thenReturn(triggeredBy);
+        when(build.getAgent()).thenReturn(mock(SBuildAgent.class));
+
+        SBuild associated = mock(SBuild.class);
+        when(associated.getFinishDate()).thenReturn(new Date(9000));
+        BuildPromotion promotion = mock(BuildPromotion.class);
+        when(promotion.getDependencies()).thenReturn(List.of());
+        when(promotion.getAssociatedBuild()).thenReturn(associated);
+        when(build.getBuildPromotion()).thenReturn(promotion);
+
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
+        InTotoStatement statement = builder.build(build,
+                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
+
+        assertEquals("1970-01-01T00:00:09Z", statement.predicate().runDetails().metadata().finishedOn());
     }
 
     @Test
@@ -173,6 +214,8 @@ class ProvenanceBuilderTest {
         when(upstream.getBuildId()).thenReturn(7L);
         when(upstream.getBuildTypeExternalId()).thenReturn("Lib_Build");
         when(upstream.getBuildNumber()).thenReturn("3.2");
+        when(webLinks.getViewResultsUrl(upstream))
+                .thenReturn("https://tc.example.com/buildConfiguration/Lib_Build/7");
 
         BuildPromotion upstreamPromotion = mock(BuildPromotion.class);
         when(upstreamPromotion.getAssociatedBuild()).thenReturn(upstream);
@@ -201,7 +244,7 @@ class ProvenanceBuilderTest {
         List<ResolvedDependency> deps =
                 statement.predicate().buildDefinition().resolvedDependencies();
         assertEquals(1, deps.size());
-        assertEquals("https://tc.example.com/build/7", deps.get(0).uri());
+        assertEquals("https://tc.example.com/buildConfiguration/Lib_Build/7", deps.get(0).uri());
         assertEquals("Lib_Build #3.2", deps.get(0).name());
     }
 

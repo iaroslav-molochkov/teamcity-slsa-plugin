@@ -66,9 +66,9 @@ public class ProvenanceBuilder {
                         internalParameters(build),
                         resolvedDependencies(build)),
                 new RunDetails(
-                        new SlsaPlatform(builderId(build), builderVersion()),
+                        new SlsaPlatform(platformId(build), builderVersion()),
                         new RunMetadata(
-                                buildUrl(build),
+                                webLinks.getViewResultsUrl(build),
                                 iso(build.getStartDate()),
                                 iso(finishDate(build)))));
 
@@ -76,13 +76,8 @@ public class ProvenanceBuilder {
     }
 
     /** Platform identity - the server root for this build's configuration (project-aware, includes context path). */
-    private String builderId(SBuild build) {
+    private String platformId(SBuild build) {
         return trimTrailingSlash(webLinks.getRootUrlByProjectExternalId(build.getProjectExternalId()));
-    }
-
-    /** Run identity - the server's short, stable build URL ({@code <root>/build/<id>}). */
-    private String buildUrl(SBuild build) {
-        return builderId(build) + "/build/" + build.getBuildId();
     }
 
     private Map<String, Object> externalParameters(SBuild build) {
@@ -90,7 +85,6 @@ public class ProvenanceBuilder {
 
         params.put("buildTypeId", build.getBuildTypeExternalId());
         params.put("buildTypeName", build.getFullName());
-        params.put("buildNumber", build.getBuildNumber());
         params.put("triggeredBy", triggeredBy(build));
 
         Branch branch = build.getBranch();
@@ -107,6 +101,7 @@ public class ProvenanceBuilder {
         Map<String, Object> params = new HashMap<>();
         params.put("teamcityVersion", server.getFullServerVersion());
         params.put("projectId", build.getProjectExternalId());
+        params.put("buildNumber", build.getBuildNumber());
         params.put("agentName", build.getAgentName());
 
         SBuildAgent buildAgent = build.getAgent();
@@ -169,7 +164,7 @@ public class ProvenanceBuilder {
             }
 
             deps.add(new ResolvedDependency(
-                    buildUrl(upstream),
+                    webLinks.getViewResultsUrl(upstream),
                     null,
                     upstream.getBuildTypeExternalId() + " #" + upstream.getBuildNumber(),
                     null
@@ -223,14 +218,20 @@ public class ProvenanceBuilder {
         return Map.of("teamcity", server.getFullServerVersion());
     }
 
-    /** Build finish time; the server finish date can still be unset at the build-finished event, so fall back. */
+    /** Build finish time; the running build's finish date is unset at the build-finished event, so read the promotion's persisted record. */
     private Date finishDate(SBuild build) {
         Date finish = build.getFinishDate();
         if (finish != null) {
             return finish;
         }
-        Date agentFinish = build.getFinishOnAgentDate();
-        return agentFinish != null ? agentFinish : new Date();
+        SBuild associated = build.getBuildPromotion().getAssociatedBuild();
+        if (associated != null) {
+            Date associatedFinish = associated.getFinishDate();
+            if (associatedFinish != null) {
+                return associatedFinish;
+            }
+        }
+        return new Date();
     }
 
     private String iso(Date date) {
