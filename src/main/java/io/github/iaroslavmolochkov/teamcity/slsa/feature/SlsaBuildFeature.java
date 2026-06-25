@@ -11,10 +11,20 @@ import jetbrains.buildServer.web.openapi.PluginDescriptor;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Set;
 
 /** The {@code slsa.provenance} build feature: generates and signs SLSA provenance for finished builds. */
 @Component
 public class SlsaBuildFeature extends BuildFeature {
+
+    private static final Set<String> SERVER_PARAMS = Set.of(SlsaParams.SERVER_PRIVATE_KEY_PATH);
+    private static final Set<String> KMS_PARAMS = Set.of(
+            SlsaParams.REGION, SlsaParams.KMS_KEY_ID, SlsaParams.SIGNING_ALGORITHM);
+    private static final Set<String> STATIC_PARAMS = Set.of(
+            SlsaParams.ACCESS_KEY_ID, SlsaParams.SECRET_ACCESS_KEY);
+    private static final Set<String> ROLE_PARAMS = Set.of(
+            SlsaParams.ASSUME_ROLE_ENABLED, SlsaParams.ASSUME_ROLE_ARN, SlsaParams.ASSUME_ROLE_SESSION_NAME,
+            SlsaParams.ASSUME_ROLE_EXTERNAL_ID, SlsaParams.ASSUME_ROLE_DURATION_SECONDS, SlsaParams.STS_ENDPOINT);
 
     private final String editUrl;
     private final ParameterValidator parameterValidator;
@@ -80,6 +90,36 @@ public class SlsaBuildFeature extends BuildFeature {
 
     @Override
     public PropertiesProcessor getParametersProcessor(BuildTypeIdentity buildTypeIdentity) {
-        return params -> parameterValidator.validate(new SigningContext(params));
+        return params -> {
+            SigningContext context = new SigningContext(params);
+            stripRetainedParameters(params, context);
+            return parameterValidator.validate(context);
+        };
+    }
+
+    private void stripRetainedParameters(Map<String, String> params, SigningContext context) {
+        SignerType type = context.type();
+        if (type == null) {
+            return;
+        }
+
+        Set<String> keys = params.keySet();
+
+        if (type == SignerType.SERVER) {
+            keys.removeAll(KMS_PARAMS);
+            keys.removeAll(STATIC_PARAMS);
+            keys.removeAll(ROLE_PARAMS);
+            return;
+        }
+
+        keys.removeAll(SERVER_PARAMS);
+
+        if (type != SignerType.AWS_KMS_STATIC) {
+            keys.removeAll(STATIC_PARAMS);
+        }
+
+        if (!context.assumeRole()) {
+            keys.removeAll(ROLE_PARAMS);
+        }
     }
 }

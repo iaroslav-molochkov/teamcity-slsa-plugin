@@ -76,6 +76,12 @@ teamcity {
             useSeparateClassloader = true
             allowRuntimeReload = true
         }
+
+        files {
+            into('kotlin-dsl') {
+                from('kotlin-dsl')
+            }
+        }
     }
 }
 

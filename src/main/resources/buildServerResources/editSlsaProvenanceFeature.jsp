@@ -65,6 +65,7 @@
   <th><label for="slsa.kms.signingAlgorithm">Signing algorithm: <l:star/></label></th>
   <td>
     <props:selectProperty name="slsa.kms.signingAlgorithm" className="mediumField">
+      <props:option value="">-- Select algorithm --</props:option>
       <c:forEach var="algorithm" items="${signingAlgorithms}">
         <props:option value="${algorithm}"><c:out value="${algorithm}"/></props:option>
       </c:forEach>
@@ -94,7 +95,7 @@
 <tr class="slsa-role">
   <th><label for="slsaAssumeRole">Assume an IAM role:</label></th>
   <td>
-    <props:checkboxProperty name="slsa.aws.assumeRole.enabled" id="slsaAssumeRole" uncheckedValue="false"
+    <props:checkboxProperty name="slsa.aws.assumeRole.enabled" id="slsaAssumeRole"
                             onclick="BS.Slsa.updateSignerFields()"/>
     <span class="smallNote">Assume the specified IAM role with the selected credentials and sign with the resulting temporary credentials.</span>
   </td>
