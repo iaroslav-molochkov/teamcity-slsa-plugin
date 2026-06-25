@@ -16,7 +16,6 @@ import java.util.List;
 @Component
 public class SlsaEditFeatureController extends BaseController {
 
-    /** Edit URL the build feature points at; backed by this controller, not the JSP directly. */
     static final String EDIT_PATH = "editSlsaProvenanceFeature.html";
     private static final String JSP = "editSlsaProvenanceFeature.jsp";
 

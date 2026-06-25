@@ -22,10 +22,8 @@ public abstract class AbstractConnectionKeyHandler implements ConnectionKeyHandl
         return new UUID(hash.getMostSignificantBits(), hash.getLeastSignificantBits());
     }
 
-    /** Adds this mode's identifying fields to the stream (via {@link #put}). */
     protected abstract void funnel(HashStream128 stream, SigningContext context);
 
-    /** Adds one tagged field; a {@code null} value is recorded as absent (distinct from empty). */
     protected void put(HashStream128 stream, byte tag, String value) {
         stream.putByte(tag);
         if (value == null) {

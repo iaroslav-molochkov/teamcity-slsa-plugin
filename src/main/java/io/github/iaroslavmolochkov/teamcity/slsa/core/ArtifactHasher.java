@@ -38,12 +38,10 @@ public class ArtifactHasher {
 
     private static final Logger log = Loggers.SERVER;
 
-    /** Server property to override the hashing pool size; defaults to the CPU count. */
     public static final String HASH_THREADS_PROPERTY = "teamcity.slsa.hashThreads";
 
     private static final int MAX_HASH_ATTEMPTS = 4;
 
-    /** Retry transient artifact-read failures (e.g. S3 throttling/5xx) with backoff + jitter. */
     private static final RetryConfig RETRY_CONFIG = new RetryConfigBuilder()
             .retryOnSpecificExceptions(IOException.class)
             .withMaxNumberOfTries(MAX_HASH_ATTEMPTS)
@@ -75,7 +73,6 @@ public class ArtifactHasher {
         };
     }
 
-    /** Streams and hashes every file artifact of the build concurrently. */
     public List<ArtifactSubject> hash(SBuild build) {
         BuildArtifacts artifacts = build.getArtifacts(BuildArtifactsViewMode.VIEW_DEFAULT);
 

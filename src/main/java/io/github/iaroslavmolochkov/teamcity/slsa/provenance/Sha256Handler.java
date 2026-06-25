@@ -15,10 +15,6 @@ public class Sha256Handler {
     private static final int BUFFER_SIZE = 64 * 1024;
     private static final HexFormat hexFormat = HexFormat.of();
 
-    /**
-     * Streams the given input and returns its SHA-256 digest as a lowercase hex string.
-     * The caller is responsible for closing the stream.
-     */
     public String hex(InputStream in) throws IOException {
         MessageDigest digest = newDigest();
         byte[] buffer = new byte[BUFFER_SIZE];
@@ -29,7 +25,6 @@ public class Sha256Handler {
         return toHex(digest.digest());
     }
 
-    /** Returns the SHA-256 digest of the given bytes as a lowercase hex string. */
     public String hex(byte[] bytes) {
         return toHex(newDigest().digest(bytes));
     }

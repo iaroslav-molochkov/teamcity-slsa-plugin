@@ -29,9 +29,6 @@ public enum SignerType {
         return value;
     }
 
-    /**
-     * Resolves a param value to its mode, or {@code null} if absent/unknown.
-     */
     public static SignerType fromValue(String value) {
         return value == null ? null : BY_VALUE.get(value.toLowerCase(Locale.ROOT));
     }

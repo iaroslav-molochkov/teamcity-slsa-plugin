@@ -9,6 +9,5 @@ public interface Validator {
 
     SignerType type();
 
-    /** Validation errors for this type's params (empty when valid). */
     List<InvalidProperty> validate(SigningContext context);
 }

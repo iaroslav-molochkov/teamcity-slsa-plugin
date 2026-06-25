@@ -13,11 +13,6 @@ public class DsseService {
 
     private static final byte SP = ' ';
 
-    /**
-     * Pre-Authentication Encoding - the exact bytes signed:
-     * <pre>PAE(type, body) = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body</pre>
-     * where SP is a single ASCII space and LEN is the ASCII-decimal byte length.
-     */
     public byte[] pae(String payloadType, byte[] payload) {
         byte[] typeBytes = payloadType.getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -33,7 +28,6 @@ public class DsseService {
         return out.toByteArray();
     }
 
-    /** Wraps the raw payload bytes and a single raw signature into an envelope, base64-encoding both. */
     public DsseEnvelope envelope(byte[] payloadBytes, String keyId, byte[] signature) {
         Base64.Encoder b64 = Base64.getEncoder();
         return new DsseEnvelope(

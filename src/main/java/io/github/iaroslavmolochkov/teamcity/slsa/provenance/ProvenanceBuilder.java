@@ -42,7 +42,6 @@ import java.util.Set;
 @Component
 public class ProvenanceBuilder {
 
-    /** Identifies this plugin's build type/template in the provenance. */
     public static final String BUILD_TYPE = "https://iaroslav-molochkov.github.io/teamcity-slsa-plugin/buildtype/v1";
 
     private static final Logger log = Loggers.SERVER;
@@ -78,7 +77,6 @@ public class ProvenanceBuilder {
         return new InTotoStatement(InTotoStatement.TYPE, wireSubjects, InTotoStatement.SLSA_PREDICATE_TYPE, predicate);
     }
 
-    /** Platform identity - the server root for this build's configuration (project-aware, includes context path). */
     private String platformId(SBuild build) {
         return trimTrailingSlash(webLinks.getRootUrlByProjectExternalId(build.getProjectExternalId()));
     }
@@ -105,7 +103,6 @@ public class ProvenanceBuilder {
                 buildAgent.getOperatingSystemName());
     }
 
-    /** The request origin: a user (username and/or id), a snapshot dependency, or the trigger mechanism. */
     private Trigger trigger(SBuild build) {
         TriggeredBy triggeredBy = build.getTriggeredBy();
         SUser user = triggeredBy.getUser();
@@ -168,7 +165,6 @@ public class ProvenanceBuilder {
         return deps;
     }
 
-    /** Indexes the build's contained changes by {@code <rootId>@<version>} for commit lookup. */
     private Map<String, SVcsModification> changesByRootAndVersion(SBuild build) {
         Map<String, SVcsModification> byRootVersion = new HashMap<>();
 
@@ -210,7 +206,6 @@ public class ProvenanceBuilder {
         return Map.of("teamcity", server.getFullServerVersion());
     }
 
-    /** Build finish time; the running build's finish date is unset at the build-finished event, so read the promotion's persisted record. */
     private Date finishDate(SBuild build) {
         Date finish = build.getFinishDate();
         if (finish != null) {

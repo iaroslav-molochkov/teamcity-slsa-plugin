@@ -17,11 +17,9 @@ public class ProvenancePublisher {
 
     private static final Logger log = Loggers.SERVER;
 
-    /** File name (and artifact path, relative to the build's artifact root) of the attestation. */
     public static final String ARTIFACT_NAME = "provenance.intoto.jsonl";
     public static final String ARTIFACT_PATH = ARTIFACT_NAME;
 
-    /** Metadata provider id under which entries are stored/queried. */
     public static final String METADATA_PROVIDER_ID = "slsa-provenance";
 
     private final ArtifactsGuard artifactsGuard;
@@ -33,11 +31,6 @@ public class ProvenancePublisher {
         this.metadataStorage = metadataStorage;
     }
 
-    /**
-     * Writes the JSONL bytes as the provenance artifact and, on success, indexes the given metadata.
-     * Best-effort: returns {@code false} (and logs) if the artifacts directory is unavailable or the
-     * write fails. A metadata-indexing failure is logged but does not fail publishing.
-     */
     public boolean publish(SBuild build, byte[] jsonl, Map<String, String> metadata) {
         File artifactsDir;
         try {

@@ -5,11 +5,6 @@ public final class SlsaParams {
 
     public static final String FEATURE_TYPE = "slsa.provenance";
 
-    /**
-     * The single discriminator: which signer, and (for KMS) how it gets credentials. Required - the
-     * UI/DSL always provides it. Each value maps to a {@code Validator} and a {@code SigningService}.
-     */
-    /** When {@code true}, a provenance failure fails the build; otherwise it only logs a warning. */
     public static final String FAIL_BUILD_ON_ERROR = "slsa.failBuildOnError";
 
     public static final String SIGNER = "slsa.signer";
@@ -18,16 +13,13 @@ public final class SlsaParams {
     public static final String SIGNER_AWS_KMS_STATIC = "aws-kms-static";
     public static final String SIGNER_AWS_KMS_ASSUME_ROLE = "aws-kms-assume-role";
 
-    /** Absolute path to a PEM private key file on the server for the {@code server} signer (PKCS#8/PKCS#1/SEC1). */
     public static final String SERVER_PRIVATE_KEY_PATH = "slsa.server.privateKeyPath";
 
     public static final String REGION = "slsa.aws.region";
     public static final String KMS_KEY_ID = "slsa.kms.keyId";
-    /** A {@code SigningAlgorithmSpec} name (e.g. {@code ECDSA_SHA_256}). */
     public static final String SIGNING_ALGORITHM = "slsa.kms.signingAlgorithm";
 
     public static final String ACCESS_KEY_ID = "slsa.aws.accessKeyId";
-    /** {@code secure:} prefix asks TeamCity to store this scrambled. */
     public static final String SECRET_ACCESS_KEY = "secure:slsa.aws.secretAccessKey";
 
     public static final String ASSUME_ROLE_ARN = "slsa.aws.assumeRole.arn";

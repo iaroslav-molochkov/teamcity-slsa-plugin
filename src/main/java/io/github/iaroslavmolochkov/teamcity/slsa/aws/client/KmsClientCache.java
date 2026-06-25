@@ -44,16 +44,10 @@ public class KmsClientCache {
         });
     }
 
-    /**
-     * Returns the cached {@link KmsClient} for {@code connectionKey}, building one with {@code factory}
-     * on first use. The cache owns the resulting {@link SignerClient}'s lifecycle (closed on eviction
-     * or shutdown), so callers must not close it.
-     */
     public KmsClient get(UUID connectionKey, Supplier<SignerClient> factory) {
         return clients.get(connectionKey, key -> factory.get()).kms();
     }
 
-    /** Closes and drops all cached clients. */
     public void clear() {
         clients.invalidateAll();
         clients.cleanUp();

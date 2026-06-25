@@ -27,13 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Orchestrates provenance for a finished build: validate, hash, build the statement, sign, publish.
- *
- * <p>Fail-closed on the attestation, fail-open on the build: an incomplete/unsigned attestation is
- * never published, but a provenance failure only logs a warning to the build log - it does not turn a
- * successful build red, unless {@link SlsaParams#FAIL_BUILD_ON_ERROR} is enabled.
- */
+/** Orchestrates provenance for a finished build: validate, hash, build, sign, publish. */
 @Component
 public class ProvenanceService {
 
@@ -66,11 +60,6 @@ public class ProvenanceService {
         this.sha256 = sha256;
     }
 
-    /**
-     * Called on the build-finishing thread. Validates the (at most one) provenance feature's params,
-     * hashes, signs, and publishes; any failure is reported as a build-log warning (and a build problem
-     * only when the feature opts in).
-     */
     public void onBuildFinished(SRunningBuild build) {
         if (!build.getBuildStatus().isSuccessful()) {
             log.info("SLSA: build " + build.getBuildId() + " did not succeed; skipping provenance");
@@ -138,11 +127,6 @@ public class ProvenanceService {
         }
     }
 
-    /**
-     * Surfaces a provenance failure: a warning in the build log (and server log). The build keeps its
-     * result unless the feature enabled {@link SlsaParams#FAIL_BUILD_ON_ERROR}, in which case it also
-     * records a build problem.
-     */
     private void reportError(SRunningBuild build, SigningContext context, String reason) {
         log.warn("SLSA: build " + build.getBuildId() + " - " + reason);
         String message = "SLSA provenance: " + reason;
@@ -153,7 +137,6 @@ public class ProvenanceService {
         }
     }
 
-    /** Indexable metadata for the attestation, computed from values already in hand (no re-read). */
     private Map<String, String> metadata(DsseEnvelope envelope, String signerId, byte[] jsonl) {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("artifactPath", ProvenancePublisher.ARTIFACT_PATH);

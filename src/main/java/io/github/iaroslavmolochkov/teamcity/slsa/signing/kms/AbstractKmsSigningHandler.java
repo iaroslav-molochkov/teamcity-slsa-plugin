@@ -23,11 +23,7 @@ import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-/**
- * Skeletal {@link SigningHandler} for the KMS modes: builds (and caches, by connection id) the KMS
- * client for its credentials mode, then signs a digest so the private key never leaves KMS. Subclasses
- * implement {@link #type()} and {@link #buildClient} - the only things that differ between modes.
- */
+/** Skeletal {@link SigningHandler} for the KMS modes: caches a per-connection KMS client and signs a digest. */
 public abstract class AbstractKmsSigningHandler implements SigningHandler {
 
     private final KmsClientCache cache;
@@ -59,14 +55,8 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
         return dsse.envelope(payload, response.keyId(), response.signature().asByteArray());
     }
 
-    /** Builds the (closeable) client for this mode's credentials. Called only on a cache miss. */
     protected abstract SignerClient buildClient(SigningContext context);
 
-    /**
-     * Builds a KMS client over the given HTTP client and provider - the shared bit every mode needs. A
-     * {@code null} region is left unset so the SDK's default region provider chain resolves it
-     * (e.g. from {@code AWS_REGION}).
-     */
     protected KmsClient client(String region, SdkHttpClient httpClient, AwsCredentialsProvider provider) {
         KmsClientBuilder builder = KmsClient.builder()
                 .httpClient(httpClient)
@@ -77,7 +67,6 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
         return builder.build();
     }
 
-    /** Hashes the PAE with the digest that matches the signing algorithm's suffix (256/384/512). */
     private byte[] digest(SigningAlgorithmSpec spec, byte[] pae) {
         String name = spec.toString();
         String alg;

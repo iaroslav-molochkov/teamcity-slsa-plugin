@@ -37,7 +37,6 @@ public class ServerKeyParser {
         this.sha256 = sha256;
     }
 
-    /** Reads the PEM key file at {@code path} (server-side) and parses it. */
     public ServerKey fromPath(String path) {
         String pem;
         try {
@@ -48,7 +47,6 @@ public class ServerKeyParser {
         return parse(pem);
     }
 
-    /** Parses a PEM private key into a {@link ServerKey}. */
     public ServerKey parse(String pem) {
         PrivateKey privateKey = readPrivateKey(pem);
         PublicKey publicKey = derivePublicKey(privateKey);
@@ -76,7 +74,6 @@ public class ServerKeyParser {
         }
     }
 
-    /** Maps the PKCS#8 algorithm OID to a JCA {@code KeyFactory} name. */
     private String keyAlgorithm(ASN1ObjectIdentifier oid) {
         if (X9ObjectIdentifiers.id_ecPublicKey.equals(oid)) {
             return "EC";
