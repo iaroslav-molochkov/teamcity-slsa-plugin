@@ -1,7 +1,10 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.provenance;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.ExternalParameters;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.InternalParameters;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.ResolvedDependency;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.Trigger;
 import jetbrains.buildServer.serverSide.Branch;
 import jetbrains.buildServer.serverSide.BuildPromotion;
 import jetbrains.buildServer.serverSide.BuildRevision;
@@ -19,10 +22,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -44,7 +47,7 @@ class ProvenanceBuilderTest {
                 .thenReturn("https://tc.example.com/buildConfiguration/MyProj_Build/42");
         when(build.getBuildId()).thenReturn(42L);
         when(build.getBuildTypeExternalId()).thenReturn("MyProj_Build");
-        when(build.getFullName()).thenReturn("MyProj / Build");
+        when(build.getBuildTypeName()).thenReturn("Build");
         when(build.getBuildNumber()).thenReturn("1.0.1");
         Branch branch = mock(Branch.class);
         when(branch.getName()).thenReturn("main");
@@ -65,6 +68,7 @@ class ProvenanceBuilderTest {
         SBuildAgent agent = mock(SBuildAgent.class);
         when(agent.getHostName()).thenReturn("agent-host-1");
         when(agent.getVersion()).thenReturn("2026.1");
+        when(agent.getOperatingSystemName()).thenReturn("Linux 6.1");
         when(build.getAgent()).thenReturn(agent);
 
         ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
@@ -84,20 +88,61 @@ class ProvenanceBuilderTest {
         assertEquals("1970-01-01T00:00:01Z", statement.predicate().runDetails().metadata().startedOn());
         assertEquals("1970-01-01T00:00:05Z", statement.predicate().runDetails().metadata().finishedOn());
 
-        Map<String, Object> external = statement.predicate().buildDefinition().externalParameters();
-        assertEquals("MyProj_Build", external.get("buildTypeId"));
-        assertEquals("user:jdoe", external.get("triggeredBy"));
-        assertEquals("main", external.get("branch"));
-        assertEquals(true, external.get("branchIsDefault"));
-        assertFalse(external.containsKey("buildParameters"), "no redundant raw-parameter dump");
-        assertFalse(external.containsKey("buildNumber"), "platform-assigned number is internal");
+        ExternalParameters external = statement.predicate().buildDefinition().externalParameters();
+        assertEquals("MyProj_Build", external.buildTypeId());
+        assertEquals("Build", external.buildTypeName());
+        assertEquals("MyProj", external.projectId());
+        assertEquals("user", external.trigger().type());
+        assertEquals("jdoe", external.trigger().username());
+        assertEquals("main", external.branch());
+        assertEquals(true, external.branchIsDefault());
+        assertNull(external.personal(), "non-personal builds omit the flag");
 
-        Map<String, Object> internal = statement.predicate().buildDefinition().internalParameters();
-        assertEquals("MyProj", internal.get("projectId"));
-        assertEquals("1.0.1", internal.get("buildNumber"));
-        assertEquals("agent-host-1", internal.get("agentHostName"));
-        assertEquals("2026.1", internal.get("agentVersion"));
-        assertFalse(internal.containsKey("personal"), "non-personal builds omit the flag");
+        InternalParameters internal = statement.predicate().buildDefinition().internalParameters();
+        assertEquals("1.0.1", internal.buildNumber());
+        assertEquals("agent-host-1", internal.agentHostName());
+        assertEquals("2026.1", internal.agentVersion());
+        assertEquals("Linux 6.1", internal.agentOs());
+    }
+
+    @Test
+    void attributesSuperUserTriggerWhenUsernameAbsent() {
+        SBuildServer server = mock(SBuildServer.class);
+        when(server.getFullServerVersion()).thenReturn("TeamCity 2026.1");
+        WebLinks webLinks = mock(WebLinks.class);
+        when(webLinks.getRootUrlByProjectExternalId(any())).thenReturn("https://tc.example.com");
+
+        SBuild build = mock(SBuild.class);
+        when(build.getBuildId()).thenReturn(1L);
+        when(build.getBuildTypeExternalId()).thenReturn("Bt");
+        when(build.getBranch()).thenReturn(null);
+        when(build.getRevisions()).thenReturn(List.of());
+        when(build.getStartDate()).thenReturn(new Date(0));
+        when(build.getFinishDate()).thenReturn(new Date(0));
+        when(build.getAgent()).thenReturn(mock(SBuildAgent.class));
+
+        SUser superUser = mock(SUser.class);
+        when(superUser.getUsername()).thenReturn(null);
+        when(superUser.getId()).thenReturn((long) SUser.SUPER_USER_ID);
+        TriggeredBy triggeredBy = mock(TriggeredBy.class);
+        when(triggeredBy.getUser()).thenReturn(superUser);
+        when(build.getTriggeredBy()).thenReturn(triggeredBy);
+        BuildPromotion promotion = mock(BuildPromotion.class);
+        when(promotion.getDependencies()).thenReturn(List.of());
+        when(build.getBuildPromotion()).thenReturn(promotion);
+
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
+        InTotoStatement statement = builder.build(build,
+                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
+
+        Trigger trigger = statement.predicate().buildDefinition().externalParameters().trigger();
+        assertEquals("user", trigger.type());
+        assertNull(trigger.username(), "super user has no username");
+        assertEquals(-42L, trigger.userId());
+
+        String json = new String(new ProvenanceJsonHandler().toBytes(statement), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(json.contains("\"trigger\":{\"type\":\"user\",\"userId\":-42}"), json);
+        assertFalse(json.contains("\"username\""), json);
     }
 
     @Test

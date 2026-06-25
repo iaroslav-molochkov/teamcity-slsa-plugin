@@ -13,11 +13,14 @@ import jetbrains.buildServer.serverSide.dependency.BuildDependency;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.Subject;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.BuildDefinition;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.ExternalParameters;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.InternalParameters;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.ResolvedDependency;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunDetails;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunMetadata;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPlatform;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPredicate;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.Trigger;
 import jetbrains.buildServer.users.SUser;
 import jetbrains.buildServer.vcs.SVcsModification;
 import jetbrains.buildServer.vcs.VcsRootInstance;
@@ -66,7 +69,7 @@ public class ProvenanceBuilder {
                         internalParameters(build),
                         resolvedDependencies(build)),
                 new RunDetails(
-                        new SlsaPlatform(platformId(build), builderVersion()),
+                        new SlsaPlatform(platformId(build), platformVersion()),
                         new RunMetadata(
                                 webLinks.getViewResultsUrl(build),
                                 iso(build.getStartDate()),
@@ -80,52 +83,41 @@ public class ProvenanceBuilder {
         return trimTrailingSlash(webLinks.getRootUrlByProjectExternalId(build.getProjectExternalId()));
     }
 
-    private Map<String, Object> externalParameters(SBuild build) {
-        Map<String, Object> params = new HashMap<>();
-
-        params.put("buildTypeId", build.getBuildTypeExternalId());
-        params.put("buildTypeName", build.getFullName());
-        params.put("triggeredBy", triggeredBy(build));
-
+    private ExternalParameters externalParameters(SBuild build) {
         Branch branch = build.getBranch();
-
-        if (branch != null) {
-            params.put("branch", branch.getName());
-            params.put("branchIsDefault", branch.isDefaultBranch());
-        }
-
-        return params;
+        return new ExternalParameters(
+                build.getBuildTypeExternalId(),
+                build.getBuildTypeName(),
+                build.getProjectExternalId(),
+                trigger(build),
+                branch != null ? branch.getName() : null,
+                branch != null ? branch.isDefaultBranch() : null,
+                build.isPersonal() ? Boolean.TRUE : null);
     }
 
-    private Map<String, Object> internalParameters(SBuild build) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("teamcityVersion", server.getFullServerVersion());
-        params.put("projectId", build.getProjectExternalId());
-        params.put("buildNumber", build.getBuildNumber());
-        params.put("agentName", build.getAgentName());
-
+    private InternalParameters internalParameters(SBuild build) {
         SBuildAgent buildAgent = build.getAgent();
-        params.put("agentHostName", buildAgent.getHostName());
-        params.put("agentVersion", buildAgent.getVersion());
-
-        if (build.isPersonal()) {
-            params.put("personal", true);
-        }
-
-        return params;
+        return new InternalParameters(
+                build.getBuildNumber(),
+                build.getAgentName(),
+                buildAgent.getHostName(),
+                buildAgent.getVersion(),
+                buildAgent.getOperatingSystemName());
     }
 
-    /** The request origin: the triggering user, a snapshot dependency, or the trigger type id. */
-    private String triggeredBy(SBuild build) {
+    /** The request origin: a user (username and/or id), a snapshot dependency, or the trigger mechanism. */
+    private Trigger trigger(SBuild build) {
         TriggeredBy triggeredBy = build.getTriggeredBy();
         SUser user = triggeredBy.getUser();
-        if (user != null && user.getUsername() != null && !user.getUsername().isEmpty()) {
-            return "user:" + user.getUsername();
+        if (user != null) {
+            String username = user.getUsername();
+            return new Trigger("user", (username != null && !username.isEmpty()) ? username : null, user.getId());
         }
         if (triggeredBy.isTriggeredBySnapshotDependency()) {
-            return "snapshotDependency";
+            return new Trigger("snapshotDependency", null, null);
         }
-        return triggeredBy.getTriggerId();
+        String triggerId = triggeredBy.getTriggerId();
+        return triggerId != null ? new Trigger(triggerId, null, null) : null;
     }
 
     private List<ResolvedDependency> resolvedDependencies(SBuild build) {
@@ -214,7 +206,7 @@ public class ProvenanceBuilder {
         return line.length() > 200 ? line.substring(0, 200) + "..." : line;
     }
 
-    private Map<String, String> builderVersion() {
+    private Map<String, String> platformVersion() {
         return Map.of("teamcity", server.getFullServerVersion());
     }
 
