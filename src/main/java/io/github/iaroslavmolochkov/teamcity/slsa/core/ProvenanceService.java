@@ -9,6 +9,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJsonHandle
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.intoto.InTotoStatement;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.sigstore.SigstoreBundleService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.ParameterValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
@@ -21,7 +22,6 @@ import jetbrains.buildServer.serverSide.SRunningBuild;
 import jetbrains.buildServer.serverSide.buildLog.MessageAttrs;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +41,7 @@ public class ProvenanceService {
     private final ProvenanceBuilder provenanceBuilder;
     private final ProvenanceJsonHandler provenanceJsonHandler;
     private final SigningService signingService;
+    private final SigstoreBundleService sigstoreBundleService;
     private final ProvenancePublisher publisher;
     private final Sha256Handler sha256;
 
@@ -49,6 +50,7 @@ public class ProvenanceService {
                              ProvenanceBuilder provenanceBuilder,
                              ProvenanceJsonHandler provenanceJsonHandler,
                              SigningService signingService,
+                             SigstoreBundleService sigstoreBundleService,
                              ProvenancePublisher publisher,
                              Sha256Handler sha256) {
         this.parameterValidator = parameterValidator;
@@ -56,6 +58,7 @@ public class ProvenanceService {
         this.provenanceBuilder = provenanceBuilder;
         this.provenanceJsonHandler = provenanceJsonHandler;
         this.signingService = signingService;
+        this.sigstoreBundleService = sigstoreBundleService;
         this.publisher = publisher;
         this.sha256 = sha256;
     }
@@ -115,13 +118,10 @@ public class ProvenanceService {
         byte[] payload = provenanceJsonHandler.toBytes(statement);
         DsseEnvelope envelope = signingService.sign(context, payload);
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        out.writeBytes(provenanceJsonHandler.toBytes(envelope));
-        out.write('\n');
-        byte[] jsonl = out.toByteArray();
+        byte[] bundle = provenanceJsonHandler.toBytes(sigstoreBundleService.bundle(envelope));
 
         String signerId = context.type().value();
-        if (publisher.publish(build, jsonl, metadata(envelope, signerId, jsonl))) {
+        if (publisher.publish(build, bundle, metadata(envelope, signerId, bundle))) {
             log.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
                     + subjects.size() + " subject(s)) via '" + signerId + "' signer");
         }
@@ -137,10 +137,10 @@ public class ProvenanceService {
         }
     }
 
-    private Map<String, String> metadata(DsseEnvelope envelope, String signerId, byte[] jsonl) {
+    private Map<String, String> metadata(DsseEnvelope envelope, String signerId, byte[] bundle) {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("artifactPath", ProvenancePublisher.ARTIFACT_PATH);
-        metadata.put("sha256", sha256.hex(jsonl));
+        metadata.put("sha256", sha256.hex(bundle));
         metadata.put("payloadType", envelope.payloadType());
         metadata.put("signer", signerId);
         String keyId = envelope.keyId();

@@ -15,10 +15,11 @@ running on the TeamCity server, performs the following:
 1. Computes a cryptographic digest (a fixed-length fingerprint) of each published artifact.
 2. Assembles a structured record describing what was built and how (the *provenance*).
 3. Signs that record with a private key.
-4. Publishes the signed record as a build artifact named `provenance.intoto.jsonl`.
+4. Publishes the signed record as the build artifact `provenance.sigstore.json` — a Sigstore
+   bundle, verifiable with `cosign`.
 
-The output is a single file that any party can later use to confirm that a given artifact
-was produced by this build, and that the description has not been altered.
+The output lets any party later confirm that a given artifact was produced by this build, and
+that the description has not been altered.
 
 ---
 
@@ -103,7 +104,7 @@ A field marked with an asterisk is required. The form validates required fields 
 | Private key file | Yes | Absolute path, on the server, to a PEM private key (EC or RSA; PKCS#8, PKCS#1, or SEC1 format). The file should be readable only by the server process. |
 
 Retain the matching public key; verifiers will need it. The plugin derives the key
-identifier published in the signature as `sha256:<public key>` (see Section 9).
+identifier published in the bundle as `sha256:<public key>` (see Section 9).
 
 ### 6.2 AWS KMS — default provider chain
 
@@ -160,12 +161,13 @@ published attestation is always complete and well-formed regardless of this sett
 Run the build configuration. On successful completion, the build's **Artifacts** tab lists:
 
 ```
-provenance.intoto.jsonl
+provenance.sigstore.json
 ```
 
-This is the signed attestation. Download it for verification (Section 9). The format,
-`.jsonl`, is JSON Lines: each line is a complete JSON document. This file contains a single
-line: a *DSSE envelope* (defined below).
+This is the signed attestation. Download it for verification (Section 9). It is a *Sigstore
+bundle*: a JSON document that carries a *DSSE envelope* (defined below). Verify it with
+`cosign` (Section 9.2), or — for a dependency-free check — with `openssl` after extracting the
+envelope (Section 9.3).
 
 ---
 
@@ -194,36 +196,71 @@ Obtaining the public key:
   payload type and payload, each prefixed by its length. The length prefixes make the
   encoding unambiguous, which prevents an attacker from reinterpreting the boundary between
   fields. Verification must reconstruct this sequence precisely.
-- **Key identifier (`keyid`):** a fingerprint of the public key, published in the signature
-  as `sha256:<public key>`. Recomputing it from a public key confirms which key a signature
-  refers to.
+- **Key identifier:** an identifier of the signing key, carried in the bundle as
+  `verificationMaterial.publicKey.hint`. For the server key it is `sha256:<public key>` (a
+  fingerprint you can recompute from the public key to confirm the match); for AWS KMS it is
+  the key's ARN.
+- **Sigstore bundle:** the JSON container this plugin publishes. It holds the DSSE envelope
+  (`dsseEnvelope`) and the key reference (`verificationMaterial`), and is what `cosign`
+  consumes directly.
 
-### 9.2 Procedure
+### 9.2 Verify with cosign
 
-The following uses standard `python3` and `openssl`. Replace the filename as needed.
+`provenance.sigstore.json` is a Sigstore bundle, so [`cosign`](https://github.com/sigstore/cosign)
+verifies it directly with the signer's public key — no manual reconstruction.
 
-**Step 1 — reconstruct the signed bytes and extract the signature.**
+```bash
+cosign verify-blob-attestation \
+  --key pub.pem \
+  --bundle provenance.sigstore.json \
+  --type slsaprovenance1 \
+  --insecure-ignore-tlog \
+  --digest <artifact-sha256> --digestAlg sha256
+```
+
+Expected output: `Verified OK`. The flags are not optional:
+
+- `--type slsaprovenance1` — the predicate is SLSA provenance v1; without it cosign expects a
+  `custom` predicate and rejects the bundle.
+- `--insecure-ignore-tlog` — this plugin signs with your own key and deliberately uses **no**
+  transparency log (no Rekor); the flag tells cosign not to require one. It does not weaken the
+  cryptographic check.
+- `--digest … --digestAlg sha256` — binds the verification to a specific artifact by matching
+  its SHA-256 (e.g. `shasum -a 256 dist/app.jar`) against the attestation's `subject[]`. To
+  verify the envelope alone, omit both and pass `--check-claims=false`.
+
+cosign trusts the key you supply with `--key`; the bundle's `publicKey.hint` (the signer's key
+id) is informational only. Establish trust in that key out of band (Section 9.4).
+
+### 9.3 Verify with openssl
+
+A dependency-free alternative to cosign, using standard `python3` and `openssl`. The DSSE
+envelope lives inside the bundle under `dsseEnvelope`; extract it first, then verify the
+signature over the *PAE* (the exact signed bytes).
+
+**Step 1 — extract the envelope, reconstruct the signed bytes, and read the signature.**
 
 The PAE is `DSSEv1`, then the length of the payload type, then the payload type, then the
 length of the payload, then the payload, all separated by single spaces. The lengths are
 byte counts of the decoded payload.
 
 ```bash
-F="provenance.intoto.jsonl"
+F="provenance.sigstore.json"
 python3 -c "
 import json, base64
-e = json.load(open('$F'))
+b = json.load(open('$F'))
+e = b['dsseEnvelope']
 payload = base64.b64decode(e['payload'])
 pt = e['payloadType'].encode()
 pae = b'DSSEv1 ' + str(len(pt)).encode() + b' ' + pt + b' ' + str(len(payload)).encode() + b' ' + payload
 open('pae.bin','wb').write(pae)
 open('sig.bin','wb').write(base64.b64decode(e['signatures'][0]['sig']))
-print('keyid:', e['signatures'][0]['keyid'])
+print('keyid:', b['verificationMaterial']['publicKey']['hint'])
 "
 ```
 
 This writes `pae.bin` (the signed bytes) and `sig.bin` (the signature), and prints the key
-identifier stated in the file.
+identifier the bundle states.
 
 **Step 2 — verify the signature against the public key.**
 
@@ -234,13 +271,16 @@ openssl dgst -sha256 -verify pub.pem -signature sig.bin pae.bin
 Expected output: `Verified OK`. Any other result means the record was altered or was not
 signed by the private key matching `pub.pem`; the attestation must not be trusted.
 
-**Step 3 — confirm the public key matches the stated key identifier.**
+**Step 3 — confirm the public key matches the stated key identifier (server key).**
+
+For the server key, the key id is `sha256:<public key>` and you can recompute it:
 
 ```bash
 openssl pkey -pubin -in pub.pem -outform DER | openssl dgst -sha256 | sed 's/^.*= /sha256:/'
 ```
 
-The printed value must equal the `keyid` from Step 1.
+The printed value must equal the `keyid` from Step 1. (For AWS KMS the key id is the key's
+ARN; confirm it identifies the key and account you expect — see Section 9.4.)
 
 **Step 4 — confirm the artifact you care about is covered.**
 
@@ -250,13 +290,13 @@ subject digest:
 
 ```bash
 shasum -a 256 dist/app.jar
-python3 -c "import json,base64; print('\n'.join(s['digest']['sha256'] for s in json.loads(base64.b64decode(json.load(open('$F'))['payload']))['subject']))"
+python3 -c "import json,base64; print('\n'.join(s['digest']['sha256'] for s in json.loads(base64.b64decode(json.load(open('$F'))['dsseEnvelope']['payload']))['subject']))"
 ```
 
 The artifact's digest must be among the printed subject digests. A signature that verifies but
 does not list your artifact attests a different set of files.
 
-### 9.3 Establishing trust in the key
+### 9.4 Establishing trust in the key
 
 A successful verification proves the record is intact and was signed by the holder of a
 specific key. It does not, by itself, prove that the key belongs to the build platform you

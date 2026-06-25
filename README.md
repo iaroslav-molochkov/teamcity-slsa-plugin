@@ -25,8 +25,8 @@ Signing can use **AWS KMS** (the key never leaves KMS) or a **PEM private key on
 5. The selected `SigningHandler` signs the DSSE PAE (`DsseService`) — for KMS via `kms:Sign`
    (`MessageType.DIGEST`), for the server key via local crypto — and wraps the result in a DSSE
    envelope.
-6. `ProvenancePublisher` writes it to the build's artifacts as `provenance.intoto.jsonl` and indexes
-   its metadata.
+6. `ProvenancePublisher` writes it to the build's artifacts as `provenance.sigstore.json` (a Sigstore
+   bundle, for `cosign verify-blob-attestation`) and indexes its metadata.
 
 The output format is defined by the published build-type contract,
 [`docs/buildtype/v1.md`](docs/buildtype/v1.md). For step-by-step setup and verification, see
@@ -104,9 +104,9 @@ different TeamCity API with `-Pteamcity.version=2024.12`.
 3. Enable it (the descriptor allows runtime reload).
 4. Add the **SLSA Provenance Attestation** feature to a build configuration and configure a signer.
 
-After a build finishes, the signed attestation appears as the `provenance.intoto.jsonl` artifact, and
-`SLSA:` summary lines are written to `teamcity-server.log`. To verify the envelope, see
-[`docs/INTEGRATION.md`](docs/INTEGRATION.md) (Section 9).
+After a build finishes, the signed attestation appears as the `provenance.sigstore.json` artifact,
+and `SLSA:` summary lines are written to `teamcity-server.log`. To verify it — with `cosign` or
+`openssl` — see [`docs/INTEGRATION.md`](docs/INTEGRATION.md) (Section 9).
 
 > **Server URL:** the provenance records the platform identity from **Administration → Global
 > Settings → Server URL**. Set it to the externally visible address so `builder.id` and

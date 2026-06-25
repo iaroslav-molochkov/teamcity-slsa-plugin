@@ -3,7 +3,7 @@
   <class name="SlsaProvenance">
     <description>
       Generates and signs SLSA v1.0 provenance for the build's artifacts, server-side, and publishes
-      the provenance.intoto.jsonl artifact.
+      the provenance.sigstore.json artifact.
     </description>
   </class>
 

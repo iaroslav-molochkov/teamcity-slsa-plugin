@@ -7,6 +7,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceBuilder;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.ProvenanceJsonHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.sigstore.SigstoreBundleService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.ParameterValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.ConnectionIdService;
@@ -45,6 +46,7 @@ class ProvenanceServiceTest {
                 mock(ProvenanceBuilder.class),
                 new ProvenanceJsonHandler(),
                 services,
+                new SigstoreBundleService(),
                 mock(ProvenancePublisher.class),
                 new Sha256Handler());
     }

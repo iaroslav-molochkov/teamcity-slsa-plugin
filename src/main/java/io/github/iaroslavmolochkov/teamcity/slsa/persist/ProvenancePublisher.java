@@ -11,13 +11,16 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.Map;
 
-/** Writes the signed envelope as the {@code provenance.intoto.jsonl} build artifact and indexes its metadata. */
+/**
+ * Writes the signed envelope as the {@code provenance.sigstore.json} build artifact (a Sigstore bundle, verifiable
+ * with {@code cosign verify-blob-attestation}) and indexes its metadata.
+ */
 @Component
 public class ProvenancePublisher {
 
     private static final Logger log = Loggers.SERVER;
 
-    public static final String ARTIFACT_NAME = "provenance.intoto.jsonl";
+    public static final String ARTIFACT_NAME = "provenance.sigstore.json";
     public static final String ARTIFACT_PATH = ARTIFACT_NAME;
 
     public static final String METADATA_PROVIDER_ID = "slsa-provenance";
@@ -31,7 +34,7 @@ public class ProvenancePublisher {
         this.metadataStorage = metadataStorage;
     }
 
-    public boolean publish(SBuild build, byte[] jsonl, Map<String, String> metadata) {
+    public boolean publish(SBuild build, byte[] bundle, Map<String, String> metadata) {
         File artifactsDir;
         try {
             artifactsDir = build.getArtifactsDirectory();
@@ -44,7 +47,7 @@ public class ProvenancePublisher {
         artifactsGuard.lockWriting(artifactsDir);
         try {
             Files.createDirectories(artifactsDir.toPath());
-            Files.write(target.toPath(), jsonl);
+            Files.write(target.toPath(), bundle);
         } catch (Exception e) {
             log.warnAndDebugDetails("SLSA: failed to write provenance artifact for build " + build.getBuildId(), e);
             return false;
