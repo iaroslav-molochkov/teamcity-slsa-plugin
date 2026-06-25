@@ -1,7 +1,6 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.SignerClient;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
@@ -11,14 +10,13 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.ConnectionIdService
 import jetbrains.buildServer.serverSide.crypt.EncryptUtil;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
-import software.amazon.awssdk.services.kms.KmsClient;
 
 import java.util.List;
 
-/** KMS signing with an explicit access key id + secret (the secret is unscrambled here). */
+/** KMS signing with a base identity from an explicit access key id + secret (the secret is unscrambled here). */
 @Component
 public class StaticKmsSigningHandler extends AbstractKmsSigningHandler {
 
@@ -32,12 +30,11 @@ public class StaticKmsSigningHandler extends AbstractKmsSigningHandler {
     }
 
     @Override
-    protected SignerClient buildClient(SigningContext context) {
-        SdkHttpClient httpClient = UrlConnectionHttpClient.create();
+    protected AwsCredentialsProvider baseProvider(SigningContext context, SdkHttpClient httpClient,
+                                                  List<AutoCloseable> closeables) {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(
                 context.get(SlsaParams.ACCESS_KEY_ID), tryUnscramble(context.get(SlsaParams.SECRET_ACCESS_KEY)));
-        KmsClient kms = client(context.get(SlsaParams.REGION), httpClient, StaticCredentialsProvider.create(credentials));
-        return new SignerClient(kms, List.of(httpClient));
+        return StaticCredentialsProvider.create(credentials);
     }
 
     private String tryUnscramble(String value) {

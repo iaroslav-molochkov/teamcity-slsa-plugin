@@ -68,15 +68,14 @@ public class SlsaBuildFeature extends BuildFeature {
             sb.append(" in ").append(region);
         }
         sb.append(", ").append(credentialsLabel(signer)).append(" credentials");
+        if (context.assumeRole()) {
+            sb.append(", assuming an IAM role");
+        }
         return sb.toString();
     }
 
     private String credentialsLabel(SignerType signer) {
-        return switch (signer) {
-            case AWS_KMS_STATIC -> "access key";
-            case AWS_KMS_ASSUME_ROLE -> "assume-role";
-            default -> "default provider chain";
-        };
+        return signer == SignerType.AWS_KMS_STATIC ? "access key" : "default provider chain";
     }
 
     @Override

@@ -34,7 +34,7 @@ was produced by this build, and that the description has not been altered.
 ## 3. Configure the server URL (required for correct output)
 
 The provenance records the identity of the build platform as an absolute URL (for example,
-`https://teamcity.example.com<context-path>`). This value is read from the TeamCity **server URL**
+`https://teamcity.example.com`). This value is read from the TeamCity **server URL**
 setting, because at the moment a build finishes there is no incoming web request from which
 to infer the address.
 
@@ -48,12 +48,12 @@ incorrectly, which weakens its value to verifiers.
 ## 4. Choose a signer
 
 A *signer* determines where the private signing key lives and how the server authenticates
-to use it. Four options are available.
+to use it. Three options are available; for the AWS KMS signers, assuming an IAM role is an
+optional modifier on top of the chosen base credentials (Section 6.4).
 
 | Signer | Key location | Use when |
 |---|---|---|
 | **AWS KMS — default provider chain** | AWS KMS | The server runs in AWS with an instance/container role; no secrets stored in TeamCity. Recommended. |
-| **AWS KMS — assume an IAM role** | AWS KMS | The signing identity is a dedicated IAM role assumed via STS; produces short-lived credentials. |
 | **AWS KMS — access key** | AWS KMS | Long-lived AWS access keys are the only option. Least preferred (see Section 8). |
 | **Server key** | A PEM file on the server's disk | No cloud KMS is available. |
 
@@ -126,21 +126,21 @@ All fields from Section 6.2, plus:
 |---|---|---|
 | Access key id | Yes | The AWS access key identifier. |
 | Secret access key | Yes | The corresponding secret. Stored encrypted by TeamCity. |
-| AWS region | Yes | Required for this signer. |
 
-### 6.4 AWS KMS — assume an IAM role
+### 6.4 Assume an IAM role (optional modifier)
 
-All fields from Section 6.2 (with AWS region required), plus:
+This is not a separate signer. With either AWS KMS signer (Section 6.2 or 6.3) selected, ticking
+**Assume an IAM role** uses the chosen *base* credentials — the default provider chain (6.2) or the
+static access key (6.3) — to call STS and assume a role; the resulting temporary credentials perform
+the signing. When the box is cleared, these fields are ignored.
 
 | Field | Required | Meaning |
 |---|---|---|
-| Role ARN | Yes | The IAM role to assume before signing. It should be scoped to permit only `kms:Sign` on the signing key. |
+| Role ARN | Yes (when enabled) | The IAM role to assume before signing. It should be scoped to permit only `kms:Sign` on the signing key. |
 | Session name | No | A label for the assumed-role session. Defaults to `teamcity-slsa-signer`. |
 | External id | No | A shared value required by some cross-account role trust policies. |
 | Session duration (s) | No | Lifetime of the temporary credentials, in seconds. |
 | STS endpoint | No | An override for the STS endpoint (regional or VPC). |
-
-The base credentials used to call STS are themselves resolved via the default provider chain.
 
 ---
 

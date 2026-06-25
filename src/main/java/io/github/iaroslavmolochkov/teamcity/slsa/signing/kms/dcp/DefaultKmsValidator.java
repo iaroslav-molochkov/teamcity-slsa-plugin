@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Validates the default-provider-chain KMS signer; the region is optional. */
+/** Validates the default-provider-chain KMS signer: key and algorithm, plus the assumed role when enabled. */
 @Component
 public class DefaultKmsValidator extends AbstractKmsValidator {
 
@@ -22,6 +22,7 @@ public class DefaultKmsValidator extends AbstractKmsValidator {
     public List<InvalidProperty> validate(SigningContext context) {
         List<InvalidProperty> errors = new ArrayList<>();
         requireKeyAndAlgorithm(context, errors);
+        validateAssumeRole(context, errors);
         return errors;
     }
 }

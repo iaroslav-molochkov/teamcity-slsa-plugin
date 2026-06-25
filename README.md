@@ -39,14 +39,18 @@ Pick a **Signer**; the form then shows only the relevant fields.
 
 | Signer | Key location | Notes |
 | --- | --- | --- |
-| **AWS KMS — default provider chain** | AWS KMS | Credentials from the SDK default chain (env/profile/container/instance role on the server). Recommended. |
-| **AWS KMS — assume an IAM role** | AWS KMS | Server assumes a `kms:Sign`-scoped role via STS (temporary credentials). |
-| **AWS KMS — access key** | AWS KMS | Long-lived access key id + secret (secret stored encrypted). Least preferred. |
+| **AWS KMS — default provider chain** | AWS KMS | Base credentials from the SDK default chain (env/profile/container/instance role on the server). Recommended. |
+| **AWS KMS — access key** | AWS KMS | Long-lived access key id + secret as the base identity (secret stored encrypted). Least preferred. |
 | **Server key** | PEM file on the server | Absolute path to an EC/RSA PEM (PKCS#8, PKCS#1, or SEC1). |
 
+For either AWS KMS signer you may additionally tick **Assume an IAM role**: the chosen base
+credentials are used to assume a `kms:Sign`-scoped role via STS, and the temporary credentials do the
+signing. The role is a modifier on top of the base, not a separate signer.
+
 For the KMS signers: **KMS key id / ARN** (an asymmetric `SIGN_VERIFY` key) and **signing
-algorithm** (must match the key spec, e.g. `ECDSA_SHA_256`) are required; **AWS region** is required
-except for the default provider chain. **Fail build on error** (off by default) turns a provenance
+algorithm** (must match the key spec, e.g. `ECDSA_SHA_256`) are required; **AWS region** is optional
+for every KMS signer — when blank, the AWS SDK resolves it from the environment (`AWS_REGION`,
+profile, or instance metadata). **Fail build on error** (off by default) turns a provenance
 failure from a warning into a build failure.
 
 The feature is exported to the **Kotlin DSL**, so it can be set in `settings.kts`:
@@ -58,6 +62,9 @@ feature {
     param("slsa.aws.region", "us-east-1")
     param("slsa.kms.keyId", "arn:aws:kms:us-east-1:123456789012:key/abcd-…")
     param("slsa.kms.signingAlgorithm", "ECDSA_SHA_256")
+    // optional: assume a kms:Sign-scoped role on top of the base credentials
+    param("slsa.aws.assumeRole.enabled", "true")
+    param("slsa.aws.assumeRole.arn", "arn:aws:iam::123456789012:role/tc-slsa-signer")
     // optional: fail the build instead of warning
     param("slsa.failBuildOnError", "true")
 }
@@ -68,11 +75,13 @@ absolute key path instead.
 
 ### Credentials, caching, and assume-role
 
-KMS credential resolution uses the AWS SDK's own providers — `DefaultCredentialsProvider`,
-`StaticCredentialsProvider`, or `StsAssumeRoleCredentialsProvider` (which refreshes the STS session
-internally). `KmsClientCache` caches one client per **connection**, keyed (via `ConnectionIdService`)
-on a hash of the signer type plus its identity fields (region, credentials identity, assume-role/STS
-settings) — deliberately **not** on the KMS key id or the project. Builds that share a connection
+KMS credential resolution uses the AWS SDK's own providers. A **base** provider —
+`DefaultCredentialsProvider` or `StaticCredentialsProvider` — is selected by the signer, and when
+**Assume an IAM role** is enabled it is wrapped in `StsAssumeRoleCredentialsProvider` (which refreshes
+the STS session internally) layered on that base. `KmsClientCache` caches one client per
+**connection**, keyed (via `ConnectionIdService`) on a hash of the signer type plus its identity
+fields (region, credentials identity, assume-role/STS settings) — deliberately **not** on the KMS key
+id or the project. Builds that share a connection
 reuse the client and its refreshed session credentials; evicted clients are closed.
 
 The signing identity should be dedicated and least-privileged, and must not be shared with

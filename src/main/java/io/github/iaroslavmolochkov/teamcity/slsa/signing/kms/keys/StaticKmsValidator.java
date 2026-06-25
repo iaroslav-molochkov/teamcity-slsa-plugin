@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Validates the static-keys KMS signer: region, key, algorithm, and the access key id + secret. */
+/** Validates the static-keys KMS signer: key, algorithm, the access key id + secret, and the assumed role when enabled. */
 @Component
 public class StaticKmsValidator extends AbstractKmsValidator {
 
@@ -22,7 +22,6 @@ public class StaticKmsValidator extends AbstractKmsValidator {
     @Override
     public List<InvalidProperty> validate(SigningContext context) {
         List<InvalidProperty> errors = new ArrayList<>();
-        requireRegion(context, errors);
         requireKeyAndAlgorithm(context, errors);
         if (context.get(SlsaParams.ACCESS_KEY_ID) == null) {
             errors.add(new InvalidProperty(SlsaParams.ACCESS_KEY_ID, "Access key id is required for static credentials"));
@@ -30,6 +29,7 @@ public class StaticKmsValidator extends AbstractKmsValidator {
         if (context.get(SlsaParams.SECRET_ACCESS_KEY) == null) {
             errors.add(new InvalidProperty(SlsaParams.SECRET_ACCESS_KEY, "Secret access key is required for static credentials"));
         }
+        validateAssumeRole(context, errors);
         return errors;
     }
 }

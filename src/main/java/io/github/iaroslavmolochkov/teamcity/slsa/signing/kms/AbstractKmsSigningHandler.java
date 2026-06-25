@@ -12,6 +12,7 @@ import jetbrains.buildServer.serverSide.IOGuard;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.KmsClientBuilder;
@@ -19,9 +20,16 @@ import software.amazon.awssdk.services.kms.model.MessageType;
 import software.amazon.awssdk.services.kms.model.SignRequest;
 import software.amazon.awssdk.services.kms.model.SignResponse;
 import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.StsClientBuilder;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
+import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Skeletal {@link SigningHandler} for the KMS modes: caches a per-connection KMS client and signs a digest. */
 public abstract class AbstractKmsSigningHandler implements SigningHandler {
@@ -55,7 +63,61 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
         return dsse.envelope(payload, response.keyId(), response.signature().asByteArray());
     }
 
-    protected abstract SignerClient buildClient(SigningContext context);
+    private SignerClient buildClient(SigningContext context) {
+        String region = context.get(SlsaParams.REGION);
+        SdkHttpClient httpClient = UrlConnectionHttpClient.create();
+        List<AutoCloseable> closeables = new ArrayList<>();
+        closeables.add(httpClient);
+
+        AwsCredentialsProvider provider = baseProvider(context, httpClient, closeables);
+        if (context.assumeRole()) {
+            provider = assumeRole(context, region, httpClient, provider, closeables);
+        }
+
+        KmsClient kms = client(region, httpClient, provider);
+        return new SignerClient(kms, closeables);
+    }
+
+    /** The base credentials the KMS client (and, when assuming a role, the STS client) authenticate with. */
+    protected abstract AwsCredentialsProvider baseProvider(SigningContext context,
+                                                           SdkHttpClient httpClient,
+                                                           List<AutoCloseable> closeables);
+
+    private AwsCredentialsProvider assumeRole(SigningContext context, String region, SdkHttpClient httpClient,
+                                              AwsCredentialsProvider base, List<AutoCloseable> closeables) {
+        StsClientBuilder stsBuilder = StsClient.builder()
+                .httpClient(httpClient)
+                .credentialsProvider(base);
+        if (region != null) {
+            stsBuilder.region(Region.of(region));
+        }
+        String stsEndpoint = context.get(SlsaParams.STS_ENDPOINT);
+        if (stsEndpoint != null) {
+            stsBuilder.endpointOverride(URI.create(stsEndpoint));
+        }
+        StsClient sts = stsBuilder.build();
+        closeables.add(sts);
+
+        String sessionName = context.get(SlsaParams.ASSUME_ROLE_SESSION_NAME);
+        AssumeRoleRequest.Builder request = AssumeRoleRequest.builder()
+                .roleArn(context.get(SlsaParams.ASSUME_ROLE_ARN))
+                .roleSessionName(sessionName == null ? SlsaParams.DEFAULT_SESSION_NAME : sessionName);
+        String externalId = context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID);
+        if (externalId != null) {
+            request.externalId(externalId);
+        }
+        Integer duration = context.getInt(SlsaParams.ASSUME_ROLE_DURATION_SECONDS);
+        if (duration != null) {
+            request.durationSeconds(duration);
+        }
+
+        StsAssumeRoleCredentialsProvider provider = StsAssumeRoleCredentialsProvider.builder()
+                .stsClient(sts)
+                .refreshRequest(request.build())
+                .build();
+        closeables.add(provider);
+        return provider;
+    }
 
     protected KmsClient client(String region, SdkHttpClient httpClient, AwsCredentialsProvider provider) {
         KmsClientBuilder builder = KmsClient.builder()

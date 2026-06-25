@@ -11,7 +11,6 @@ public final class SlsaParams {
     public static final String SIGNER_SERVER = "server";
     public static final String SIGNER_AWS_KMS_DEFAULT = "aws-kms-default";
     public static final String SIGNER_AWS_KMS_STATIC = "aws-kms-static";
-    public static final String SIGNER_AWS_KMS_ASSUME_ROLE = "aws-kms-assume-role";
 
     public static final String SERVER_PRIVATE_KEY_PATH = "slsa.server.privateKeyPath";
 
@@ -22,6 +21,7 @@ public final class SlsaParams {
     public static final String ACCESS_KEY_ID = "slsa.aws.accessKeyId";
     public static final String SECRET_ACCESS_KEY = "secure:slsa.aws.secretAccessKey";
 
+    public static final String ASSUME_ROLE_ENABLED = "slsa.aws.assumeRole.enabled";
     public static final String ASSUME_ROLE_ARN = "slsa.aws.assumeRole.arn";
     public static final String ASSUME_ROLE_SESSION_NAME = "slsa.aws.assumeRole.sessionName";
     public static final String ASSUME_ROLE_EXTERNAL_ID = "slsa.aws.assumeRole.externalId";

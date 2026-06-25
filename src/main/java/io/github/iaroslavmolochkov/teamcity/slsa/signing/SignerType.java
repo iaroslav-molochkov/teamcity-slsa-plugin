@@ -8,13 +8,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/** The signing mode: the backend and, for KMS, the credentials source. Held in {@link SlsaParams#SIGNER}. */
+/** The signing backend and, for KMS, the base credentials source. Held in {@link SlsaParams#SIGNER}. */
 public enum SignerType {
 
     SERVER(SlsaParams.SIGNER_SERVER),
     AWS_KMS_DEFAULT(SlsaParams.SIGNER_AWS_KMS_DEFAULT),
-    AWS_KMS_STATIC(SlsaParams.SIGNER_AWS_KMS_STATIC),
-    AWS_KMS_ASSUME_ROLE(SlsaParams.SIGNER_AWS_KMS_ASSUME_ROLE);
+    AWS_KMS_STATIC(SlsaParams.SIGNER_AWS_KMS_STATIC);
 
     private final String value;
 

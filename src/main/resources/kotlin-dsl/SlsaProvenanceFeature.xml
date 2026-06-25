@@ -30,7 +30,8 @@
       <option name="kmsDefaultChain" value="aws-kms-default">
         <param name="slsa.aws.region" dslName="region" type="string">
           <description>
-            KMS key region (e.g. us-east-1). Optional for the default provider chain.
+            KMS key region (e.g. us-east-1). Optional: when omitted, the AWS SDK resolves the region
+            from the environment (AWS_REGION, profile, or instance metadata).
           </description>
         </param>
         <param name="slsa.kms.keyId" dslName="keyId" type="string" mandatory="true">
@@ -46,9 +47,10 @@
       </option>
 
       <option name="kmsAccessKey" value="aws-kms-static">
-        <param name="slsa.aws.region" dslName="region" type="string" mandatory="true">
+        <param name="slsa.aws.region" dslName="region" type="string">
           <description>
-            KMS key region (e.g. us-east-1).
+            KMS key region (e.g. us-east-1). Optional: when omitted, the AWS SDK resolves the region
+            from the environment (AWS_REGION, profile, or instance metadata).
           </description>
         </param>
         <param name="slsa.kms.keyId" dslName="keyId" type="string" mandatory="true">
@@ -73,48 +75,37 @@
         </param>
       </option>
 
-      <option name="kmsAssumeRole" value="aws-kms-assume-role">
-        <param name="slsa.aws.region" dslName="region" type="string" mandatory="true">
-          <description>
-            KMS key region (e.g. us-east-1).
-          </description>
-        </param>
-        <param name="slsa.kms.keyId" dslName="keyId" type="string" mandatory="true">
-          <description>
-            Asymmetric SIGN_VERIFY KMS key: id, alias, or ARN.
-          </description>
-        </param>
-        <param name="slsa.kms.signingAlgorithm" dslName="signingAlgorithm" type="string" mandatory="true">
-          <description>
-            Must match the key spec (e.g. ECDSA_SHA_256).
-          </description>
-        </param>
-        <param name="slsa.aws.assumeRole.arn" dslName="roleArn" type="string" mandatory="true">
-          <description>
-            IAM role assumed before signing. Scope it to kms:Sign.
-          </description>
-        </param>
-        <param name="slsa.aws.assumeRole.sessionName" dslName="sessionName" type="string">
-          <description>
-            Assumed-role session name. Default: teamcity-slsa-signer.
-          </description>
-        </param>
-        <param name="slsa.aws.assumeRole.externalId" dslName="externalId" type="string">
-          <description>
-            External id for the role's trust policy, if required.
-          </description>
-        </param>
-        <param name="slsa.aws.assumeRole.durationSeconds" dslName="durationSeconds" type="string">
-          <description>
-            Temporary-credential lifetime, in seconds.
-          </description>
-        </param>
-        <param name="slsa.aws.stsEndpoint" dslName="stsEndpoint" type="string">
-          <description>
-            STS endpoint override (regional or VPC).
-          </description>
-        </param>
-      </option>
+    </param>
+
+    <param name="slsa.aws.assumeRole.enabled" dslName="assumeRole" type="boolean" trueValue="true" falseValue="">
+      <description>
+        For an AWS KMS signer, wrap the selected base credentials in an assumed IAM role. Set roleArn when enabled.
+      </description>
+    </param>
+    <param name="slsa.aws.assumeRole.arn" dslName="roleArn" type="string">
+      <description>
+        IAM role assumed before signing. Scope it to kms:Sign. Required when assumeRole is enabled.
+      </description>
+    </param>
+    <param name="slsa.aws.assumeRole.sessionName" dslName="sessionName" type="string">
+      <description>
+        Assumed-role session name. Default: teamcity-slsa-signer.
+      </description>
+    </param>
+    <param name="slsa.aws.assumeRole.externalId" dslName="externalId" type="string">
+      <description>
+        External id for the role's trust policy, if required.
+      </description>
+    </param>
+    <param name="slsa.aws.assumeRole.durationSeconds" dslName="durationSeconds" type="string">
+      <description>
+        Temporary-credential lifetime, in seconds.
+      </description>
+    </param>
+    <param name="slsa.aws.stsEndpoint" dslName="stsEndpoint" type="string">
+      <description>
+        STS endpoint override (regional or VPC).
+      </description>
     </param>
 
     <param name="slsa.failBuildOnError" dslName="failBuildOnError" type="boolean" trueValue="true" falseValue="">
@@ -141,17 +132,37 @@
     </example>
     <example>
       <description>
-        Sign with an AWS KMS key by assuming a kms:Sign-scoped IAM role, and fail the build on error.
+        Sign with an AWS KMS key, deriving credentials from the default chain and then assuming a
+        kms:Sign-scoped IAM role, and fail the build on error.
       </description>
       <code>
         slsaProvenance {
-            signer = kmsAssumeRole {
+            signer = kmsDefaultChain {
                 region = "us-east-1"
                 keyId = "alias/slsa-signer"
                 signingAlgorithm = "ECDSA_SHA_256"
-                roleArn = "arn:aws:iam::123456789012:role/tc-slsa-signer"
             }
+            assumeRole = true
+            roleArn = "arn:aws:iam::123456789012:role/tc-slsa-signer"
             failBuildOnError = true
+        }
+      </code>
+    </example>
+    <example>
+      <description>
+        Sign with an AWS KMS key using static access keys as the base identity, then assuming an IAM role.
+      </description>
+      <code>
+        slsaProvenance {
+            signer = kmsAccessKey {
+                region = "us-east-1"
+                keyId = "alias/slsa-signer"
+                signingAlgorithm = "ECDSA_SHA_256"
+                accessKeyId = "AKIAIOSFODNN7EXAMPLE"
+                secretAccessKey = "credentialsJSON:..."
+            }
+            assumeRole = true
+            roleArn = "arn:aws:iam::123456789012:role/tc-slsa-signer"
         }
       </code>
     </example>

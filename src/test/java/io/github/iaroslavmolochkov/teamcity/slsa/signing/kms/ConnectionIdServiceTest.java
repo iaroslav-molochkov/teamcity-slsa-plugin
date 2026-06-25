@@ -4,7 +4,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp.DefaultConnectionKeyHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticConnectionKeyHandler;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.sts.AssumeRoleConnectionKeyHandler;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -18,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 class ConnectionIdServiceTest {
 
     private final ConnectionIdService ids = new ConnectionIdService(List.of(
-            new DefaultConnectionKeyHandler(), new StaticConnectionKeyHandler(), new AssumeRoleConnectionKeyHandler()));
+            new DefaultConnectionKeyHandler(), new StaticConnectionKeyHandler()));
 
     private UUID id(String... kv) {
         Map<String, String> map = new HashMap<>();
@@ -59,17 +58,35 @@ class ConnectionIdServiceTest {
     void typeIsPartOfTheKey() {
         assertNotEquals(
                 id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_DEFAULT, SlsaParams.REGION, "us-east-1"),
-                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_ASSUME_ROLE,
-                        SlsaParams.REGION, "us-east-1", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"));
+                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC, SlsaParams.REGION, "us-east-1",
+                        SlsaParams.ACCESS_KEY_ID, "AKIA", SlsaParams.SECRET_ACCESS_KEY, "s"));
     }
 
     @Test
-    void absentOptionalFieldDiffersFromPresent() {
+    void assumingRoleChangesTheKey() {
         assertNotEquals(
-                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_ASSUME_ROLE,
-                        SlsaParams.REGION, "us-east-1", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"),
-                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_ASSUME_ROLE,
-                        SlsaParams.REGION, "us-east-1", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r",
+                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_DEFAULT, SlsaParams.REGION, "us-east-1"),
+                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_DEFAULT, SlsaParams.REGION, "us-east-1",
+                        SlsaParams.ASSUME_ROLE_ENABLED, "true", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"));
+    }
+
+    @Test
+    void roleAppliesToStaticBaseToo() {
+        assertNotEquals(
+                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC, SlsaParams.REGION, "us-east-1",
+                        SlsaParams.ACCESS_KEY_ID, "AKIA", SlsaParams.SECRET_ACCESS_KEY, "s"),
+                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC, SlsaParams.REGION, "us-east-1",
+                        SlsaParams.ACCESS_KEY_ID, "AKIA", SlsaParams.SECRET_ACCESS_KEY, "s",
+                        SlsaParams.ASSUME_ROLE_ENABLED, "true", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"));
+    }
+
+    @Test
+    void absentOptionalRoleFieldDiffersFromPresent() {
+        assertNotEquals(
+                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_DEFAULT, SlsaParams.REGION, "us-east-1",
+                        SlsaParams.ASSUME_ROLE_ENABLED, "true", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"),
+                id(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_DEFAULT, SlsaParams.REGION, "us-east-1",
+                        SlsaParams.ASSUME_ROLE_ENABLED, "true", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r",
                         SlsaParams.ASSUME_ROLE_EXTERNAL_ID, "ext"));
     }
 }

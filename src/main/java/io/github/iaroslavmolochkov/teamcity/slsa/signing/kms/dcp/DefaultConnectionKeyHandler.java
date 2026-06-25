@@ -1,17 +1,14 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp;
 
 import com.dynatrace.hash4j.hashing.HashStream128;
-import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractConnectionKeyHandler;
 import org.springframework.stereotype.Component;
 
-/** Default-provider-chain connections are identified by region alone (creds come from the environment). */
+/** Default-provider-chain connections add no base-specific fields; region and any role come from the shared scheme. */
 @Component
 public class DefaultConnectionKeyHandler extends AbstractConnectionKeyHandler {
-
-    private static final byte REGION = 1;
 
     @Override
     public SignerType type() {
@@ -20,6 +17,5 @@ public class DefaultConnectionKeyHandler extends AbstractConnectionKeyHandler {
 
     @Override
     protected void funnel(HashStream128 stream, SigningContext context) {
-        put(stream, REGION, context.get(SlsaParams.REGION));
     }
 }

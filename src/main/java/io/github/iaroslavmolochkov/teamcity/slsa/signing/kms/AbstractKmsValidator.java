@@ -8,8 +8,11 @@ import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.util.List;
 
-/** Skeletal {@link Validator} for the KMS modes: shared key, algorithm, and region checks as helpers. */
+/** Skeletal {@link Validator} for the KMS modes: shared key, algorithm, and assume-role checks as helpers. */
 public abstract class AbstractKmsValidator implements Validator {
+
+    private static final int MIN_DURATION_SECONDS = 900;
+    private static final int MAX_DURATION_SECONDS = 43200;
 
     protected void requireKeyAndAlgorithm(SigningContext context, List<InvalidProperty> errors) {
         if (context.get(SlsaParams.KMS_KEY_ID) == null) {
@@ -23,9 +26,20 @@ public abstract class AbstractKmsValidator implements Validator {
         }
     }
 
-    protected void requireRegion(SigningContext context, List<InvalidProperty> errors) {
-        if (context.get(SlsaParams.REGION) == null) {
-            errors.add(new InvalidProperty(SlsaParams.REGION, "AWS region is required"));
+    protected void validateAssumeRole(SigningContext context, List<InvalidProperty> errors) {
+        if (!context.assumeRole()) {
+            return;
+        }
+        if (context.get(SlsaParams.ASSUME_ROLE_ARN) == null) {
+            errors.add(new InvalidProperty(SlsaParams.ASSUME_ROLE_ARN, "Role ARN is required to assume a role"));
+        }
+        if (context.get(SlsaParams.ASSUME_ROLE_DURATION_SECONDS) != null) {
+            Integer seconds = context.getInt(SlsaParams.ASSUME_ROLE_DURATION_SECONDS);
+            if (seconds == null || seconds < MIN_DURATION_SECONDS || seconds > MAX_DURATION_SECONDS) {
+                errors.add(new InvalidProperty(SlsaParams.ASSUME_ROLE_DURATION_SECONDS,
+                        "Session duration must be a whole number between " + MIN_DURATION_SECONDS
+                                + " and " + MAX_DURATION_SECONDS + " seconds"));
+            }
         }
     }
 }

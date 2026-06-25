@@ -18,9 +18,9 @@
       <props:option value="server">Server key (your PEM private key)</props:option>
       <props:option value="aws-kms-default">AWS KMS &mdash; default provider chain</props:option>
       <props:option value="aws-kms-static">AWS KMS &mdash; access key</props:option>
-      <props:option value="aws-kms-assume-role">AWS KMS &mdash; assume an IAM role</props:option>
     </props:selectProperty>
-    <span class="smallNote">Signing key location and, for AWS KMS, the credentials source.</span>
+    <span class="error" id="error_slsa.signer"></span>
+    <span class="smallNote">Signing key location and, for AWS KMS, the base credentials source.</span>
   </td>
 </tr>
 
@@ -36,16 +36,19 @@
   <th><label for="slsa.server.privateKeyPath">Private key file: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.server.privateKeyPath" className="longField"/>
+    <span class="error" id="error_slsa.server.privateKeyPath"></span>
     <span class="smallNote">Absolute path to a PEM private key on the server (EC or RSA; PKCS#8, PKCS#1,
       or SEC1), readable only by the server process.</span>
   </td>
 </tr>
 
 <tr class="slsa-kms">
-  <th><label for="slsa.aws.region">AWS region: <l:star/></label></th>
+  <th><label for="slsa.aws.region">AWS region:</label></th>
   <td>
     <props:textProperty name="slsa.aws.region" className="longField"/>
-    <span class="smallNote">KMS key region (e.g. <code>us-east-1</code>). Optional for the default provider chain; required otherwise.</span>
+    <span class="error" id="error_slsa.aws.region"></span>
+    <span class="smallNote">KMS key region (e.g. <code>us-east-1</code>). Optional: when blank, the AWS SDK resolves
+      the region from the environment (<code>AWS_REGION</code>, profile, or instance metadata).</span>
   </td>
 </tr>
 
@@ -53,6 +56,7 @@
   <th><label for="slsa.kms.keyId">KMS key id / ARN: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.kms.keyId" className="longField"/>
+    <span class="error" id="error_slsa.kms.keyId"></span>
     <span class="smallNote">Asymmetric SIGN_VERIFY key: id, alias, or ARN.</span>
   </td>
 </tr>
@@ -65,6 +69,7 @@
         <props:option value="${algorithm}"><c:out value="${algorithm}"/></props:option>
       </c:forEach>
     </props:selectProperty>
+    <span class="error" id="error_slsa.kms.signingAlgorithm"></span>
     <span class="smallNote">Must match the key spec (e.g. <code>ECDSA_SHA_256</code> for an ECC_NIST_P256 key).</span>
   </td>
 </tr>
@@ -73,6 +78,7 @@
   <th><label for="slsa.aws.accessKeyId">Access key id: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.aws.accessKeyId" className="longField"/>
+    <span class="error" id="error_slsa.aws.accessKeyId"></span>
   </td>
 </tr>
 
@@ -80,7 +86,17 @@
   <th><label for="secure:slsa.aws.secretAccessKey">Secret access key: <l:star/></label></th>
   <td>
     <props:passwordProperty name="secure:slsa.aws.secretAccessKey" className="longField"/>
+    <span class="error" id="error_secure:slsa.aws.secretAccessKey"></span>
     <span class="smallNote">Stored encrypted.</span>
+  </td>
+</tr>
+
+<tr class="slsa-role">
+  <th><label for="slsaAssumeRole">Assume an IAM role:</label></th>
+  <td>
+    <props:checkboxProperty name="slsa.aws.assumeRole.enabled" id="slsaAssumeRole" uncheckedValue="false"
+                            onclick="BS.Slsa.updateSignerFields()"/>
+    <span class="smallNote">Sign with credentials from an assumed role, using the selected source as the base identity.</span>
   </td>
 </tr>
 
@@ -88,6 +104,7 @@
   <th><label for="slsa.aws.assumeRole.arn">Role ARN: <l:star/></label></th>
   <td>
     <props:textProperty name="slsa.aws.assumeRole.arn" className="longField"/>
+    <span class="error" id="error_slsa.aws.assumeRole.arn"></span>
     <span class="smallNote">Assumed before signing. Scope it to <code>kms:Sign</code>.</span>
   </td>
 </tr>
@@ -104,7 +121,10 @@
 
 <tr class="slsa-assume">
   <th><label for="slsa.aws.assumeRole.durationSeconds">Session duration (s):</label></th>
-  <td><props:textProperty name="slsa.aws.assumeRole.durationSeconds" className="mediumField"/></td>
+  <td>
+    <props:textProperty name="slsa.aws.assumeRole.durationSeconds" className="mediumField"/>
+    <span class="error" id="error_slsa.aws.assumeRole.durationSeconds"></span>
+  </td>
 </tr>
 
 <tr class="slsa-assume">
@@ -119,7 +139,7 @@
   BS.Slsa = {
     updateSignerFields: function () {
       var signer = $('slsaSigner').value;
-      $j(".slsa-server, .slsa-kms, .slsa-static, .slsa-assume").hide();
+      $j(".slsa-server, .slsa-kms, .slsa-static, .slsa-role, .slsa-assume").hide();
       if (signer === "server") {
         $j(".slsa-server").show();
       } else {
@@ -127,7 +147,8 @@
         if (signer === "aws-kms-static") {
           $j(".slsa-static").show();
         }
-        if (signer === "aws-kms-assume-role") {
+        $j(".slsa-role").show();
+        if ($('slsaAssumeRole').checked) {
           $j(".slsa-assume").show();
         }
       }

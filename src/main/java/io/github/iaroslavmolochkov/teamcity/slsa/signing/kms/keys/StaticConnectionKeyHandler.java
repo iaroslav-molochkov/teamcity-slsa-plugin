@@ -7,13 +7,12 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractConnectionKeyHandler;
 import org.springframework.stereotype.Component;
 
-/** Static-keys connections are identified by region + access key id + secret. */
+/** Static-keys connections are distinguished by their access key id + secret (region and any role are shared). */
 @Component
 public class StaticConnectionKeyHandler extends AbstractConnectionKeyHandler {
 
-    private static final byte REGION = 1;
-    private static final byte ACCESS_KEY_ID = 2;
-    private static final byte SECRET = 3;
+    private static final byte ACCESS_KEY_ID = 6;
+    private static final byte SECRET = 7;
 
     @Override
     public SignerType type() {
@@ -22,7 +21,6 @@ public class StaticConnectionKeyHandler extends AbstractConnectionKeyHandler {
 
     @Override
     protected void funnel(HashStream128 stream, SigningContext context) {
-        put(stream, REGION, context.get(SlsaParams.REGION));
         put(stream, ACCESS_KEY_ID, context.get(SlsaParams.ACCESS_KEY_ID));
         put(stream, SECRET, context.get(SlsaParams.SECRET_ACCESS_KEY));
     }

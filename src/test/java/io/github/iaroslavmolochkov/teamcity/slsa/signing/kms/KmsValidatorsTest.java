@@ -5,10 +5,10 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp.DefaultKmsValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsValidator;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.sts.AssumeRoleKmsValidator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,7 +19,6 @@ class KmsValidatorsTest {
 
     private final DefaultKmsValidator defaultValidator = new DefaultKmsValidator();
     private final StaticKmsValidator staticValidator = new StaticKmsValidator();
-    private final AssumeRoleKmsValidator assumeRoleValidator = new AssumeRoleKmsValidator();
 
     private static List<String> errorKeys(Validator validator, Map<String, String> params) {
         return validator.validate(new SigningContext(params)).stream()
@@ -49,56 +48,90 @@ class KmsValidatorsTest {
     }
 
     @Test
-    void staticRequiresRegionKeysAndAlgorithm() {
+    void staticRequiresKeysAndAlgorithm() {
         var errors = errorKeys(staticValidator, Map.of(SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256"));
-        assertTrue(errors.contains(SlsaParams.REGION));
         assertTrue(errors.contains(SlsaParams.KMS_KEY_ID));
         assertTrue(errors.contains(SlsaParams.ACCESS_KEY_ID));
         assertTrue(errors.contains(SlsaParams.SECRET_ACCESS_KEY));
     }
 
     @Test
-    void assumeRoleRequiresRegionAndArn() {
-        var errors = errorKeys(assumeRoleValidator, Map.of(
+    void staticDoesNotRequireRegion() {
+        var errors = errorKeys(staticValidator, Map.of(
+                SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
+                SlsaParams.ACCESS_KEY_ID, "AKIA", SlsaParams.SECRET_ACCESS_KEY, "secret"));
+        assertFalse(errors.contains(SlsaParams.REGION), "region is optional for static credentials");
+        assertTrue(errors.isEmpty());
+    }
+
+    @Test
+    void roleDisabledDoesNotRequireArn() {
+        var errors = errorKeys(defaultValidator, Map.of(
                 SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256"));
-        assertTrue(errors.contains(SlsaParams.REGION));
+        assertFalse(errors.contains(SlsaParams.ASSUME_ROLE_ARN), "role ARN is irrelevant when the role is off");
+    }
+
+    @Test
+    void roleEnabledRequiresArn() {
+        var errors = errorKeys(defaultValidator, Map.of(
+                SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
+                SlsaParams.ASSUME_ROLE_ENABLED, "true"));
         assertTrue(errors.contains(SlsaParams.ASSUME_ROLE_ARN));
     }
 
     @Test
-    void assumeRoleRejectsNonNumericDuration() {
-        assertTrue(errorKeys(assumeRoleValidator, durationParams("soon"))
+    void roleEnabledOnStaticBaseRequiresArn() {
+        var errors = errorKeys(staticValidator, Map.of(
+                SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
+                SlsaParams.ACCESS_KEY_ID, "AKIA", SlsaParams.SECRET_ACCESS_KEY, "secret",
+                SlsaParams.ASSUME_ROLE_ENABLED, "true"));
+        assertTrue(errors.contains(SlsaParams.ASSUME_ROLE_ARN), "the role decorator applies to the static base too");
+    }
+
+    @Test
+    void roleEnabledDoesNotRequireRegion() {
+        var errors = errorKeys(defaultValidator, Map.of(
+                SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
+                SlsaParams.ASSUME_ROLE_ENABLED, "true", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"));
+        assertFalse(errors.contains(SlsaParams.REGION), "region is optional when assuming a role");
+        assertTrue(errors.isEmpty());
+    }
+
+    @Test
+    void roleRejectsNonNumericDuration() {
+        assertTrue(errorKeys(defaultValidator, durationParams("soon"))
                 .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
     }
 
     @Test
-    void assumeRoleRejectsOutOfRangeDuration() {
-        assertTrue(errorKeys(assumeRoleValidator, durationParams("100"))
+    void roleRejectsOutOfRangeDuration() {
+        assertTrue(errorKeys(defaultValidator, durationParams("100"))
                 .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
-        assertTrue(errorKeys(assumeRoleValidator, durationParams("99999"))
-                .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
-    }
-
-    @Test
-    void assumeRoleAcceptsInRangeDuration() {
-        assertFalse(errorKeys(assumeRoleValidator, durationParams("3600"))
+        assertTrue(errorKeys(defaultValidator, durationParams("99999"))
                 .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
     }
 
     @Test
-    void assumeRoleAllowsAbsentDuration() {
-        var errors = errorKeys(assumeRoleValidator, Map.of(
-                SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "k",
-                SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
-                SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"));
+    void roleAcceptsInRangeDuration() {
+        assertFalse(errorKeys(defaultValidator, durationParams("3600"))
+                .contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
+    }
+
+    @Test
+    void roleAllowsAbsentDuration() {
+        var errors = errorKeys(defaultValidator, Map.of(
+                SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
+                SlsaParams.ASSUME_ROLE_ENABLED, "true", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"));
         assertFalse(errors.contains(SlsaParams.ASSUME_ROLE_DURATION_SECONDS));
     }
 
     private static Map<String, String> durationParams(String duration) {
-        return Map.of(
-                SlsaParams.REGION, "us-east-1", SlsaParams.KMS_KEY_ID, "k",
-                SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
-                SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r",
-                SlsaParams.ASSUME_ROLE_DURATION_SECONDS, duration);
+        Map<String, String> params = new HashMap<>();
+        params.put(SlsaParams.KMS_KEY_ID, "k");
+        params.put(SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256");
+        params.put(SlsaParams.ASSUME_ROLE_ENABLED, "true");
+        params.put(SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r");
+        params.put(SlsaParams.ASSUME_ROLE_DURATION_SECONDS, duration);
+        return params;
     }
 }

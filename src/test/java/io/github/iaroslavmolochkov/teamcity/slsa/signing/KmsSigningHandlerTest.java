@@ -1,7 +1,6 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.signing;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
-import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.SignerClient;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
@@ -9,7 +8,10 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AbstractKmsSigningH
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.ConnectionIdService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.MessageType;
 import software.amazon.awssdk.services.kms.model.SignRequest;
@@ -53,8 +55,10 @@ class KmsSigningHandlerTest {
             }
 
             @Override
-            protected SignerClient buildClient(SigningContext context) {
-                return new SignerClient(kms, List.of());
+            protected AwsCredentialsProvider baseProvider(SigningContext context, SdkHttpClient httpClient,
+                                                          List<AutoCloseable> closeables) {
+                // Never invoked: the cache is mocked to return the KMS client directly.
+                return AnonymousCredentialsProvider.create();
             }
         };
         assertEquals(SignerType.AWS_KMS_DEFAULT, handler.type());

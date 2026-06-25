@@ -19,6 +19,11 @@ public final class SigningContext {
         return type;
     }
 
+    /** Whether the KMS base credentials should be wrapped in an assumed IAM role. */
+    public boolean assumeRole() {
+        return Boolean.parseBoolean(get(SlsaParams.ASSUME_ROLE_ENABLED));
+    }
+
     public String get(String key) {
         String value = params.get(key);
         if (value == null) {
