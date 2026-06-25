@@ -20,10 +20,12 @@ public class SigningService {
     }
 
     public DsseEnvelope sign(SigningContext context, byte[] payload) {
-        SigningHandler service = signingService.get(context.type());
+        SigningHandler service = signingService.get(context.signerType());
+
         if (service == null) {
-            throw new SigningException("No signing service for signer: " + context.type());
+            throw new SigningException("No signing service for signer: " + context.signerType());
         }
+
         return service.sign(context, payload);
     }
 }

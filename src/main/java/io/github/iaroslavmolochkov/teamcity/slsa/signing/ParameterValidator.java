@@ -21,7 +21,7 @@ public class ParameterValidator {
     }
 
     public List<InvalidProperty> validate(SigningContext context) {
-        Validator validator = validators.get(context.type());
+        Validator validator = validators.get(context.signerType());
         return validator == null ? selectionError(context) : validator.validate(context);
     }
 

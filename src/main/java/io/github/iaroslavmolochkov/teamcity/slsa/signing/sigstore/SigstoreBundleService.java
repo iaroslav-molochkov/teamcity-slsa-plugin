@@ -14,6 +14,7 @@ public class SigstoreBundleService {
                 .stream()
                 .map(signature -> new BundleSignature(signature.sig()))
                 .toList();
+
         return new SigstoreBundle(
                 SigstoreBundle.MEDIA_TYPE,
                 new VerificationMaterial(new VerificationMaterial.PublicKeyId(envelope.keyId())),

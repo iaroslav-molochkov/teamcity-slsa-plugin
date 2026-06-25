@@ -28,10 +28,12 @@ public class ServerValidator implements Validator {
     @Override
     public List<InvalidProperty> validate(SigningContext context) {
         String path = context.get(SlsaParams.SERVER_PRIVATE_KEY_PATH);
+
         if (path == null) {
             return List.of(new InvalidProperty(SlsaParams.SERVER_PRIVATE_KEY_PATH,
                     "A path to a PEM private key file on the server is required"));
         }
+
         try {
             if (!Path.of(path).isAbsolute()) {
                 return List.of(new InvalidProperty(SlsaParams.SERVER_PRIVATE_KEY_PATH,

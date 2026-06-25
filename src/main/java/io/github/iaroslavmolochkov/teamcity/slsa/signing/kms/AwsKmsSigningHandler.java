@@ -3,12 +3,16 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.SignerClient;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.CredentialsType;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningException;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningHandler;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseEnvelope;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.AwsCredentialsHandler;
 import jetbrains.buildServer.serverSide.IOGuard;
+import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpClient;
@@ -29,24 +33,43 @@ import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
-/** Skeletal {@link SigningHandler} for the KMS modes: caches a per-connection KMS client and signs a digest. */
-public abstract class AbstractKmsSigningHandler implements SigningHandler {
+/**
+ * Signs a provenance payload with AWS KMS. The base credentials come from the context's
+ * {@link CredentialsType} (default chain or static keys), optionally wrapped in an assumed IAM role.
+ */
+@Component
+public class AwsKmsSigningHandler implements SigningHandler {
 
     private final KmsClientCache cache;
-    private final ConnectionIdService connectionIdService;
+    private final AwsKmsConnectionKey connectionKey;
     private final DsseService dsse;
+    private final Map<CredentialsType, AwsCredentialsHandler> credentialHandlers =
+            new EnumMap<>(CredentialsType.class);
 
-    protected AbstractKmsSigningHandler(KmsClientCache cache, ConnectionIdService connectionIdService, DsseService dsse) {
+    public AwsKmsSigningHandler(KmsClientCache cache,
+                                AwsKmsConnectionKey connectionKey,
+                                DsseService dsse,
+                                List<AwsCredentialsHandler> credentialHandlers) {
         this.cache = cache;
-        this.connectionIdService = connectionIdService;
+        this.connectionKey = connectionKey;
         this.dsse = dsse;
+        for (AwsCredentialsHandler factory : credentialHandlers) {
+            this.credentialHandlers.put(factory.type(), factory);
+        }
     }
 
     @Override
-    public final DsseEnvelope sign(SigningContext context, byte[] payload) {
-        KmsClient client = cache.get(connectionIdService.id(context), () -> buildClient(context));
+    public SignerType type() {
+        return SignerType.AWS_KMS;
+    }
+
+    @Override
+    public DsseEnvelope sign(SigningContext context, byte[] payload) {
+        KmsClient client = cache.get(connectionKey.id(context), () -> buildClient(context));
         String keyId = context.get(SlsaParams.KMS_KEY_ID);
         SigningAlgorithmSpec algorithm = SigningAlgorithmSpec.fromValue(context.get(SlsaParams.SIGNING_ALGORITHM));
 
@@ -68,8 +91,8 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
         SdkHttpClient httpClient = UrlConnectionHttpClient.create();
         List<AutoCloseable> closeables = new ArrayList<>();
         closeables.add(httpClient);
-
         AwsCredentialsProvider provider = baseProvider(context, httpClient, closeables);
+
         if (context.assumeRole()) {
             provider = assumeRole(context, region, httpClient, provider, closeables);
         }
@@ -78,34 +101,48 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
         return new SignerClient(kms, closeables);
     }
 
-    protected abstract AwsCredentialsProvider baseProvider(SigningContext context,
-                                                           SdkHttpClient httpClient,
-                                                           List<AutoCloseable> closeables);
+    private AwsCredentialsProvider baseProvider(SigningContext context, SdkHttpClient httpClient,
+                                               List<AutoCloseable> closeables) {
+        AwsCredentialsHandler factory = credentialHandlers.get(context.credentialsType());
+
+        if (factory == null) {
+            throw new SigningException("No credentials provider for: " + context.credentialsType());
+        }
+
+        return factory.create(context, httpClient, closeables);
+    }
 
     private AwsCredentialsProvider assumeRole(SigningContext context, String region, SdkHttpClient httpClient,
-                                              AwsCredentialsProvider base, List<AutoCloseable> closeables) {
+                                             AwsCredentialsProvider base, List<AutoCloseable> closeables) {
         StsClientBuilder stsBuilder = StsClient.builder()
                 .httpClient(httpClient)
                 .credentialsProvider(base);
+
         if (region != null) {
             stsBuilder.region(Region.of(region));
         }
+
         String stsEndpoint = context.get(SlsaParams.STS_ENDPOINT);
+
         if (stsEndpoint != null) {
             stsBuilder.endpointOverride(URI.create(stsEndpoint));
         }
+
         StsClient sts = stsBuilder.build();
         closeables.add(sts);
-
         String sessionName = context.get(SlsaParams.ASSUME_ROLE_SESSION_NAME);
+
         AssumeRoleRequest.Builder request = AssumeRoleRequest.builder()
                 .roleArn(context.get(SlsaParams.ASSUME_ROLE_ARN))
                 .roleSessionName(sessionName == null ? SlsaParams.DEFAULT_SESSION_NAME : sessionName);
         String externalId = context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID);
+
         if (externalId != null) {
             request.externalId(externalId);
         }
+
         Integer duration = context.getInt(SlsaParams.ASSUME_ROLE_DURATION_SECONDS);
+
         if (duration != null) {
             request.durationSeconds(duration);
         }
@@ -115,22 +152,26 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
                 .refreshRequest(request.build())
                 .build();
         closeables.add(provider);
+
         return provider;
     }
 
-    protected KmsClient client(String region, SdkHttpClient httpClient, AwsCredentialsProvider provider) {
+    private KmsClient client(String region, SdkHttpClient httpClient, AwsCredentialsProvider provider) {
         KmsClientBuilder builder = KmsClient.builder()
                 .httpClient(httpClient)
                 .credentialsProvider(provider);
+
         if (region != null) {
             builder.region(Region.of(region));
         }
+
         return builder.build();
     }
 
     private byte[] digest(SigningAlgorithmSpec spec, byte[] pae) {
         String name = spec.toString();
         String alg;
+
         if (name.endsWith("384")) {
             alg = "SHA-384";
         } else if (name.endsWith("512")) {
@@ -138,6 +179,7 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
         } else {
             alg = "SHA-256";
         }
+
         try {
             return MessageDigest.getInstance(alg).digest(pae);
         } catch (NoSuchAlgorithmException e) {

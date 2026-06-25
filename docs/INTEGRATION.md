@@ -47,15 +47,23 @@ incorrectly, which weakens its value to verifiers.
 
 ## 4. Choose a signer
 
-A *signer* determines where the private signing key lives and how the server authenticates
-to use it. Three options are available; for the AWS KMS signers, assuming an IAM role is an
-optional modifier on top of the chosen base credentials (Section 6.4).
+A *signer* determines where the private signing key lives. Two are available:
 
 | Signer | Key location | Use when |
 |---|---|---|
-| **AWS KMS — default provider chain** | AWS KMS | The server runs in AWS with an instance/container role; no secrets stored in TeamCity. Recommended. |
-| **AWS KMS — access key** | AWS KMS | Long-lived AWS access keys are the only option. Least preferred (see Section 8). |
+| **AWS KMS** | AWS KMS | A cloud KMS is available. Recommended. |
 | **Server key** | A PEM file on the server's disk | No cloud KMS is available. |
+
+For the AWS KMS signer you then choose a **credentials method** — how the server authenticates
+to AWS — independently of the key itself:
+
+| Credentials | Use when |
+|---|---|
+| **Default provider chain** | The server runs in AWS with an instance/container role; no secrets stored in TeamCity. Recommended. |
+| **Static access key** | Long-lived AWS access keys are the only option. Least preferred (see Section 8). |
+
+Assuming an IAM role is an optional modifier layered on top of *either* credentials method
+(Section 6.3).
 
 Definitions:
 
@@ -106,31 +114,32 @@ A field marked with an asterisk is required. The form validates required fields 
 Retain the matching public key; verifiers will need it. The plugin derives the key
 identifier published in the bundle as `sha256:<public key>` (see Section 9).
 
-### 6.2 AWS KMS — default provider chain
+### 6.2 AWS KMS
+
+The KMS key fields, common to both credentials methods:
 
 | Field | Required | Meaning |
 |---|---|---|
 | AWS region | No | The region of the KMS key (for example, `us-east-1`). If omitted, the AWS SDK resolves it from the environment (`AWS_REGION`, profile, or instance metadata). |
 | KMS key id / ARN | Yes | The asymmetric SIGN_VERIFY key: a key id, alias, or ARN (Amazon Resource Name, the fully qualified identifier of an AWS resource). |
 | Signing algorithm | Yes | Must match the key's specification (for example, `ECDSA_SHA_256` for an `ECC_NIST_P256` key). |
+| Credentials | Yes | The credentials method: **default provider chain** or **static access key**. |
 
-Credentials are resolved by the AWS SDK's default *provider chain*: an ordered search of
-environment variables, container/instance roles, and configuration files. No credentials are
-stored in TeamCity.
+**Default provider chain.** Credentials are resolved by the AWS SDK's default *provider chain*:
+an ordered search of environment variables, container/instance roles, and configuration files.
+No credentials are stored in TeamCity. No further fields.
 
-### 6.3 AWS KMS — access key
-
-The KMS key fields from Section 6.2, plus:
+**Static access key.** Adds:
 
 | Field | Required | Meaning |
 |---|---|---|
 | Access key id | Yes | The AWS access key identifier. |
 | Secret access key | Yes | The corresponding secret. Stored encrypted by TeamCity. |
 
-### 6.4 Assume an IAM role (optional)
+### 6.3 Assume an IAM role (optional)
 
-Available with either AWS KMS signer. When enabled, the signer's base credentials — the default
-provider chain (Section 6.2) or the static access key (Section 6.3) — are used to call STS and assume
+Available with the AWS KMS signer under either credentials method. When enabled, the chosen base
+credentials — the default provider chain or the static access key — are used to call STS and assume
 the specified role, and the resulting temporary credentials perform the signing. When disabled, the
 fields below are ignored.
 

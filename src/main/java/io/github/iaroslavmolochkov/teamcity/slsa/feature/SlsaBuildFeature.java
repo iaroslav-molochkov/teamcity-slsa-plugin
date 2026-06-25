@@ -1,6 +1,7 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.feature;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.CredentialsType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.ParameterValidator;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
@@ -19,7 +20,7 @@ public class SlsaBuildFeature extends BuildFeature {
 
     private static final Set<String> SERVER_PARAMS = Set.of(SlsaParams.SERVER_PRIVATE_KEY_PATH);
     private static final Set<String> KMS_PARAMS = Set.of(
-            SlsaParams.REGION, SlsaParams.KMS_KEY_ID, SlsaParams.SIGNING_ALGORITHM);
+            SlsaParams.REGION, SlsaParams.KMS_KEY_ID, SlsaParams.SIGNING_ALGORITHM, SlsaParams.CREDENTIALS);
     private static final Set<String> STATIC_PARAMS = Set.of(
             SlsaParams.ACCESS_KEY_ID, SlsaParams.SECRET_ACCESS_KEY);
     private static final Set<String> ROLE_PARAMS = Set.of(
@@ -62,11 +63,12 @@ public class SlsaBuildFeature extends BuildFeature {
     @Override
     public String describeParameters(Map<String, String> params) {
         SigningContext context = new SigningContext(params);
-        SignerType signer = context.type();
+        SignerType signer = context.signerType();
 
         if (signer == null) {
             return "No signer selected";
         }
+
         if (signer == SignerType.SERVER) {
             return "Sign artifacts with the server's local key";
         }
@@ -74,18 +76,29 @@ public class SlsaBuildFeature extends BuildFeature {
         String keyId = context.get(SlsaParams.KMS_KEY_ID);
         StringBuilder sb = new StringBuilder("Sign artifacts with KMS key ").append(keyId == null ? "(not set)" : keyId);
         String region = context.get(SlsaParams.REGION);
+
         if (region != null) {
             sb.append(" in ").append(region);
         }
-        sb.append(", ").append(credentialsLabel(signer)).append(" credentials");
+
+        sb.append(", ").append(credentialsLabel(context)).append(" credentials");
+
         if (context.assumeRole()) {
             sb.append(", assuming an IAM role");
         }
+
         return sb.toString();
     }
 
-    private String credentialsLabel(SignerType signer) {
-        return signer == SignerType.AWS_KMS_STATIC ? "access key" : "default provider chain";
+    private String credentialsLabel(SigningContext context) {
+        CredentialsType source = context.credentialsType();
+        if (source == CredentialsType.STATIC_CREDENTIALS) {
+            return "access key";
+        }
+        if (source == CredentialsType.DEFAULT_CREDENTIALS) {
+            return "default provider chain";
+        }
+        return "(no method selected)";
     }
 
     @Override
@@ -98,7 +111,8 @@ public class SlsaBuildFeature extends BuildFeature {
     }
 
     private void stripRetainedParameters(Map<String, String> params, SigningContext context) {
-        SignerType type = context.type();
+        SignerType type = context.signerType();
+
         if (type == null) {
             return;
         }
@@ -114,7 +128,7 @@ public class SlsaBuildFeature extends BuildFeature {
 
         keys.removeAll(SERVER_PARAMS);
 
-        if (type != SignerType.AWS_KMS_STATIC) {
+        if (context.credentialsType() != CredentialsType.STATIC_CREDENTIALS) {
             keys.removeAll(STATIC_PARAMS);
         }
 

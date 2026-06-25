@@ -54,9 +54,10 @@ class SlsaBuildFeatureTest {
     }
 
     @Test
-    void defaultChainStripsServerStaticAndDisabledRole() {
+    void defaultCredentialsStripServerStaticAndDisabledRole() {
         Map<String, String> result = normalize(Map.of(
-                SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_DEFAULT,
+                SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS,
+                SlsaParams.CREDENTIALS, SlsaParams.CREDENTIALS_DEFAULT,
                 SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
                 SlsaParams.SERVER_PRIVATE_KEY_PATH, "/leftover.pem",
                 SlsaParams.ACCESS_KEY_ID, "AKIA",
@@ -64,15 +65,17 @@ class SlsaBuildFeatureTest {
 
         assertTrue(result.containsKey(SlsaParams.KMS_KEY_ID));
         assertTrue(result.containsKey(SlsaParams.SIGNING_ALGORITHM));
+        assertTrue(result.containsKey(SlsaParams.CREDENTIALS));
         assertFalse(result.containsKey(SlsaParams.SERVER_PRIVATE_KEY_PATH));
         assertFalse(result.containsKey(SlsaParams.ACCESS_KEY_ID), "static keys are irrelevant to the default chain");
         assertFalse(result.containsKey(SlsaParams.ASSUME_ROLE_ARN), "role fields dropped when role is disabled");
     }
 
     @Test
-    void staticWithAssumeRoleKeepsStaticAndRole() {
+    void staticCredentialsWithAssumeRoleKeepsStaticAndRole() {
         Map<String, String> result = normalize(Map.of(
-                SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC,
+                SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS,
+                SlsaParams.CREDENTIALS, SlsaParams.CREDENTIALS_STATIC,
                 SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
                 SlsaParams.ACCESS_KEY_ID, "AKIA", SlsaParams.SECRET_ACCESS_KEY, "s",
                 SlsaParams.ASSUME_ROLE_ENABLED, "true", SlsaParams.ASSUME_ROLE_ARN, "arn:aws:iam::1:role/r"));

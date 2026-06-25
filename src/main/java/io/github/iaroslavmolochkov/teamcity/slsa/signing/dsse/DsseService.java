@@ -16,6 +16,7 @@ public class DsseService {
     public byte[] pae(String payloadType, byte[] payload) {
         byte[] typeBytes = payloadType.getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
+
         writeAscii(out, "DSSEv1");
         out.write(SP);
         writeAscii(out, Integer.toString(typeBytes.length));
@@ -25,6 +26,7 @@ public class DsseService {
         writeAscii(out, Integer.toString(payload.length));
         out.write(SP);
         out.writeBytes(payload);
+
         return out.toByteArray();
     }
 

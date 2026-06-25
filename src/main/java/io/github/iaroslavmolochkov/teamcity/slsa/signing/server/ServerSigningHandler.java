@@ -34,10 +34,12 @@ public class ServerSigningHandler implements SigningHandler {
     public DsseEnvelope sign(SigningContext context, byte[] payload) {
         ServerKey key = keyParser.fromPath(context.get(SlsaParams.SERVER_PRIVATE_KEY_PATH));
         byte[] pae = dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
+
         try {
             Signature signer = Signature.getInstance(key.signatureAlgorithm());
             signer.initSign(key.privateKey());
             signer.update(pae);
+
             return dsse.envelope(payload, key.keyId(), signer.sign());
         } catch (GeneralSecurityException e) {
             throw new SigningException("Server-side signing failed", e);

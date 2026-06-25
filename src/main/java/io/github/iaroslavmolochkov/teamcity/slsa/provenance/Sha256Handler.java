@@ -19,9 +19,11 @@ public class Sha256Handler {
         MessageDigest digest = newDigest();
         byte[] buffer = new byte[BUFFER_SIZE];
         int read;
+
         while ((read = in.read(buffer)) != -1) {
             digest.update(buffer, 0, read);
         }
+
         return toHex(digest.digest());
     }
 

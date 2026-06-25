@@ -36,6 +36,7 @@ public class ProvenancePublisher {
 
     public boolean publish(SBuild build, byte[] bundle, Map<String, String> metadata) {
         File artifactsDir;
+
         try {
             artifactsDir = build.getArtifactsDirectory();
         } catch (Exception e) {
@@ -45,6 +46,7 @@ public class ProvenancePublisher {
 
         File target = new File(artifactsDir, ARTIFACT_NAME);
         artifactsGuard.lockWriting(artifactsDir);
+
         try {
             Files.createDirectories(artifactsDir.toPath());
             Files.write(target.toPath(), bundle);
@@ -60,6 +62,7 @@ public class ProvenancePublisher {
         } catch (Exception e) {
             log.warnAndDebugDetails("SLSA: failed to index provenance metadata for build " + build.getBuildId(), e);
         }
+
         return true;
     }
 }

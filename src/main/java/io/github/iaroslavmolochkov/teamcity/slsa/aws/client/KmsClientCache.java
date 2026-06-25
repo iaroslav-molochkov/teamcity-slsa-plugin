@@ -21,12 +21,13 @@ public class KmsClientCache {
     public static final String MAX_CLIENTS_PROPERTY = "teamcity.slsa.maxKmsClients";
     public static final String CLIENT_TTL_MINUTES_PROPERTY = "teamcity.slsa.kmsClientTtlMinutes";
 
-    private final Cache<UUID, SignerClient> clients;
+    private final Cache<UUID, SignerClient> clientsCache;
 
     public KmsClientCache(EventDispatcher<BuildServerListener> eventDispatcher) {
         int maxClients = TeamCityProperties.getInteger(MAX_CLIENTS_PROPERTY, 32);
         long ttlMinutes = TeamCityProperties.getInteger(CLIENT_TTL_MINUTES_PROPERTY, 60);
-        clients = Caffeine.newBuilder()
+
+        clientsCache = Caffeine.newBuilder()
                 .maximumSize(maxClients)
                 .expireAfterAccess(Duration.ofMinutes(ttlMinutes))
                 .removalListener((UUID key, SignerClient client, RemovalCause cause) -> {
@@ -44,12 +45,12 @@ public class KmsClientCache {
         });
     }
 
-    public KmsClient get(UUID connectionKey, Supplier<SignerClient> factory) {
-        return clients.get(connectionKey, key -> factory.get()).kms();
+    public KmsClient get(UUID connectionKey, Supplier<SignerClient> supplier) {
+        return clientsCache.get(connectionKey, key -> supplier.get()).kms();
     }
 
     public void clear() {
-        clients.invalidateAll();
-        clients.cleanUp();
+        clientsCache.invalidateAll();
+        clientsCache.cleanUp();
     }
 }

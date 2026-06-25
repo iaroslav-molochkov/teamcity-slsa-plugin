@@ -39,11 +39,13 @@ public class ServerKeyParser {
 
     public ServerKey fromPath(String path) {
         String pem;
+
         try {
             pem = Files.readString(Path.of(path));
         } catch (IOException | RuntimeException e) {
             throw new InvalidServerKeyException("could not read key file: " + path, e);
         }
+
         return parse(pem);
     }
 
@@ -51,15 +53,18 @@ public class ServerKeyParser {
         PrivateKey privateKey = readPrivateKey(pem);
         PublicKey publicKey = derivePublicKey(privateKey);
         String keyId = "sha256:" + sha256.hex(publicKey.getEncoded());
+
         return new ServerKey(privateKey, publicKey, signatureAlgorithm(privateKey), keyId);
     }
 
     private PrivateKey readPrivateKey(String pem) {
         try (PEMParser parser = new PEMParser(new StringReader(pem))) {
             Object object = parser.readObject();
+
             if (object == null) {
                 throw new InvalidServerKeyException("no PEM private key found");
             }
+
             PrivateKeyInfo info = switch (object) {
                 case PEMKeyPair keyPair -> keyPair.getPrivateKeyInfo();
                 case PrivateKeyInfo pkcs8 -> pkcs8;
@@ -67,7 +72,9 @@ public class ServerKeyParser {
                         "unsupported PEM object: " + object.getClass().getSimpleName()
                                 + " (encrypted keys are not supported)");
             };
+
             String algorithm = keyAlgorithm(info.getPrivateKeyAlgorithm().getAlgorithm());
+
             return KeyFactory.getInstance(algorithm).generatePrivate(new PKCS8EncodedKeySpec(info.getEncoded()));
         } catch (IOException | GeneralSecurityException e) {
             throw new InvalidServerKeyException("could not read PEM private key", e);
@@ -78,9 +85,11 @@ public class ServerKeyParser {
         if (X9ObjectIdentifiers.id_ecPublicKey.equals(oid)) {
             return "EC";
         }
+
         if (PKCSObjectIdentifiers.rsaEncryption.equals(oid)) {
             return "RSA";
         }
+
         throw new InvalidServerKeyException("unsupported key algorithm: " + oid);
     }
 
@@ -103,6 +112,7 @@ public class ServerKeyParser {
         org.bouncycastle.math.ec.ECPoint q =
                 new FixedPointCombMultiplier().multiply(bcSpec.getG(), ec.getS()).normalize();
         ECPoint w = new ECPoint(q.getAffineXCoord().toBigInteger(), q.getAffineYCoord().toBigInteger());
+
         return KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(w, ec.getParams()));
     }
 
@@ -120,12 +130,15 @@ public class ServerKeyParser {
                 .getCurve()
                 .getField()
                 .getFieldSize();
+
         if (fieldSize <= 256) {
             return "SHA256withECDSA";
         }
+
         if (fieldSize <= 384) {
             return "SHA384withECDSA";
         }
+
         return "SHA512withECDSA";
     }
 }

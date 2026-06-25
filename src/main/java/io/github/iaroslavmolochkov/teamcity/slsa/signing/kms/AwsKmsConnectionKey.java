@@ -5,12 +5,15 @@ import com.dynatrace.hash4j.hashing.HashValue128;
 import com.dynatrace.hash4j.hashing.Hasher128;
 import com.dynatrace.hash4j.hashing.Hashing;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.CredentialsType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
+import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/** Skeletal {@link ConnectionKeyHandler}: the shared hashing scheme over region and the assumed role; subclasses {@link #funnel} their base-specific fields. */
-public abstract class AbstractConnectionKeyHandler implements ConnectionKeyHandler {
+/** Derives a connection's stable KMS-client-cache id from the credentials, region, and any assumed role. */
+@Component
+public class AwsKmsConnectionKey {
 
     private static final Hasher128 HASHER = Hashing.murmur3_128();
 
@@ -19,32 +22,40 @@ public abstract class AbstractConnectionKeyHandler implements ConnectionKeyHandl
     private static final byte ROLE_ARN = 3;
     private static final byte EXTERNAL_ID = 4;
     private static final byte STS_ENDPOINT = 5;
+    private static final byte CREDENTIALS = 6;
+    private static final byte ACCESS_KEY_ID = 7;
+    private static final byte SECRET = 8;
 
-    @Override
-    public final UUID id(SigningContext context) {
+    public UUID id(SigningContext context) {
         HashStream128 stream = HASHER.hashStream();
-        stream.putString(context.type().value());
-        funnelCommon(stream, context);
-        funnel(stream, context);
-        HashValue128 hash = stream.get();
-        return new UUID(hash.getMostSignificantBits(), hash.getLeastSignificantBits());
-    }
+        stream.putString(context.signerType().value());
 
-    private void funnelCommon(HashStream128 stream, SigningContext context) {
         put(stream, REGION, context.get(SlsaParams.REGION));
+
+        CredentialsType source = context.credentialsType();
+        put(stream, CREDENTIALS, source == null ? null : source.value());
+
+        if (source == CredentialsType.STATIC_CREDENTIALS) {
+            put(stream, ACCESS_KEY_ID, context.get(SlsaParams.ACCESS_KEY_ID));
+            put(stream, SECRET, context.get(SlsaParams.SECRET_ACCESS_KEY));
+        }
+
         stream.putByte(ASSUME_ROLE);
         stream.putBoolean(context.assumeRole());
+
         if (context.assumeRole()) {
             put(stream, ROLE_ARN, context.get(SlsaParams.ASSUME_ROLE_ARN));
             put(stream, EXTERNAL_ID, context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID));
             put(stream, STS_ENDPOINT, context.get(SlsaParams.STS_ENDPOINT));
         }
+
+        HashValue128 hash = stream.get();
+        return new UUID(hash.getMostSignificantBits(), hash.getLeastSignificantBits());
     }
 
-    protected abstract void funnel(HashStream128 stream, SigningContext context);
-
-    protected void put(HashStream128 stream, byte tag, String value) {
+    private void put(HashStream128 stream, byte tag, String value) {
         stream.putByte(tag);
+
         if (value == null) {
             stream.putInt(-1);
         } else {

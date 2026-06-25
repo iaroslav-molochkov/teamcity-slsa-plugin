@@ -16,7 +16,7 @@
   <params>
     <param name="slsa.signer" dslName="signer" type="compound" mandatory="true">
       <description>
-        Signing key location and, for AWS KMS, the base credentials source.
+        Where the signing key lives. For AWS KMS, the credentials method is a nested choice.
       </description>
 
       <option name="serverKey" value="server">
@@ -27,7 +27,7 @@
         </param>
       </option>
 
-      <option name="kmsDefaultChain" value="aws-kms-default">
+      <option name="awsKms" value="aws-kms">
         <param name="slsa.aws.region" dslName="region" type="string">
           <description>
             KMS key region (e.g. us-east-1). Optional: when omitted, the AWS SDK resolves the region
@@ -44,34 +44,25 @@
             Must match the key spec (e.g. ECDSA_SHA_256).
           </description>
         </param>
-      </option>
+        <param name="slsa.aws.credentials" dslName="credentials" type="compound" mandatory="true">
+          <description>
+            How the server authenticates to AWS.
+          </description>
 
-      <option name="kmsAccessKey" value="aws-kms-static">
-        <param name="slsa.aws.region" dslName="region" type="string">
-          <description>
-            KMS key region (e.g. us-east-1). Optional: when omitted, the AWS SDK resolves the region
-            from the environment (AWS_REGION, profile, or instance metadata).
-          </description>
-        </param>
-        <param name="slsa.kms.keyId" dslName="keyId" type="string" mandatory="true">
-          <description>
-            Asymmetric SIGN_VERIFY KMS key: id, alias, or ARN.
-          </description>
-        </param>
-        <param name="slsa.kms.signingAlgorithm" dslName="signingAlgorithm" type="string" mandatory="true">
-          <description>
-            Must match the key spec (e.g. ECDSA_SHA_256).
-          </description>
-        </param>
-        <param name="slsa.aws.accessKeyId" dslName="accessKeyId" type="string" mandatory="true">
-          <description>
-            AWS access key id.
-          </description>
-        </param>
-        <param name="secure:slsa.aws.secretAccessKey" dslName="secretAccessKey" type="string" mandatory="true">
-          <description>
-            AWS secret access key. Stored encrypted.
-          </description>
+          <option name="defaultCredentials" value="default-credentials"/>
+
+          <option name="staticCredentials" value="static-credentials">
+            <param name="slsa.aws.accessKeyId" dslName="accessKeyId" type="string" mandatory="true">
+              <description>
+                AWS access key id.
+              </description>
+            </param>
+            <param name="secure:slsa.aws.secretAccessKey" dslName="secretAccessKey" type="string" mandatory="true">
+              <description>
+                AWS secret access key. Stored encrypted.
+              </description>
+            </param>
+          </option>
         </param>
       </option>
 
@@ -122,10 +113,12 @@
       </description>
       <code>
         slsaProvenance {
-            signer = kmsDefaultChain {
+            signer = awsKms {
                 region = "us-east-1"
                 keyId = "arn:aws:kms:us-east-1:123456789012:key/abcd-1234"
                 signingAlgorithm = "ECDSA_SHA_256"
+                credentials = defaultCredentials {
+                }
             }
         }
       </code>
@@ -137,10 +130,12 @@
       </description>
       <code>
         slsaProvenance {
-            signer = kmsDefaultChain {
+            signer = awsKms {
                 region = "us-east-1"
                 keyId = "alias/slsa-signer"
                 signingAlgorithm = "ECDSA_SHA_256"
+                credentials = defaultCredentials {
+                }
             }
             assumeRole = true
             roleArn = "arn:aws:iam::123456789012:role/tc-slsa-signer"
@@ -154,12 +149,14 @@
       </description>
       <code>
         slsaProvenance {
-            signer = kmsAccessKey {
+            signer = awsKms {
                 region = "us-east-1"
                 keyId = "alias/slsa-signer"
                 signingAlgorithm = "ECDSA_SHA_256"
-                accessKeyId = "AKIAIOSFODNN7EXAMPLE"
-                secretAccessKey = "credentialsJSON:..."
+                credentials = staticCredentials {
+                    accessKeyId = "AKIAIOSFODNN7EXAMPLE"
+                    secretAccessKey = "credentialsJSON:..."
+                }
             }
             assumeRole = true
             roleArn = "arn:aws:iam::123456789012:role/tc-slsa-signer"

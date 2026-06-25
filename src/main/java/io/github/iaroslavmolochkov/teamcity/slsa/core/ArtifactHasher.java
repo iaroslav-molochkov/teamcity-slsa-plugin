@@ -55,8 +55,10 @@ public class ArtifactHasher {
 
     public ArtifactHasher(EventDispatcher<BuildServerListener> eventDispatcher, Sha256Handler sha256) {
         this.sha256 = sha256;
+
         int threads = TeamCityProperties.getInteger(HASH_THREADS_PROPERTY, DEFAULT_HASH_THREADS);
         pool = Executors.newFixedThreadPool(threads, daemonThreadFactory("slsa-hash"));
+
         eventDispatcher.addListener(new BuildServerAdapter() {
             @Override
             public void serverShutdown() {
@@ -67,6 +69,7 @@ public class ArtifactHasher {
 
     private ThreadFactory daemonThreadFactory(String namePrefix) {
         AtomicInteger counter = new AtomicInteger();
+
         return runnable -> {
             Thread thread = new Thread(runnable, namePrefix + "-" + counter.incrementAndGet());
             thread.setDaemon(true);
@@ -82,6 +85,7 @@ public class ArtifactHasher {
         }
 
         List<BuildArtifact> files = new ArrayList<>();
+
         artifacts.iterateArtifacts(artifact -> {
             if (artifact.isFile()) {
                 files.add(artifact);
@@ -122,6 +126,7 @@ public class ArtifactHasher {
             CallExecutor<ArtifactSubject> executor = new CallExecutorBuilder<ArtifactSubject>()
                     .config(RETRY_CONFIG)
                     .build();
+
             return executor.execute(() -> digest(artifact)).getResult();
         } catch (RetriesExhaustedException | UnexpectedException e) {
             Throwable cause = e.getCause();

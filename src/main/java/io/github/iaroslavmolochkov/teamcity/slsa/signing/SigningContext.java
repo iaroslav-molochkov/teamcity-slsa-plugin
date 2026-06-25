@@ -8,17 +8,23 @@ import java.util.Map;
 public final class SigningContext {
 
     private final SignerType type;
+    private final CredentialsType credentialsType;
     private final boolean assumeRole;
     private final Map<String, String> params;
 
     public SigningContext(Map<String, String> params) {
         this.params = params;
         this.type = SignerType.fromValue(get(SlsaParams.SIGNER));
+        this.credentialsType = CredentialsType.fromValue(get(SlsaParams.CREDENTIALS));
         this.assumeRole = Boolean.parseBoolean(get(SlsaParams.ASSUME_ROLE_ENABLED));
     }
 
-    public SignerType type() {
+    public SignerType signerType() {
         return type;
+    }
+
+    public CredentialsType credentialsType() {
+        return credentialsType;
     }
 
     public boolean assumeRole() {
@@ -36,9 +42,11 @@ public final class SigningContext {
 
     public Integer getInt(String key) {
         String value = get(key);
+
         if (value == null) {
             return null;
         }
+
         try {
             return Integer.valueOf(value);
         } catch (NumberFormatException e) {

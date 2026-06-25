@@ -110,6 +110,7 @@ public class ProvenanceService {
                 .runDetails()
                 .builder()
                 .id();
+
         if (builderId == null || builderId.isBlank()) {
             reportError(build, context, "server root URL is not configured; cannot attest the builder identity");
             return;
@@ -117,10 +118,9 @@ public class ProvenanceService {
 
         byte[] payload = provenanceJsonHandler.toBytes(statement);
         DsseEnvelope envelope = signingService.sign(context, payload);
-
         byte[] bundle = provenanceJsonHandler.toBytes(sigstoreBundleService.bundle(envelope));
+        String signerId = context.signerType().value();
 
-        String signerId = context.type().value();
         if (publisher.publish(build, bundle, metadata(envelope, signerId, bundle))) {
             log.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
                     + subjects.size() + " subject(s)) via '" + signerId + "' signer");
@@ -129,6 +129,7 @@ public class ProvenanceService {
 
     private void reportError(SRunningBuild build, SigningContext context, String reason) {
         log.warn("SLSA: build " + build.getBuildId() + " - " + reason);
+
         String message = "SLSA provenance: " + reason;
         build.getBuildLog().messageAsync(message, Status.WARNING, MessageAttrs.serverMessage());
 
@@ -139,6 +140,7 @@ public class ProvenanceService {
 
     private Map<String, String> metadata(DsseEnvelope envelope, String signerId, byte[] bundle) {
         Map<String, String> metadata = new HashMap<>();
+
         metadata.put("artifactPath", ProvenancePublisher.ARTIFACT_PATH);
         metadata.put("sha256", sha256.hex(bundle));
         metadata.put("payloadType", envelope.payloadType());

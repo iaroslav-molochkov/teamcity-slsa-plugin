@@ -10,10 +10,11 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.dsse.DsseService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.sigstore.SigstoreBundleService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningService;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.ParameterValidator;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.ConnectionIdService;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.keys.StaticKmsSigningHandler;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.keys.StaticConnectionKeyHandler;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.keys.StaticKmsValidator;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AwsKmsConnectionKey;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AwsKmsSigningHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.AwsKmsValidator;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.DefaultCredentialsHandler;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.StaticCredentialsHandler;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.messages.Status;
 import jetbrains.buildServer.serverSide.SBuildFeatureDescriptor;
@@ -36,10 +37,10 @@ import static org.mockito.Mockito.when;
 class ProvenanceServiceTest {
 
     private ProvenanceService newService() {
-        ParameterValidator parameterValidator = new ParameterValidator(List.of(new StaticKmsValidator()));
-        ConnectionIdService connectionIdService = new ConnectionIdService(List.of(new StaticConnectionKeyHandler()));
+        ParameterValidator parameterValidator = new ParameterValidator(List.of(new AwsKmsValidator()));
         SigningService services = new SigningService(List.of(
-                new StaticKmsSigningHandler(mock(KmsClientCache.class), connectionIdService, new DsseService())));
+                new AwsKmsSigningHandler(mock(KmsClientCache.class), new AwsKmsConnectionKey(), new DsseService(),
+                        List.of(new DefaultCredentialsHandler(), new StaticCredentialsHandler()))));
         return new ProvenanceService(
                 parameterValidator,
                 mock(ArtifactHasher.class),
@@ -53,7 +54,7 @@ class ProvenanceServiceTest {
 
     @Test
     void warnsButDoesNotFailForInvalidConfigByDefault() {
-        SRunningBuild build = buildWith(Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC), Status.NORMAL);
+        SRunningBuild build = buildWith(Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS), Status.NORMAL);
 
         newService().onBuildFinished(build);
 
@@ -64,7 +65,7 @@ class ProvenanceServiceTest {
     @Test
     void failsBuildWhenOptedIn() {
         SRunningBuild build = buildWith(
-                Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC, SlsaParams.FAIL_BUILD_ON_ERROR, "true"),
+                Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS, SlsaParams.FAIL_BUILD_ON_ERROR, "true"),
                 Status.NORMAL);
 
         newService().onBuildFinished(build);
@@ -74,7 +75,7 @@ class ProvenanceServiceTest {
 
     @Test
     void skipsUnsuccessfulBuild() {
-        SRunningBuild build = buildWith(Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS_STATIC), Status.FAILURE);
+        SRunningBuild build = buildWith(Map.of(SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS), Status.FAILURE);
 
         newService().onBuildFinished(build);
 

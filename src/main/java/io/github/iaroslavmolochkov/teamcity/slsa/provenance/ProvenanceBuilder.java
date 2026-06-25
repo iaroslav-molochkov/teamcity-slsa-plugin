@@ -106,13 +106,16 @@ public class ProvenanceBuilder {
     private Trigger trigger(SBuild build) {
         TriggeredBy triggeredBy = build.getTriggeredBy();
         SUser user = triggeredBy.getUser();
+
         if (user != null) {
             String username = user.getUsername();
             return new Trigger("user", (username != null && !username.isEmpty()) ? username : null, user.getId());
         }
+
         if (triggeredBy.isTriggeredBySnapshotDependency()) {
             return new Trigger("snapshotDependency", null, null);
         }
+
         String triggerId = triggeredBy.getTriggerId();
         return triggerId != null ? new Trigger(triggerId, null, null) : null;
     }
@@ -208,16 +211,20 @@ public class ProvenanceBuilder {
 
     private Date finishDate(SBuild build) {
         Date finish = build.getFinishDate();
+
         if (finish != null) {
             return finish;
         }
+
         SBuild associated = build.getBuildPromotion().getAssociatedBuild();
+
         if (associated != null) {
             Date associatedFinish = associated.getFinishDate();
             if (associatedFinish != null) {
                 return associatedFinish;
             }
         }
+
         return new Date();
     }
 

@@ -16,11 +16,10 @@
   <td>
     <props:selectProperty name="slsa.signer" id="slsaSigner" className="mediumField" onchange="BS.Slsa.updateSignerFields()">
       <props:option value="server">Server key (PEM private key on the server)</props:option>
-      <props:option value="aws-kms-default">AWS KMS &mdash; default provider chain</props:option>
-      <props:option value="aws-kms-static">AWS KMS &mdash; access key</props:option>
+      <props:option value="aws-kms">AWS KMS</props:option>
     </props:selectProperty>
     <span class="error" id="error_slsa.signer"></span>
-    <span class="smallNote">Signing key location and, for AWS KMS, the base credentials source.</span>
+    <span class="smallNote">Where the signing key lives.</span>
   </td>
 </tr>
 
@@ -72,6 +71,21 @@
     </props:selectProperty>
     <span class="error" id="error_slsa.kms.signingAlgorithm"></span>
     <span class="smallNote">Must match the key spec (e.g. <code>ECDSA_SHA_256</code> for an ECC_NIST_P256 key).</span>
+  </td>
+</tr>
+
+<tr class="slsa-kms">
+  <th><label for="slsa.aws.credentials">Credentials: <l:star/></label></th>
+  <td>
+    <props:selectProperty name="slsa.aws.credentials" id="slsaCredentials" className="mediumField"
+                          onchange="BS.Slsa.updateSignerFields()">
+      <props:option value="">-- Select credentials --</props:option>
+      <props:option value="default-credentials">Default provider chain</props:option>
+      <props:option value="static-credentials">Static access key</props:option>
+    </props:selectProperty>
+    <span class="error" id="error_slsa.aws.credentials"></span>
+    <span class="smallNote">How the server authenticates to AWS: the default provider chain (env, profile,
+      container/instance role) or an explicit access key.</span>
   </td>
 </tr>
 
@@ -141,14 +155,18 @@
     updateSignerFields: function () {
       var signer = $('slsaSigner').value;
       $j(".slsa-server, .slsa-kms, .slsa-static, .slsa-role, .slsa-assume").hide();
+
       if (signer === "server") {
         $j(".slsa-server").show();
       } else {
         $j(".slsa-kms").show();
-        if (signer === "aws-kms-static") {
+
+        if ($('slsaCredentials').value === "static-credentials") {
           $j(".slsa-static").show();
         }
+
         $j(".slsa-role").show();
+
         if ($('slsaAssumeRole').checked) {
           $j(".slsa-assume").show();
         }
