@@ -1,4 +1,4 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.dcp;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;

@@ -1,4 +1,4 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.dcp;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SignerType;

@@ -1,4 +1,4 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.keys;
 
 import com.dynatrace.hash4j.hashing.HashStream128;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;

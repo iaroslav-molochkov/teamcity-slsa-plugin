@@ -3,8 +3,8 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validator;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.dcp.DefaultKmsValidator;
-import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys.StaticKmsValidator;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.dcp.DefaultKmsValidator;
+import io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.keys.StaticKmsValidator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.junit.jupiter.api.Test;
 

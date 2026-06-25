@@ -1,4 +1,4 @@
-package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.keys;
+package io.github.iaroslavmolochkov.teamcity.slsa.signing.kms.credentials.keys;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.aws.client.KmsClientCache;
 import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
