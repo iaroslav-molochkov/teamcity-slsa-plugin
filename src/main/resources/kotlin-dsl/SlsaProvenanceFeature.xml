@@ -16,7 +16,7 @@
   <params>
     <param name="slsa.signer" dslName="signer" type="compound" mandatory="true">
       <description>
-        Signing key location and, for AWS KMS, the credentials source.
+        Signing key location and, for AWS KMS, the base credentials source.
       </description>
 
       <option name="serverKey" value="server">

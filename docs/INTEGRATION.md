@@ -39,8 +39,7 @@ setting, because at the moment a build finishes there is no incoming web request
 to infer the address.
 
 Set it under **Administration → Global Settings → Server URL** to the exact address users
-reach the server at, including any context path (the URL path prefix some deployments are
-served under). If this is wrong, the provenance will name the platform
+reach the server at. If this is wrong, the provenance will name the platform
 incorrectly, which weakens its value to verifiers.
 
 ---
@@ -110,7 +109,7 @@ identifier published in the signature as `sha256:<public key>` (see Section 9).
 
 | Field | Required | Meaning |
 |---|---|---|
-| AWS region | No | The region of the KMS key (for example, `us-east-1`). If omitted, the AWS SDK's own region resolution is used. |
+| AWS region | No | The region of the KMS key (for example, `us-east-1`). If omitted, the AWS SDK resolves it from the environment (`AWS_REGION`, profile, or instance metadata). |
 | KMS key id / ARN | Yes | The asymmetric SIGN_VERIFY key: a key id, alias, or ARN (Amazon Resource Name, the fully qualified identifier of an AWS resource). |
 | Signing algorithm | Yes | Must match the key's specification (for example, `ECDSA_SHA_256` for an `ECC_NIST_P256` key). |
 
@@ -120,7 +119,7 @@ stored in TeamCity.
 
 ### 6.3 AWS KMS — access key
 
-All fields from Section 6.2, plus:
+The KMS key fields from Section 6.2, plus:
 
 | Field | Required | Meaning |
 |---|---|---|
@@ -242,6 +241,20 @@ openssl pkey -pubin -in pub.pem -outform DER | openssl dgst -sha256 | sed 's/^.*
 ```
 
 The printed value must equal the `keyid` from Step 1.
+
+**Step 4 — confirm the artifact you care about is covered.**
+
+The attestation covers every artifact the build published, each listed under `subject[]`. To
+confirm a specific artifact is attested, compute its SHA-256 and check that it appears as a
+subject digest:
+
+```bash
+shasum -a 256 dist/app.jar
+python3 -c "import json,base64; print('\n'.join(s['digest']['sha256'] for s in json.loads(base64.b64decode(json.load(open('$F'))['payload']))['subject']))"
+```
+
+The artifact's digest must be among the printed subject digests. A signature that verifies but
+does not list your artifact attests a different set of files.
 
 ### 9.3 Establishing trust in the key
 

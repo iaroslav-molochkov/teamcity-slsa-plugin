@@ -6,10 +6,9 @@ signed attestation is published back onto the build as a downloadable artifact.
 
 Everything happens on the TeamCity **server**: artifacts are read via the server `BuildArtifacts`
 API, and signing is performed server-side with a key the build agents never see. Because the
-provenance is produced by the platform (not the build steps) and the signing material is never
-exposed to the build, the attestation cannot be forged by the build itself — the property associated
-with SLSA Build **L2**, and the design goal behind L3's non-falsifiability. (Asserting L3 is a
-platform-level assessment beyond this plugin.)
+provenance is produced by the platform — not the build steps — and signed with a key the build never
+sees, the build cannot forge its own attestation. That non-forgeability is the core property of SLSA
+Build **L2**; full **L3** is a platform-level assessment beyond this plugin.
 
 Signing can use **AWS KMS** (the key never leaves KMS) or a **PEM private key on the server's disk**.
 
@@ -53,25 +52,26 @@ for every KMS signer — when blank, the AWS SDK resolves it from the environmen
 profile, or instance metadata). **Fail build on error** (off by default) turns a provenance
 failure from a warning into a build failure.
 
-The feature is exported to the **Kotlin DSL**, so it can be set in `settings.kts`:
+The feature is exported as a typed **Kotlin DSL** extension, so it can be set in a build
+configuration's `features` block in `settings.kts`:
 
 ```kotlin
-feature {
-    type = "slsa.provenance"
-    param("slsa.signer", "aws-kms-default")
-    param("slsa.aws.region", "us-east-1")
-    param("slsa.kms.keyId", "arn:aws:kms:us-east-1:123456789012:key/abcd-…")
-    param("slsa.kms.signingAlgorithm", "ECDSA_SHA_256")
+slsaProvenance {
+    signer = kmsDefaultChain {
+        region = "us-east-1"
+        keyId = "arn:aws:kms:us-east-1:123456789012:key/abcd-…"
+        signingAlgorithm = "ECDSA_SHA_256"
+    }
     // optional: assume a kms:Sign-scoped role on top of the base credentials
-    param("slsa.aws.assumeRole.enabled", "true")
-    param("slsa.aws.assumeRole.arn", "arn:aws:iam::123456789012:role/tc-slsa-signer")
+    assumeRole = true
+    roleArn = "arn:aws:iam::123456789012:role/tc-slsa-signer"
     // optional: fail the build instead of warning
-    param("slsa.failBuildOnError", "true")
+    failBuildOnError = true
 }
 ```
 
-For the server-key signer, set `slsa.signer` to `server` and `slsa.server.privateKeyPath` to the
-absolute key path instead.
+For the server-key signer, use `signer = serverKey { privateKeyPath = "/etc/teamcity/slsa/signing-key.pem" }`.
+The untyped `feature { type = "slsa.provenance"; param(...) }` form also works.
 
 ### Credentials, caching, and assume-role
 
@@ -125,8 +125,8 @@ After a build finishes, the signed attestation appears as the `provenance.intoto
 [`docs/INTEGRATION.md`](docs/INTEGRATION.md) (Section 9).
 
 > **Server URL:** the provenance records the platform identity from **Administration → Global
-> Settings → Server URL**. Set it to the externally visible address (including any context path) so
-> `builder.id` and `invocationId` are correct.
+> Settings → Server URL**. Set it to the externally visible address so `builder.id` and
+> `invocationId` are correct.
 
 ## IAM (KMS signers)
 
