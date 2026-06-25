@@ -78,7 +78,6 @@ public abstract class AbstractKmsSigningHandler implements SigningHandler {
         return new SignerClient(kms, closeables);
     }
 
-    /** The base credentials the KMS client (and, when assuming a role, the STS client) authenticate with. */
     protected abstract AwsCredentialsProvider baseProvider(SigningContext context,
                                                            SdkHttpClient httpClient,
                                                            List<AutoCloseable> closeables);

@@ -4,24 +4,25 @@ import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 
 import java.util.Map;
 
-/** One build's feature params, with the {@link SignerType} resolved once. */
+/** One build's feature params, with the {@link SignerType} and assume-role flag resolved once. */
 public final class SigningContext {
 
     private final SignerType type;
+    private final boolean assumeRole;
     private final Map<String, String> params;
 
     public SigningContext(Map<String, String> params) {
         this.params = params;
         this.type = SignerType.fromValue(get(SlsaParams.SIGNER));
+        this.assumeRole = Boolean.parseBoolean(get(SlsaParams.ASSUME_ROLE_ENABLED));
     }
 
     public SignerType type() {
         return type;
     }
 
-    /** Whether the KMS base credentials should be wrapped in an assumed IAM role. */
     public boolean assumeRole() {
-        return Boolean.parseBoolean(get(SlsaParams.ASSUME_ROLE_ENABLED));
+        return assumeRole;
     }
 
     public String get(String key) {

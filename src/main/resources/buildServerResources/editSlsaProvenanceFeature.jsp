@@ -96,7 +96,7 @@
   <td>
     <props:checkboxProperty name="slsa.aws.assumeRole.enabled" id="slsaAssumeRole" uncheckedValue="false"
                             onclick="BS.Slsa.updateSignerFields()"/>
-    <span class="smallNote">Sign with credentials from an assumed role, using the selected source as the base identity.</span>
+    <span class="smallNote">Assume the specified IAM role with the selected credentials and sign with the resulting temporary credentials.</span>
   </td>
 </tr>
 

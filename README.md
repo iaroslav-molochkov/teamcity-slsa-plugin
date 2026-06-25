@@ -43,9 +43,9 @@ Pick a **Signer**; the form then shows only the relevant fields.
 | **AWS KMS — access key** | AWS KMS | Long-lived access key id + secret as the base identity (secret stored encrypted). Least preferred. |
 | **Server key** | PEM file on the server | Absolute path to an EC/RSA PEM (PKCS#8, PKCS#1, or SEC1). |
 
-For either AWS KMS signer you may additionally tick **Assume an IAM role**: the chosen base
-credentials are used to assume a `kms:Sign`-scoped role via STS, and the temporary credentials do the
-signing. The role is a modifier on top of the base, not a separate signer.
+For either AWS KMS signer you may additionally enable **Assume an IAM role**: the chosen base
+credentials are used to assume a `kms:Sign`-scoped role via STS, and the temporary credentials perform
+the signing.
 
 For the KMS signers: **KMS key id / ARN** (an asymmetric `SIGN_VERIFY` key) and **signing
 algorithm** (must match the key spec, e.g. `ECDSA_SHA_256`) are required; **AWS region** is optional

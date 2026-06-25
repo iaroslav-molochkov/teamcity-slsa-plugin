@@ -30,7 +30,6 @@ public abstract class AbstractConnectionKeyHandler implements ConnectionKeyHandl
         return new UUID(hash.getMostSignificantBits(), hash.getLeastSignificantBits());
     }
 
-    /** Region and, when assuming a role, the role fields that distinguish one assumed identity from another. */
     private void funnelCommon(HashStream128 stream, SigningContext context) {
         put(stream, REGION, context.get(SlsaParams.REGION));
         stream.putByte(ASSUME_ROLE);

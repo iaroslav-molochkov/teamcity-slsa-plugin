@@ -127,12 +127,12 @@ All fields from Section 6.2, plus:
 | Access key id | Yes | The AWS access key identifier. |
 | Secret access key | Yes | The corresponding secret. Stored encrypted by TeamCity. |
 
-### 6.4 Assume an IAM role (optional modifier)
+### 6.4 Assume an IAM role (optional)
 
-This is not a separate signer. With either AWS KMS signer (Section 6.2 or 6.3) selected, ticking
-**Assume an IAM role** uses the chosen *base* credentials — the default provider chain (6.2) or the
-static access key (6.3) — to call STS and assume a role; the resulting temporary credentials perform
-the signing. When the box is cleared, these fields are ignored.
+Available with either AWS KMS signer. When enabled, the signer's base credentials — the default
+provider chain (Section 6.2) or the static access key (Section 6.3) — are used to call STS and assume
+the specified role, and the resulting temporary credentials perform the signing. When disabled, the
+fields below are ignored.
 
 | Field | Required | Meaning |
 |---|---|---|
