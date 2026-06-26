@@ -36,8 +36,8 @@
   <td>
     <props:textProperty name="slsa.server.privateKeyPath" className="longField"/>
     <span class="error" id="error_slsa.server.privateKeyPath"></span>
-    <span class="smallNote">Absolute path to a PEM private key on the server (EC or RSA; PKCS#8, PKCS#1,
-      or SEC1), readable only by the server process.</span>
+    <span class="smallNote">Absolute path to a PEM private key on the server (EC, RSA, or Ed25519; PKCS#8 for
+      any, plus PKCS#1/SEC1 for RSA/EC), readable only by the server process.</span>
   </td>
 </tr>
 

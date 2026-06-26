@@ -2,9 +2,14 @@ package io.github.iaroslavmolochkov.teamcity.slsa.signing.server;
 
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.Sha256Handler;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters;
+import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.math.ec.FixedPointCombMultiplier;
@@ -21,11 +26,13 @@ import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.EdECPrivateKey;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 /** Parses a PEM private key (PKCS#8, PKCS#1 or SEC1) into a {@link ServerKey}, deriving the public key and {@code keyId}. */
 @Component
@@ -90,6 +97,10 @@ public class ServerKeyParser {
             return "RSA";
         }
 
+        if (EdECObjectIdentifiers.id_Ed25519.equals(oid)) {
+            return "Ed25519";
+        }
+
         throw new InvalidServerKeyException("unsupported key algorithm: " + oid);
     }
 
@@ -99,6 +110,7 @@ public class ServerKeyParser {
                 case ECPrivateKey ec -> deriveEcPublicKey(ec);
                 case RSAPrivateCrtKey rsa -> KeyFactory.getInstance("RSA")
                         .generatePublic(new RSAPublicKeySpec(rsa.getModulus(), rsa.getPublicExponent()));
+                case EdECPrivateKey ed -> deriveEd25519PublicKey(ed);
                 default -> throw new InvalidServerKeyException(
                         "cannot derive public key for " + privateKey.getAlgorithm() + " key");
             };
@@ -116,10 +128,24 @@ public class ServerKeyParser {
         return KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(w, ec.getParams()));
     }
 
+    private PublicKey deriveEd25519PublicKey(EdECPrivateKey ed) throws GeneralSecurityException {
+        byte[] seed = ed.getBytes()
+                .orElseThrow(() -> new InvalidServerKeyException("Ed25519 private key has no key material"));
+        Ed25519PublicKeyParameters pub = new Ed25519PrivateKeyParameters(seed, 0).generatePublicKey();
+
+        try {
+            SubjectPublicKeyInfo spki = SubjectPublicKeyInfoFactory.createSubjectPublicKeyInfo(pub);
+            return KeyFactory.getInstance("Ed25519").generatePublic(new X509EncodedKeySpec(spki.getEncoded()));
+        } catch (IOException e) {
+            throw new InvalidServerKeyException("could not encode Ed25519 public key", e);
+        }
+    }
+
     private String signatureAlgorithm(PrivateKey privateKey) {
         return switch (privateKey) {
             case ECPrivateKey ec -> ecSignatureAlgorithm(ec);
             case RSAPrivateCrtKey ignored -> "SHA256withRSA";
+            case EdECPrivateKey ignored -> "Ed25519";
             default -> throw new InvalidServerKeyException(
                     "unsupported key type: " + privateKey.getAlgorithm());
         };

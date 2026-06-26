@@ -69,6 +69,16 @@ class ServerKeyParserTest {
     }
 
     @Test
+    void parsesEd25519AndDerivesMatchingPublicKey() throws Exception {
+        KeyPair pair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        ServerKey key = parser.parse(pkcs8Pem(pair));
+
+        assertEquals("Ed25519", key.signatureAlgorithm());
+        assertArrayEquals(pair.getPublic().getEncoded(), key.publicKey().getEncoded());
+        assertEquals("sha256:" + new Sha256Handler().hex(pair.getPublic().getEncoded()), key.keyId());
+    }
+
+    @Test
     void readsKeyFromFile(@TempDir Path dir) throws Exception {
         KeyPair pair = ec("secp256r1");
         Path keyFile = dir.resolve("key.pem");

@@ -22,7 +22,7 @@
       <option name="serverKey" value="server">
         <param name="slsa.server.privateKeyPath" dslName="privateKeyPath" type="string" mandatory="true">
           <description>
-            Absolute path to a PEM private key on the server (EC or RSA; PKCS#8, PKCS#1, or SEC1).
+            Absolute path to a PEM private key on the server (EC, RSA, or Ed25519; PKCS#8 for any, plus PKCS#1/SEC1 for RSA/EC).
           </description>
         </param>
       </option>

@@ -48,6 +48,26 @@ class ServerSigningHandlerTest {
         assertTrue(verifier.verify(Base64.getDecoder().decode(envelope.signatures().get(0).sig())));
     }
 
+    @Test
+    void signsWithEd25519KeyAndVerifies(@TempDir Path dir) throws Exception {
+        KeyPair pair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        Path keyFile = dir.resolve("ed25519.pem");
+        Files.writeString(keyFile, pkcs8Pem(pair));
+        byte[] payload = "{\"_type\":\"https://in-toto.io/Statement/v1\"}".getBytes(StandardCharsets.UTF_8);
+
+        DsseEnvelope envelope = service.sign(context(keyFile.toString()), payload);
+
+        assertArrayEquals(payload, Base64.getDecoder().decode(envelope.payload()));
+        assertEquals("sha256:" + new Sha256Handler().hex(pair.getPublic().getEncoded()),
+                envelope.signatures().get(0).keyid());
+
+        byte[] pae = new DsseService().pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
+        Signature verifier = Signature.getInstance("Ed25519");
+        verifier.initVerify(pair.getPublic());
+        verifier.update(pae);
+        assertTrue(verifier.verify(Base64.getDecoder().decode(envelope.signatures().get(0).sig())));
+    }
+
     private static SigningContext context(String keyPath) {
         return new SigningContext(Map.of(
                 SlsaParams.SIGNER, SlsaParams.SIGNER_SERVER,

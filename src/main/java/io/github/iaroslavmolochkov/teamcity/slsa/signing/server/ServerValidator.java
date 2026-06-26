@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Path;
 import java.util.List;
 
-/** Validates the server signer: the configured path must point to a readable, usable EC or RSA PEM key. */
+/** Validates the server signer: the configured path must point to a readable, usable EC, RSA, or Ed25519 PEM key. */
 @Component
 public class ServerValidator implements Validator {
 
@@ -43,7 +43,7 @@ public class ServerValidator implements Validator {
             return List.of();
         } catch (RuntimeException e) {
             return List.of(new InvalidProperty(SlsaParams.SERVER_PRIVATE_KEY_PATH,
-                    "Cannot read a usable EC or RSA private key from " + path + ": " + e.getMessage()));
+                    "Cannot read a usable EC, RSA, or Ed25519 private key from " + path + ": " + e.getMessage()));
         }
     }
 }

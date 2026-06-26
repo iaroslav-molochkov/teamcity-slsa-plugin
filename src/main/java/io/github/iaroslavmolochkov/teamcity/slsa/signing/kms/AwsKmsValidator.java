@@ -7,7 +7,6 @@ import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.Validator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,8 +43,8 @@ public class AwsKmsValidator implements Validator {
 
         if (algorithm == null) {
             errors.add(new InvalidProperty(SlsaParams.SIGNING_ALGORITHM, "Signing algorithm is required"));
-        } else if (SigningAlgorithmSpec.fromValue(algorithm) == SigningAlgorithmSpec.UNKNOWN_TO_SDK_VERSION) {
-            errors.add(new InvalidProperty(SlsaParams.SIGNING_ALGORITHM, "Unknown signing algorithm: " + algorithm));
+        } else if (!KmsSigningAlgorithms.isSupported(algorithm)) {
+            errors.add(new InvalidProperty(SlsaParams.SIGNING_ALGORITHM, "Unsupported signing algorithm: " + algorithm));
         }
     }
 

@@ -39,7 +39,7 @@ Pick a **Signer**; the form then shows only the relevant fields.
 | Signer | Key location | Notes |
 | --- | --- | --- |
 | **AWS KMS** | AWS KMS | Sign with a KMS key. Pick a **Credentials** method below. Recommended. |
-| **Server key** | PEM file on the server | Absolute path to an EC/RSA PEM (PKCS#8, PKCS#1, or SEC1). |
+| **Server key** | PEM file on the server | Absolute path to an EC, RSA, or Ed25519 PEM (PKCS#8 for any; PKCS#1/SEC1 for RSA/EC). |
 
 For the AWS KMS signer, pick a **Credentials** method (how the server authenticates to AWS):
 

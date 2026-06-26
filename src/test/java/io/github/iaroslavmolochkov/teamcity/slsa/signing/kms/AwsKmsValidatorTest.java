@@ -4,6 +4,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.config.SlsaParams;
 import io.github.iaroslavmolochkov.teamcity.slsa.signing.SigningContext;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.kms.model.SigningAlgorithmSpec;
 
 import java.util.HashMap;
 import java.util.List;
@@ -44,6 +45,22 @@ class AwsKmsValidatorTest {
                 SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "NONSENSE",
                 SlsaParams.CREDENTIALS, SlsaParams.CREDENTIALS_DEFAULT))
                 .contains(SlsaParams.SIGNING_ALGORITHM));
+    }
+
+    @Test
+    void rejectsRealButUnsupportedAlgorithms() {
+        List<SigningAlgorithmSpec> unsupported = List.of(
+                SigningAlgorithmSpec.SM2_DSA,
+                SigningAlgorithmSpec.ML_DSA_SHAKE_256,
+                SigningAlgorithmSpec.ED25519_SHA_512,
+                SigningAlgorithmSpec.ED25519_PH_SHA_512);
+        for (SigningAlgorithmSpec spec : unsupported) {
+            assertTrue(errorKeys(Map.of(
+                            SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, spec.toString(),
+                            SlsaParams.CREDENTIALS, SlsaParams.CREDENTIALS_DEFAULT))
+                            .contains(SlsaParams.SIGNING_ALGORITHM),
+                    spec + " is unsupported");
+        }
     }
 
     @Test

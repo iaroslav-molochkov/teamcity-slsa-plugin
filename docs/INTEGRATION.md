@@ -109,7 +109,7 @@ A field marked with an asterisk is required. The form validates required fields 
 
 | Field | Required | Meaning |
 |---|---|---|
-| Private key file | Yes | Absolute path, on the server, to a PEM private key (EC or RSA; PKCS#8, PKCS#1, or SEC1 format). The file should be readable only by the server process. |
+| Private key file | Yes | Absolute path, on the server, to a PEM private key (EC, RSA, or Ed25519; PKCS#8 for any, plus PKCS#1/SEC1 for RSA/EC). The file should be readable only by the server process. |
 
 Retain the matching public key; verifiers will need it. The plugin derives the key
 identifier published in the bundle as `sha256:<public key>` (see Section 9).
@@ -122,7 +122,7 @@ The KMS key fields, common to both credentials methods:
 |---|---|---|
 | AWS region | No | The region of the KMS key (for example, `us-east-1`). If omitted, the AWS SDK resolves it from the environment (`AWS_REGION`, profile, or instance metadata). |
 | KMS key id / ARN | Yes | The asymmetric SIGN_VERIFY key: a key id, alias, or ARN (Amazon Resource Name, the fully qualified identifier of an AWS resource). |
-| Signing algorithm | Yes | Must match the key's specification (for example, `ECDSA_SHA_256` for an `ECC_NIST_P256` key). |
+| Signing algorithm | Yes | Must match the key's specification (for example, `ECDSA_SHA_256` for an `ECC_NIST_P256` key). Supported: ECDSA and RSA (PSS or PKCS#1 v1.5) with SHA-256/384/512. KMS's other specs (SM2, ML-DSA, Ed25519) are not offered — they don't fit the pre-hash signing model and aren't verifiable with stock `cosign`. |
 | Credentials | Yes | The credentials method: **default provider chain** or **static access key**. |
 
 **Default provider chain.** Credentials are resolved by the AWS SDK's default *provider chain*:
@@ -300,8 +300,16 @@ openssl dgst -sha256 -verify pub.pem -signature sig.bin pae.bin \
   -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:digest
 ```
 
-Expected output: `Verified OK`. Any other result means the record was altered, was not signed by
-the private key matching `pub.pem`, **or** the hash/padding above does not match the algorithm the
+*Ed25519* (server-key signer only) — a one-shot signature over the whole message, with no
+separate hash step, so `dgst` does not apply; verify the raw bytes with `pkeyutl`:
+
+```bash
+openssl pkeyutl -verify -pubin -inkey pub.pem -rawin -in pae.bin -sigfile sig.bin
+```
+
+Expected output: `Verified OK` (for the `dgst` forms) or `Signature Verified Successfully` (for
+the Ed25519 `pkeyutl` form). Any other result means the record was altered, was not signed by the
+private key matching `pub.pem`, **or** the hash/padding above does not match the algorithm the
 signer used. With the wrong hash or padding a genuine signature fails to verify, so confirm those
 before concluding the attestation is bad.
 
