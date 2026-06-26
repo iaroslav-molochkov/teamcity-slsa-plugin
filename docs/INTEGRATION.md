@@ -273,12 +273,37 @@ identifier the bundle states.
 
 **Step 2 — verify the signature against the public key.**
 
+The exact command depends on the signing algorithm you configured: it fixes the **hash** (the
+`_SHA_256` / `_384` / `_512` suffix) and, for RSA, the **padding** (PSS vs PKCS#1 v1.5). Unlike
+`cosign`, `openssl` will not infer these — you must match them, because the bundle does not
+carry them (the algorithm travels with the key, out of band). Use `-sha384` / `-sha512` in place
+of `-sha256` below when your algorithm ends in `384` / `512`.
+
+*ECDSA* (e.g. `ECDSA_SHA_256`) — the hash matches the curve (P-256 → SHA-256):
+
 ```bash
 openssl dgst -sha256 -verify pub.pem -signature sig.bin pae.bin
 ```
 
-Expected output: `Verified OK`. Any other result means the record was altered or was not
-signed by the private key matching `pub.pem`; the attestation must not be trusted.
+*RSA PKCS#1 v1.5* (e.g. `RSASSA_PKCS1_V1_5_SHA_256`) — same form; PKCS#1 v1.5 is openssl's
+default padding:
+
+```bash
+openssl dgst -sha256 -verify pub.pem -signature sig.bin pae.bin
+```
+
+*RSA-PSS* (e.g. `RSASSA_PSS_SHA_256`) — PSS must be requested explicitly, with a salt length
+equal to the digest length (the convention AWS KMS uses); the MGF1 hash matches the digest:
+
+```bash
+openssl dgst -sha256 -verify pub.pem -signature sig.bin pae.bin \
+  -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:digest
+```
+
+Expected output: `Verified OK`. Any other result means the record was altered, was not signed by
+the private key matching `pub.pem`, **or** the hash/padding above does not match the algorithm the
+signer used. With the wrong hash or padding a genuine signature fails to verify, so confirm those
+before concluding the attestation is bad.
 
 **Step 3 — confirm the public key matches the stated key identifier (server key).**
 
