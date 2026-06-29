@@ -18,7 +18,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.InternalParamet
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.ResolvedDependency;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunDetails;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.RunMetadata;
-import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPlatform;
+import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaBuilder;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPredicate;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.Trigger;
 import jetbrains.buildServer.users.SUser;
@@ -68,7 +68,7 @@ public class ProvenanceBuilder {
                         internalParameters(build),
                         resolvedDependencies(build)),
                 new RunDetails(
-                        new SlsaPlatform(platformId(build), platformVersion()),
+                        new SlsaBuilder(platformId(build), platformVersion()),
                         new RunMetadata(
                                 webLinks.getViewResultsUrl(build),
                                 iso(build.getStartDate()),
@@ -169,18 +169,18 @@ public class ProvenanceBuilder {
     }
 
     private Map<String, SVcsModification> changesByRootAndVersion(SBuild build) {
-        Map<String, SVcsModification> byRootVersion = new HashMap<>();
+        Map<String, SVcsModification> roots = new HashMap<>();
 
         for (SVcsModification change : build.getContainingChanges()) {
             try {
-                byRootVersion.put(change.getVcsRoot().getId() + "@" + change.getVersion(), change);
+                roots.put(change.getVcsRoot().getId() + "@" + change.getVersion(), change);
             } catch (VcsRootNotFoundException e) {
                 log.warn("SLSA: VCS root for change " + change.getVersion()
-                        + " not found; skipping its commit enrichment", e);
+                        + " not found; skipping", e);
             }
         }
 
-        return byRootVersion;
+        return roots;
     }
 
     private String gitUri(VcsRootInstance root) {

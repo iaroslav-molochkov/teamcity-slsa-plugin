@@ -12,18 +12,19 @@ import java.util.List;
 public class DsseService {
 
     private static final byte SP = ' ';
+    private static final Base64.Encoder encoder = Base64.getEncoder();
 
     public byte[] pae(String payloadType, byte[] payload) {
         byte[] typeBytes = payloadType.getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-        writeAscii(out, "DSSEv1");
+        writeText(out, "DSSEv1");
         out.write(SP);
-        writeAscii(out, Integer.toString(typeBytes.length));
+        writeText(out, Integer.toString(typeBytes.length));
         out.write(SP);
         out.writeBytes(typeBytes);
         out.write(SP);
-        writeAscii(out, Integer.toString(payload.length));
+        writeText(out, Integer.toString(payload.length));
         out.write(SP);
         out.writeBytes(payload);
 
@@ -31,14 +32,13 @@ public class DsseService {
     }
 
     public DsseEnvelope envelope(byte[] payloadBytes, String keyId, byte[] signature) {
-        Base64.Encoder b64 = Base64.getEncoder();
         return new DsseEnvelope(
-                b64.encodeToString(payloadBytes),
+                encoder.encodeToString(payloadBytes),
                 DsseEnvelope.IN_TOTO_PAYLOAD_TYPE,
-                List.of(new DsseSignature(keyId, b64.encodeToString(signature))));
+                List.of(new DsseSignature(keyId, encoder.encodeToString(signature))));
     }
 
-    private void writeAscii(ByteArrayOutputStream out, String s) {
-        out.writeBytes(s.getBytes(StandardCharsets.US_ASCII));
+    private void writeText(ByteArrayOutputStream out, String s) {
+        out.writeBytes(s.getBytes(StandardCharsets.UTF_8));
     }
 }

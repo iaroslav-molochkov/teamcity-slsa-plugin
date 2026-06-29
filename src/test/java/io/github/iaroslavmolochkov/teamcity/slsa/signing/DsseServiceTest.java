@@ -12,6 +12,7 @@ import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DsseServiceTest {
 
@@ -29,6 +30,17 @@ class DsseServiceTest {
     void paeUsesByteLengthNotCharLength() {
         byte[] pae = dsse.pae("t", "h\u00e9llo".getBytes(StandardCharsets.UTF_8));
         assertEquals("DSSEv1 1 t 6 h\u00e9llo", new String(pae, StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void paeFramingIsExactAsciiBytes() {
+        byte[] pae = dsse.pae("application/vnd.in-toto+json", "x".getBytes(StandardCharsets.UTF_8));
+        byte[] expected = "DSSEv1 28 application/vnd.in-toto+json 1 x".getBytes(StandardCharsets.US_ASCII);
+
+        assertArrayEquals(expected, pae);
+        for (byte b : pae) {
+            assertTrue((b & 0xFF) < 0x80, "should be ASCII");
+        }
     }
 
     @Test
