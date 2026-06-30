@@ -71,6 +71,7 @@ class ProvenanceServiceTest {
         newService().onBuildFinished(build);
 
         verify(build).addBuildProblem(any(BuildProblemData.class));
+        verify(build.getBuildLog(), never()).messageAsync(anyString(), any(), any(MessageAttrs.class));
     }
 
     @Test

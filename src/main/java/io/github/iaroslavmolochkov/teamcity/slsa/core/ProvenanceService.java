@@ -131,10 +131,11 @@ public class ProvenanceService {
         log.warn("SLSA: build " + build.getBuildId() + " - " + reason);
 
         String message = "SLSA provenance: " + reason;
-        build.getBuildLog().messageAsync(message, Status.WARNING, MessageAttrs.serverMessage());
 
-        if (Boolean.parseBoolean(context.get(SlsaParams.FAIL_BUILD_ON_ERROR))) {
+        if (context.failBuildOnError()) {
             build.addBuildProblem(BuildProblemData.createBuildProblem(PROBLEM_IDENTITY, PROBLEM_TYPE, message));
+        } else {
+            build.getBuildLog().messageAsync(message, Status.WARNING, MessageAttrs.serverMessage());
         }
     }
 

@@ -12,6 +12,7 @@ public final class SigningContext {
     private final boolean assumeRole;
     private final Map<String, String> params;
     private final boolean includeCustomBuildParameters;
+    private final boolean failBuildOnError;
 
     public SigningContext(Map<String, String> params) {
         this.params = params;
@@ -19,6 +20,7 @@ public final class SigningContext {
         this.credentialsType = CredentialsType.fromValue(get(SlsaParams.CREDENTIALS));
         this.assumeRole = Boolean.parseBoolean(get(SlsaParams.ASSUME_ROLE_ENABLED));
         this.includeCustomBuildParameters = Boolean.parseBoolean(get(SlsaParams.INCLUDE_CUSTOM_BUILD_PARAMETERS));
+        this.failBuildOnError = Boolean.parseBoolean(get(SlsaParams.FAIL_BUILD_ON_ERROR));
     }
 
     public SignerType signerType() {
@@ -35,6 +37,10 @@ public final class SigningContext {
 
     public boolean includeCustomBuildParameters() {
         return includeCustomBuildParameters;
+    }
+
+    public boolean failBuildOnError() {
+        return failBuildOnError;
     }
 
     public String get(String key) {
