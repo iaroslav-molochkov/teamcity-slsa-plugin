@@ -142,6 +142,16 @@ No credentials are stored in TeamCity. No further fields.
 | Access key id | Yes | The AWS access key identifier. |
 | Secret access key | Yes | The corresponding secret. Stored encrypted by TeamCity. |
 
+**GovCloud and other partitions.** Set the region to a partition region (for example
+`us-gov-west-1`) and supply the key as a partition ARN (`arn:aws-us-gov:kms:…`). The SDK resolves
+the KMS and STS endpoints from the region; no endpoint override is needed. The STS endpoint field
+(Section 6.3) is for private/VPC routing, not for reaching a partition.
+
+**FIPS endpoints.** The plugin does not expose a FIPS toggle. Where FIPS-compliant endpoints are
+required, set `AWS_USE_FIPS_ENDPOINT=true` (or `use_fips_endpoint=true` in the AWS profile) in the
+TeamCity **server's** environment; the SDK then selects the `-fips` KMS and STS endpoints for the
+configured region.
+
 ### 6.3 Assume an IAM role (optional)
 
 Available with the AWS KMS signer under either credentials method. When enabled, the chosen base
