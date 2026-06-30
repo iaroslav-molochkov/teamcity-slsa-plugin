@@ -110,7 +110,7 @@ class ProvenanceBuilderTest {
         assertEquals("user", internal.trigger().type());
         assertEquals("jdoe", internal.trigger().username());
 
-        var versions = statement.predicate().runDetails().builder().componentVersions();
+        var versions = statement.predicate().runDetails().builder().version();
         assertEquals("TeamCity 2025.07 (build 999)", versions.get("teamcity"));
         assertEquals("0.1.3", versions.get("teamcity-slsa-plugin"));
     }

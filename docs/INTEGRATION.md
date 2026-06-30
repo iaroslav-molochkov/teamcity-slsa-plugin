@@ -128,7 +128,7 @@ The KMS key fields, common to both credentials methods:
 |---|---|---|
 | AWS region | No | The region of the KMS key (for example, `us-east-1`). If omitted, the AWS SDK resolves it from the environment (`AWS_REGION`, profile, or instance metadata). |
 | KMS key id / ARN | Yes | The asymmetric SIGN_VERIFY key: a key id, alias, or ARN (Amazon Resource Name, the fully qualified identifier of an AWS resource). |
-| Signing algorithm | Yes | Must match the key's specification (for example, `ECDSA_SHA_256` for an `ECC_NIST_P256` key). Supported: ECDSA and RSA (PSS or PKCS#1 v1.5) with SHA-256/384/512. KMS's other specs (SM2, ML-DSA, Ed25519) are not offered — they don't fit the pre-hash signing model and aren't verifiable with stock `cosign`. |
+| Signing algorithm | Yes | Must match the key's specification (for example, `ECDSA_SHA_256` for an `ECC_NIST_P256` key). Supported: ECDSA and RSA (PSS or PKCS#1 v1.5) with SHA-256/384/512. KMS's other specs (SM2, ML-DSA, Ed25519) are not offered. `cosign --key` verifies ECDSA and RSA PKCS#1 v1.5 with SHA-256 (Section 9.2); RSA-PSS and RSA with SHA-384/512 require `openssl` (Section 9.3). |
 | Credentials | Yes | The credentials method: **default provider chain** or **static access key**. |
 
 **Default provider chain.** Credentials are resolved by the AWS SDK's default *provider chain*:
@@ -256,6 +256,11 @@ Expected output: `Verified OK`. The flags are not optional:
 
 cosign trusts the key you supply with `--key`; the bundle's `publicKey.hint` (the signer's key
 id) is informational only. Establish trust in that key out of band (Section 9.4).
+
+**Algorithm support.** `cosign --key` infers the scheme from the key: ECDSA uses the curve's hash
+(P-256/384/521 → SHA-256/384/512); RSA is treated as PKCS#1 v1.5 with SHA-256. It verifies ECDSA,
+RSA PKCS#1 v1.5 with SHA-256, and Ed25519 (KMS: `ECDSA_SHA_256/384/512`, `RSASSA_PKCS1_V1_5_SHA_256`).
+RSA-PSS and RSA with SHA-384/512 are not verifiable this way; use `openssl` (Section 9.3).
 
 ### 9.3 Verify with openssl
 

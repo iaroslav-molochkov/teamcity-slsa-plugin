@@ -4,5 +4,5 @@ import java.util.Map;
 
 /** SLSA provenance {@code builder}: the builder platform identity. */
 public record SlsaBuilder(String id,
-                          Map<String, String> componentVersions) {
+                          Map<String, String> version) {
 }
