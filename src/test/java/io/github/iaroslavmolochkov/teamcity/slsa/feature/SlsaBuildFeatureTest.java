@@ -31,9 +31,9 @@ class SlsaBuildFeatureTest {
 
     private Map<String, String> normalize(Map<String, String> params) {
         PropertiesProcessor processor = feature.getParametersProcessor(null);
-        Map<String, String> mutable = new HashMap<>(params);
-        processor.process(mutable);
-        return mutable;
+        Map<String, String> map = new HashMap<>(params);
+        processor.process(map);
+        return map;
     }
 
     @Test

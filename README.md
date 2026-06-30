@@ -1,6 +1,6 @@
 # teamcity-slsa-plugin
 
-A **server-side** TeamCity plugin that generates [SLSA v1.0](https://slsa.dev) provenance for a
+A **server-side** TeamCity plugin that generates [SLSA v1.2](https://slsa.dev/spec/v1.2/build-provenance) build provenance for a
 build's artifacts and signs it as a [DSSE](https://github.com/secure-systems-lab/dsse) envelope. The
 signed attestation is published back onto the build as a downloadable artifact.
 

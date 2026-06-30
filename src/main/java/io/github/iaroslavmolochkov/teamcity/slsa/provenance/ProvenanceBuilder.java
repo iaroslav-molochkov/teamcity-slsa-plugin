@@ -22,6 +22,7 @@ import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaBuilder;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.SlsaPredicate;
 import io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa.Trigger;
 import jetbrains.buildServer.users.SUser;
+import jetbrains.buildServer.web.openapi.PluginDescriptor;
 import jetbrains.buildServer.vcs.SVcsModification;
 import jetbrains.buildServer.vcs.VcsRootInstance;
 import jetbrains.buildServer.vcs.VcsRootNotFoundException;
@@ -48,10 +49,12 @@ public class ProvenanceBuilder {
 
     private final SBuildServer server;
     private final WebLinks webLinks;
+    private final PluginDescriptor descriptor;
 
-    public ProvenanceBuilder(SBuildServer server, WebLinks webLinks) {
+    public ProvenanceBuilder(SBuildServer server, WebLinks webLinks, PluginDescriptor descriptor) {
         this.server = server;
         this.webLinks = webLinks;
+        this.descriptor = descriptor;
     }
 
     public InTotoStatement build(SBuild build, List<ArtifactSubject> subjects) {
@@ -85,11 +88,8 @@ public class ProvenanceBuilder {
         Branch branch = build.getBranch();
         return new ExternalParameters(
                 build.getBuildTypeExternalId(),
-                build.getBuildTypeName(),
                 build.getProjectExternalId(),
-                trigger(build),
                 branch != null ? branch.getName() : null,
-                branch != null ? branch.isDefaultBranch() : null,
                 build.isPersonal() ? Boolean.TRUE : null);
     }
 
@@ -100,7 +100,9 @@ public class ProvenanceBuilder {
                 build.getAgentName(),
                 buildAgent.getHostName(),
                 buildAgent.getVersion(),
-                buildAgent.getOperatingSystemName());
+                buildAgent.getOperatingSystemName(),
+                buildAgent.isCloudAgent() ? Boolean.TRUE : null,
+                trigger(build));
     }
 
     private Trigger trigger(SBuild build) {
@@ -206,7 +208,15 @@ public class ProvenanceBuilder {
     }
 
     private Map<String, String> platformVersion() {
-        return Map.of("teamcity", server.getFullServerVersion());
+        Map<String, String> versions = new HashMap<>();
+        versions.put("teamcity", server.getFullServerVersion());
+
+        String pluginVersion = descriptor.getPluginVersion();
+        if (pluginVersion != null && !pluginVersion.isEmpty()) {
+            versions.put("teamcity-slsa-plugin", pluginVersion);
+        }
+
+        return versions;
     }
 
     private Date finishDate(SBuild build) {

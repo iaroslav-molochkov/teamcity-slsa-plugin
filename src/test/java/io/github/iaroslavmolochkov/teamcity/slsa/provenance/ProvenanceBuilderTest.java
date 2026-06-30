@@ -16,6 +16,7 @@ import jetbrains.buildServer.serverSide.TriggeredBy;
 import jetbrains.buildServer.serverSide.WebLinks;
 import jetbrains.buildServer.serverSide.dependency.BuildDependency;
 import jetbrains.buildServer.users.SUser;
+import jetbrains.buildServer.web.openapi.PluginDescriptor;
 import jetbrains.buildServer.vcs.SVcsModification;
 import jetbrains.buildServer.vcs.VcsRootInstance;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,8 @@ import static org.mockito.Mockito.when;
 
 class ProvenanceBuilderTest {
 
+    private final PluginDescriptor descriptor = mock(PluginDescriptor.class);
+
     @Test
     void mapsBuildToSlsaStatement() {
         SBuildServer server = mock(SBuildServer.class);
@@ -51,8 +54,8 @@ class ProvenanceBuilderTest {
         when(build.getBuildNumber()).thenReturn("1.0.1");
         Branch branch = mock(Branch.class);
         when(branch.getName()).thenReturn("main");
-        when(branch.isDefaultBranch()).thenReturn(true);
         when(build.getBranch()).thenReturn(branch);
+        when(descriptor.getPluginVersion()).thenReturn("0.1.1");
         when(build.getAgentName()).thenReturn("agent-1");
         when(build.getRevisions()).thenReturn(List.of());
         when(build.getStartDate()).thenReturn(new Date(1000));
@@ -69,9 +72,10 @@ class ProvenanceBuilderTest {
         when(agent.getHostName()).thenReturn("agent-host-1");
         when(agent.getVersion()).thenReturn("2026.1");
         when(agent.getOperatingSystemName()).thenReturn("Linux 6.1");
+        when(agent.isCloudAgent()).thenReturn(true);
         when(build.getAgent()).thenReturn(agent);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
         InTotoStatement statement = builder.build(build,
                 List.of(new ArtifactSubject("dist/app.jar", 10, "abcd1234")));
 
@@ -90,12 +94,8 @@ class ProvenanceBuilderTest {
 
         ExternalParameters external = statement.predicate().buildDefinition().externalParameters();
         assertEquals("MyProj_Build", external.buildTypeId());
-        assertEquals("Build", external.buildTypeName());
         assertEquals("MyProj", external.projectId());
-        assertEquals("user", external.trigger().type());
-        assertEquals("jdoe", external.trigger().username());
         assertEquals("main", external.branch());
-        assertEquals(true, external.branchIsDefault());
         assertNull(external.personal(), "non-personal builds omit the flag");
 
         InternalParameters internal = statement.predicate().buildDefinition().internalParameters();
@@ -103,6 +103,13 @@ class ProvenanceBuilderTest {
         assertEquals("agent-host-1", internal.agentHostName());
         assertEquals("2026.1", internal.agentVersion());
         assertEquals("Linux 6.1", internal.agentOs());
+        assertEquals(true, internal.agentIsCloud());
+        assertEquals("user", internal.trigger().type());
+        assertEquals("jdoe", internal.trigger().username());
+
+        var versions = statement.predicate().runDetails().builder().componentVersions();
+        assertEquals("TeamCity 2025.07 (build 999)", versions.get("teamcity"));
+        assertEquals("0.1.1", versions.get("teamcity-slsa-plugin"));
     }
 
     @Test
@@ -131,11 +138,11 @@ class ProvenanceBuilderTest {
         when(promotion.getDependencies()).thenReturn(List.of());
         when(build.getBuildPromotion()).thenReturn(promotion);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
         InTotoStatement statement = builder.build(build,
                 List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
 
-        Trigger trigger = statement.predicate().buildDefinition().externalParameters().trigger();
+        Trigger trigger = statement.predicate().buildDefinition().internalParameters().trigger();
         assertEquals("user", trigger.type());
         assertNull(trigger.username(), "super user has no username");
         assertEquals(-42L, trigger.userId());
@@ -176,7 +183,7 @@ class ProvenanceBuilderTest {
         when(promotion.getAssociatedBuild()).thenReturn(associated);
         when(build.getBuildPromotion()).thenReturn(promotion);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
         InTotoStatement statement = builder.build(build,
                 List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
 
@@ -208,7 +215,7 @@ class ProvenanceBuilderTest {
         SVcsModification commit = mock(SVcsModification.class);
         when(commit.getVcsRoot()).thenReturn(root);
         when(commit.getVersion()).thenReturn("abc123");
-        when(commit.getUserName()).thenReturn("Jane Dev");
+        when(commit.getUserName()).thenReturn("John Doe");
         when(commit.getDescription()).thenReturn("Fix the bug\n\nlong details");
         when(commit.getVcsDate()).thenReturn(new Date(2000));
 
@@ -225,7 +232,7 @@ class ProvenanceBuilderTest {
         when(build.getContainingChanges()).thenReturn(List.of(commit));
         stubPlatform(build);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
         InTotoStatement statement = builder.build(build,
                 List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
 
@@ -237,7 +244,7 @@ class ProvenanceBuilderTest {
         assertEquals("abc123", dep.digest().get("gitCommit"));
         assertEquals("app-repo", dep.name());
         assertEquals("refs/heads/main", dep.annotations().get("branch"));
-        assertEquals("Jane Dev", dep.annotations().get("author"));
+        assertEquals("John Doe", dep.annotations().get("author"));
         assertEquals("Fix the bug", dep.annotations().get("message"));
         assertEquals("1970-01-01T00:00:02Z", dep.annotations().get("committedAt"));
 
@@ -282,7 +289,7 @@ class ProvenanceBuilderTest {
         doReturn(List.of(dependency, dependency)).when(promotion).getDependencies();
         when(build.getBuildPromotion()).thenReturn(promotion);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
         InTotoStatement statement = builder.build(build,
                 List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
 

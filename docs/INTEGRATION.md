@@ -349,8 +349,9 @@ expect. That trust is established out of band:
   received it through a trusted channel).
 
 A consumer should also confirm that the `builder.id` field inside the payload names the
-expected platform, and should base any policy decisions only on the `externalParameters`
-section (`internalParameters` are platform-assigned and not intended for security decisions).
+expected platform. With `builder.id` trusted, both sections may inform policy: `externalParameters`
+are requester-supplied and untrusted (verify them); `internalParameters` are platform-established and
+trusted (no re-verification needed). See the build type document's "Trust model" section.
 
 ---
 
@@ -365,13 +366,15 @@ section (`internalParameters` are platform-assigned and not intended for securit
 - **Digest:** a fixed-length fingerprint of data, here SHA-256, such that any change to the
   data changes the digest.
 - **externalParameters / internalParameters:** two sections of the provenance.
-  `externalParameters` are requester-controlled inputs that a verifier may rely on;
-  `internalParameters` are platform-assigned values intended for debugging only.
+  `externalParameters` are requester-supplied inputs (untrusted; a verifier checks them);
+  `internalParameters` are platform-established facts (trusted). Values the build could write are
+  excluded from both.
 - **in-toto Statement:** the standard structure of the payload, comprising a `subject`
   (the artifacts, by name and digest) and a `predicate` (the provenance details: the
   `buildDefinition` describing inputs, and the `runDetails` describing the execution).
 - **Provenance:** a record of how an artifact was produced.
 - **SLSA (Supply-chain Levels for Software Artifacts):** a specification defining the
-  contents and assurances of build provenance. This plugin produces SLSA v1.0 provenance.
+  contents and assurances of build provenance. This plugin produces SLSA v1 build provenance
+  (per the SLSA v1.2 spec; the `…/provenance/v1` predicate shape is shared across v1.0–v1.2).
 - **Signer:** the configured choice of signing key location and credential method
   (Section 4).

@@ -1,10 +1,12 @@
 package io.github.iaroslavmolochkov.teamcity.slsa.provenance.slsa;
 
-/** SLSA {@code internalParameters}: platform-controlled values. Absent fields are omitted on serialization. */
+/** SLSA {@code internalParameters}: platform-established values. Absent fields are omitted on serialization. */
 public record InternalParameters(
         String buildNumber,
         String agentName,
         String agentHostName,
         String agentVersion,
-        String agentOs) {
+        String agentOs,
+        Boolean agentIsCloud,
+        Trigger trigger) {
 }
