@@ -57,7 +57,7 @@ class ProvenanceBuilderTest {
         Branch branch = mock(Branch.class);
         when(branch.getName()).thenReturn("main");
         when(build.getBranch()).thenReturn(branch);
-        when(descriptor.getPluginVersion()).thenReturn("0.1.1");
+        when(descriptor.getPluginVersion()).thenReturn("0.1.3");
         when(build.getAgentName()).thenReturn("agent-1");
         when(build.getRevisions()).thenReturn(List.of());
         when(build.getStartDate()).thenReturn(new Date(1000));
@@ -112,7 +112,7 @@ class ProvenanceBuilderTest {
 
         var versions = statement.predicate().runDetails().builder().componentVersions();
         assertEquals("TeamCity 2025.07 (build 999)", versions.get("teamcity"));
-        assertEquals("0.1.1", versions.get("teamcity-slsa-plugin"));
+        assertEquals("0.1.3", versions.get("teamcity-slsa-plugin"));
     }
 
     @Test
