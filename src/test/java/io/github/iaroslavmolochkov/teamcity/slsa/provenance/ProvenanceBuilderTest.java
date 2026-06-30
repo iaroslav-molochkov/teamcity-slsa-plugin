@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,6 +37,7 @@ import static org.mockito.Mockito.when;
 class ProvenanceBuilderTest {
 
     private final PluginDescriptor descriptor = mock(PluginDescriptor.class);
+    private final BuildParameterFilter parameterFilter = mock(BuildParameterFilter.class);
 
     @Test
     void mapsBuildToSlsaStatement() {
@@ -75,9 +77,9 @@ class ProvenanceBuilderTest {
         when(agent.isCloudAgent()).thenReturn(true);
         when(build.getAgent()).thenReturn(agent);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor, parameterFilter);
         InTotoStatement statement = builder.build(build,
-                List.of(new ArtifactSubject("dist/app.jar", 10, "abcd1234")));
+                List.of(new ArtifactSubject("dist/app.jar", 10, "abcd1234")), false);
 
         assertEquals(InTotoStatement.TYPE, statement.type());
         assertEquals(InTotoStatement.SLSA_PREDICATE_TYPE, statement.predicateType());
@@ -97,6 +99,7 @@ class ProvenanceBuilderTest {
         assertEquals("MyProj", external.projectId());
         assertEquals("main", external.branch());
         assertNull(external.personal(), "non-personal builds omit the flag");
+        assertNull(external.customBuildParameters(), "build parameters omitted unless enabled");
 
         InternalParameters internal = statement.predicate().buildDefinition().internalParameters();
         assertEquals("1.0.1", internal.buildNumber());
@@ -138,9 +141,9 @@ class ProvenanceBuilderTest {
         when(promotion.getDependencies()).thenReturn(List.of());
         when(build.getBuildPromotion()).thenReturn(promotion);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor, parameterFilter);
         InTotoStatement statement = builder.build(build,
-                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
+                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")), false);
 
         Trigger trigger = statement.predicate().buildDefinition().internalParameters().trigger();
         assertEquals("user", trigger.type());
@@ -183,9 +186,9 @@ class ProvenanceBuilderTest {
         when(promotion.getAssociatedBuild()).thenReturn(associated);
         when(build.getBuildPromotion()).thenReturn(promotion);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor, parameterFilter);
         InTotoStatement statement = builder.build(build,
-                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
+                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")), false);
 
         assertEquals("1970-01-01T00:00:09Z", statement.predicate().runDetails().metadata().finishedOn());
     }
@@ -232,9 +235,9 @@ class ProvenanceBuilderTest {
         when(build.getContainingChanges()).thenReturn(List.of(commit));
         stubPlatform(build);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor, parameterFilter);
         InTotoStatement statement = builder.build(build,
-                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
+                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")), false);
 
         List<ResolvedDependency> deps =
                 statement.predicate().buildDefinition().resolvedDependencies();
@@ -289,15 +292,40 @@ class ProvenanceBuilderTest {
         doReturn(List.of(dependency, dependency)).when(promotion).getDependencies();
         when(build.getBuildPromotion()).thenReturn(promotion);
 
-        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor);
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor, parameterFilter);
         InTotoStatement statement = builder.build(build,
-                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")));
+                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")), false);
 
         List<ResolvedDependency> deps =
                 statement.predicate().buildDefinition().resolvedDependencies();
         assertEquals(1, deps.size());
         assertEquals("https://tc.example.com/buildConfiguration/Lib_Build/7", deps.get(0).uri());
         assertEquals("Lib_Build #3.2", deps.get(0).name());
+    }
+
+    @Test
+    void includesRedactedBuildParametersWhenEnabled() {
+        SBuildServer server = mock(SBuildServer.class);
+        when(server.getFullServerVersion()).thenReturn("TeamCity 2026.1");
+        WebLinks webLinks = mock(WebLinks.class);
+        when(webLinks.getRootUrlByProjectExternalId(any())).thenReturn("https://tc.example.com");
+
+        SBuild build = mock(SBuild.class);
+        when(build.getBuildId()).thenReturn(1L);
+        when(build.getBuildTypeExternalId()).thenReturn("Bt");
+        when(build.getBranch()).thenReturn(null);
+        when(build.getRevisions()).thenReturn(List.of());
+        when(build.getStartDate()).thenReturn(new Date(0));
+        when(build.getFinishDate()).thenReturn(new Date(0));
+        stubPlatform(build);
+        when(parameterFilter.safeCustomParameters(build)).thenReturn(Map.of("env.TARGET", "prod"));
+
+        ProvenanceBuilder builder = new ProvenanceBuilder(server, webLinks, descriptor, parameterFilter);
+        InTotoStatement statement = builder.build(build,
+                List.of(new ArtifactSubject("app.jar", 1, "deadbeef")), true);
+
+        ExternalParameters external = statement.predicate().buildDefinition().externalParameters();
+        assertEquals(Map.of("env.TARGET", "prod"), external.customBuildParameters());
     }
 
     private static void stubPlatform(SBuild build) {

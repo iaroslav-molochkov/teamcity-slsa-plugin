@@ -7,6 +7,8 @@ public final class SlsaParams {
 
     public static final String FAIL_BUILD_ON_ERROR = "slsa.failBuildOnError";
 
+    public static final String INCLUDE_CUSTOM_BUILD_PARAMETERS = "slsa.includeCustomBuildParameters";
+
     public static final String SIGNER = "slsa.signer";
     public static final String SIGNER_SERVER = "server";
     public static final String SIGNER_AWS_KMS = "aws-kms";

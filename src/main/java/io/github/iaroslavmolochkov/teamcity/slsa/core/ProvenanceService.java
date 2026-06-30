@@ -104,7 +104,7 @@ public class ProvenanceService {
             return;
         }
 
-        InTotoStatement statement = provenanceBuilder.build(build, subjects);
+        InTotoStatement statement = provenanceBuilder.build(build, subjects, context.includeCustomBuildParameters());
 
         String builderId = statement.predicate()
                 .runDetails()

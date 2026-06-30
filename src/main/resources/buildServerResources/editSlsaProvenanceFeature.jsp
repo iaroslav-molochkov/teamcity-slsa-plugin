@@ -6,8 +6,8 @@
 
 <tr>
   <td colspan="2">
-    <em>Generates and signs SLSA v1.0 provenance for the build's artifacts, server-side, and
-      publishes the <code>provenance.sigstore.json</code> artifact.</em>
+    <em>Generates and signs SLSA v1.2 build provenance for the build's artifacts, server-side, and
+      publishes the <code>provenance.sigstore.json</code> artifact</em>
   </td>
 </tr>
 
@@ -19,7 +19,7 @@
       <props:option value="aws-kms">AWS KMS</props:option>
     </props:selectProperty>
     <span class="error" id="error_slsa.signer"></span>
-    <span class="smallNote">Where the signing key lives.</span>
+    <span class="smallNote">Where the signing key lives</span>
   </td>
 </tr>
 
@@ -27,7 +27,17 @@
   <th><label for="slsa.failBuildOnError">Fail build on error:</label></th>
   <td>
     <props:checkboxProperty name="slsa.failBuildOnError"/>
-    <span class="smallNote">When off (default), a provenance failure logs a warning; when on, it fails the build.</span>
+    <span class="smallNote">When off (default), a provenance failure logs a warning; when on, it fails the build</span>
+  </td>
+</tr>
+
+<tr>
+  <th><label for="slsa.includeCustomBuildParameters">Include custom build parameters:</label></th>
+  <td>
+    <props:checkboxProperty name="slsa.includeCustomBuildParameters"/>
+    <span class="smallNote">When on, record the build's custom parameters in the provenance
+      <code>externalParameters</code>. Password-typed parameters are dropped; other parameters are
+      published as-is</span>
   </td>
 </tr>
 
@@ -37,7 +47,7 @@
     <props:textProperty name="slsa.server.privateKeyPath" className="longField"/>
     <span class="error" id="error_slsa.server.privateKeyPath"></span>
     <span class="smallNote">Absolute path to a PEM private key on the server (EC, RSA, or Ed25519; PKCS#8 for
-      any, plus PKCS#1/SEC1 for RSA/EC), readable only by the server process.</span>
+      any, plus PKCS#1/SEC1 for RSA/EC), readable only by the server process</span>
   </td>
 </tr>
 
@@ -47,7 +57,7 @@
     <props:textProperty name="slsa.aws.region" className="longField"/>
     <span class="error" id="error_slsa.aws.region"></span>
     <span class="smallNote">KMS key region (e.g. <code>us-east-1</code>). Optional: when blank, the AWS SDK resolves
-      the region from the environment (<code>AWS_REGION</code>, profile, or instance metadata).</span>
+      the region from the environment (<code>AWS_REGION</code>, profile, or instance metadata)</span>
   </td>
 </tr>
 
@@ -56,7 +66,7 @@
   <td>
     <props:textProperty name="slsa.kms.keyId" className="longField"/>
     <span class="error" id="error_slsa.kms.keyId"></span>
-    <span class="smallNote">Asymmetric SIGN_VERIFY key: id, alias, or ARN.</span>
+    <span class="smallNote">Asymmetric SIGN_VERIFY key: id, alias, or ARN</span>
   </td>
 </tr>
 
@@ -70,7 +80,7 @@
       </c:forEach>
     </props:selectProperty>
     <span class="error" id="error_slsa.kms.signingAlgorithm"></span>
-    <span class="smallNote">Must match the key spec (e.g. <code>ECDSA_SHA_256</code> for an ECC_NIST_P256 key).</span>
+    <span class="smallNote">Must match the key spec (e.g. <code>ECDSA_SHA_256</code> for an ECC_NIST_P256 key)</span>
   </td>
 </tr>
 
@@ -85,7 +95,7 @@
     </props:selectProperty>
     <span class="error" id="error_slsa.aws.credentials"></span>
     <span class="smallNote">How the server authenticates to AWS: the default provider chain (env, profile,
-      container/instance role) or an explicit access key.</span>
+      container/instance role) or an explicit access key</span>
   </td>
 </tr>
 
@@ -102,7 +112,7 @@
   <td>
     <props:passwordProperty name="secure:slsa.aws.secretAccessKey" className="longField"/>
     <span class="error" id="error_secure:slsa.aws.secretAccessKey"></span>
-    <span class="smallNote">Stored encrypted.</span>
+    <span class="smallNote">Stored encrypted</span>
   </td>
 </tr>
 
@@ -111,7 +121,7 @@
   <td>
     <props:checkboxProperty name="slsa.aws.assumeRole.enabled" id="slsaAssumeRole"
                             onclick="BS.Slsa.updateSignerFields()"/>
-    <span class="smallNote">Assume the specified IAM role with the selected credentials and sign with the resulting temporary credentials.</span>
+    <span class="smallNote">Assume the specified IAM role with the selected credentials and sign with the resulting temporary credentials</span>
   </td>
 </tr>
 
@@ -120,7 +130,7 @@
   <td>
     <props:textProperty name="slsa.aws.assumeRole.arn" className="longField"/>
     <span class="error" id="error_slsa.aws.assumeRole.arn"></span>
-    <span class="smallNote">Assumed before signing. Scope it to <code>kms:Sign</code>.</span>
+    <span class="smallNote">Assumed before signing. Scope it to <code>kms:Sign</code></span>
   </td>
 </tr>
 
@@ -146,7 +156,7 @@
   <th><label for="slsa.aws.stsEndpoint">STS endpoint:</label></th>
   <td>
     <props:textProperty name="slsa.aws.stsEndpoint" className="longField"/>
-    <span class="smallNote">STS endpoint override (regional or VPC).</span>
+    <span class="smallNote">STS endpoint override (regional or VPC)</span>
   </td>
 </tr>
 

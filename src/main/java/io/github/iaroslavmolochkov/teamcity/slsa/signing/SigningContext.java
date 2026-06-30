@@ -11,12 +11,14 @@ public final class SigningContext {
     private final CredentialsType credentialsType;
     private final boolean assumeRole;
     private final Map<String, String> params;
+    private final boolean includeCustomBuildParameters;
 
     public SigningContext(Map<String, String> params) {
         this.params = params;
         this.type = SignerType.fromValue(get(SlsaParams.SIGNER));
         this.credentialsType = CredentialsType.fromValue(get(SlsaParams.CREDENTIALS));
         this.assumeRole = Boolean.parseBoolean(get(SlsaParams.ASSUME_ROLE_ENABLED));
+        this.includeCustomBuildParameters = Boolean.parseBoolean(get(SlsaParams.INCLUDE_CUSTOM_BUILD_PARAMETERS));
     }
 
     public SignerType signerType() {
@@ -31,11 +33,17 @@ public final class SigningContext {
         return assumeRole;
     }
 
+    public boolean includeCustomBuildParameters() {
+        return includeCustomBuildParameters;
+    }
+
     public String get(String key) {
         String value = params.get(key);
+
         if (value == null) {
             return null;
         }
+
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }

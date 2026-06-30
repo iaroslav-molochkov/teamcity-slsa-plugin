@@ -50,14 +50,17 @@ public class ProvenanceBuilder {
     private final SBuildServer server;
     private final WebLinks webLinks;
     private final PluginDescriptor descriptor;
+    private final BuildParameterFilter parameterFilter;
 
-    public ProvenanceBuilder(SBuildServer server, WebLinks webLinks, PluginDescriptor descriptor) {
+    public ProvenanceBuilder(SBuildServer server, WebLinks webLinks, PluginDescriptor descriptor,
+                             BuildParameterFilter parameterFilter) {
         this.server = server;
         this.webLinks = webLinks;
         this.descriptor = descriptor;
+        this.parameterFilter = parameterFilter;
     }
 
-    public InTotoStatement build(SBuild build, List<ArtifactSubject> subjects) {
+    public InTotoStatement build(SBuild build, List<ArtifactSubject> subjects, boolean includeCustomBuildParameters) {
         List<Subject> wireSubjects = new ArrayList<>(subjects.size());
 
         for (ArtifactSubject artifact : subjects) {
@@ -67,7 +70,7 @@ public class ProvenanceBuilder {
         SlsaPredicate predicate = new SlsaPredicate(
                 new BuildDefinition(
                         BUILD_TYPE,
-                        externalParameters(build),
+                        externalParameters(build, includeCustomBuildParameters),
                         internalParameters(build),
                         resolvedDependencies(build)),
                 new RunDetails(
@@ -84,13 +87,16 @@ public class ProvenanceBuilder {
         return trimTrailingSlash(webLinks.getRootUrlByProjectExternalId(build.getProjectExternalId()));
     }
 
-    private ExternalParameters externalParameters(SBuild build) {
+    private ExternalParameters externalParameters(SBuild build, boolean includeCustomBuildParameters) {
         Branch branch = build.getBranch();
+        Map<String, String> customBuildParameters =
+                includeCustomBuildParameters ? parameterFilter.safeCustomParameters(build) : null;
         return new ExternalParameters(
                 build.getBuildTypeExternalId(),
                 build.getProjectExternalId(),
                 branch != null ? branch.getName() : null,
-                build.isPersonal() ? Boolean.TRUE : null);
+                build.isPersonal() ? Boolean.TRUE : null,
+                customBuildParameters);
     }
 
     private InternalParameters internalParameters(SBuild build) {

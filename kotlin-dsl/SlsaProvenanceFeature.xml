@@ -2,8 +2,8 @@
 <dsl-extension kind="buildFeature" type="slsa.provenance" generateDslJar="true">
   <class name="SlsaProvenance">
     <description>
-      Generates and signs SLSA v1.0 provenance for the build's artifacts, server-side, and publishes
-      the provenance.sigstore.json artifact.
+      Generates and signs SLSA v1.2 build provenance for the build's artifacts, server-side, and
+      publishes the provenance.sigstore.json artifact.
     </description>
   </class>
 
@@ -102,6 +102,13 @@
     <param name="slsa.failBuildOnError" dslName="failBuildOnError" type="boolean" trueValue="true" falseValue="">
       <description>
         Fail the build when provenance cannot be produced. Off by default (logs a warning).
+      </description>
+    </param>
+
+    <param name="slsa.includeCustomBuildParameters" dslName="includeCustomBuildParameters" type="boolean" trueValue="true" falseValue="">
+      <description>
+        Record the build's custom parameters in the provenance externalParameters. Password-typed
+        parameters are dropped; other parameters are published as-is. Off by default.
       </description>
     </param>
   </params>

@@ -5,6 +5,8 @@ and how to verify that provenance afterwards. It assumes familiarity with operat
 TeamCity and a command line, but no prior knowledge of supply-chain attestation. Terms are
 defined on first use; a consolidated glossary appears in the final section.
 
+**Author and maintainer:** [Iaroslav Molochkov](https://github.com/iaroslav-molochkov).
+
 ---
 
 ## 1. Overview
@@ -97,7 +99,11 @@ are obtained dynamically (default chain, assume-role) over long-lived stored sec
    the fields relevant to that signer.
 6. Fill in the signer-specific fields (Section 6).
 7. Optionally enable **Fail build on error** (Section 7).
-8. Save.
+8. Optionally enable **Include custom build parameters** to record the build's requester-supplied custom
+   parameters in the provenance. Declared secrets (password-typed, `secure:`-prefixed, or reported by
+   a passwords provider) are dropped; plain parameters are published as-is, so do not put secrets in
+   plain parameters.
+9. Save.
 
 A field marked with an asterisk is required. The form validates required fields on save.
 
