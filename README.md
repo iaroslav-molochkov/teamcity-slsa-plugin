@@ -7,8 +7,11 @@ signed attestation is published back onto the build as a downloadable artifact.
 Everything happens on the TeamCity **server**: artifacts are read via the server `BuildArtifacts`
 API, and signing is performed server-side with a key the build agents never see. Because the
 provenance is produced by the platform — not the build steps — and signed with a key the build never
-sees, the build cannot forge its own attestation. That non-forgeability is the core property of SLSA
-Build **L2**; full **L3** is a platform-level assessment beyond this plugin.
+sees, the build cannot forge its own attestation. This is the signing-material isolation that SLSA
+Build **L3** requires; the plugin provides SLSA Build **L2** (signed, control-plane–generated
+provenance) together with this non-forgeability mechanism. Full L3 additionally requires run
+isolation from the build infrastructure and complete `externalParameters`, which are beyond the
+plugin's claims — see the build type document's [SLSA level](docs/buildtype/v1.md#slsa-level) section.
 
 Signing can use **AWS KMS** (the key never leaves KMS) or a **PEM private key on the server's disk**.
 
@@ -114,8 +117,8 @@ and `SLSA:` summary lines are written to `teamcity-server.log`. To verify it —
 `openssl` — see [`docs/INTEGRATION.md`](docs/INTEGRATION.md) (Section 9).
 
 > **Server URL:** the provenance records the platform identity from **Administration → Global
-> Settings → Server URL**. Set it to the externally visible address so `builder.id` and
-> `invocationId` are correct.
+> Settings → Server URL** (resolved per project, so a project root-URL override changes `builder.id`).
+> Set it to the externally visible address so `builder.id` and `invocationId` are correct.
 
 ## IAM (KMS signers)
 
