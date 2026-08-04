@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'io.github.iaroslavmolochkov'
-version = '0.1.3'
+version = '1.0.0'
 
 ext.teamcityVersion = project.findProperty('teamcity.version') ?: '2026.1'
 
@@ -65,7 +65,7 @@ teamcity {
     server {
         descriptor {
             name = project.name
-            displayName = 'TeamCity SLSA Plugin'
+            displayName = 'SLSA Provenance'
             version = project.version
             vendorName = 'Iaroslav Molochkov'
             vendorUrl = 'https://github.com/iaroslav-molochkov/teamcity-slsa-plugin'
