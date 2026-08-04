@@ -103,7 +103,8 @@ credentials that are injected into build agents.
 
 The installable zip is written to `build/distributions/teamcity-slsa-plugin-<version>.zip` with the
 AWS SDK + Jackson bundled under `server/lib` (isolated by `useSeparateClassloader`). Target a
-different TeamCity API with `-Pteamcity.version=2024.12`.
+different TeamCity API with `-Pteamcity.version=2025.03`. The minimum supported TeamCity version
+is 2025.03 (build 186049).
 
 ## Installing
 

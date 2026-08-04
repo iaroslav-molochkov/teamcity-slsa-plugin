@@ -69,12 +69,14 @@ teamcity {
             version = project.version
             vendorName = 'Iaroslav Molochkov'
             vendorUrl = 'https://github.com/iaroslav-molochkov/teamcity-slsa-plugin'
-            description = 'Generates SLSA v1.0 provenance for a finished build\'s artifacts and ' +
+            description = 'Generates SLSA v1.2 provenance for a finished build\'s artifacts and ' +
                     'signs it as a DSSE envelope (server-local key or AWS KMS). Artifact access ' +
                     'and signing happen server-side.'
 
             useSeparateClassloader = true
             allowRuntimeReload = true
+
+            minimumBuild = '186049'
         }
 
         files {
