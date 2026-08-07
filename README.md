@@ -33,7 +33,7 @@ Signing can use **AWS KMS** (the key never leaves KMS) or a **PEM private key on
 
 The output format is defined by the published build-type contract,
 [`docs/buildtype/v1.md`](docs/buildtype/v1.md). For step-by-step setup and verification, see
-[`docs/INTEGRATION.md`](docs/INTEGRATION.md).
+[`docs/integration.md`](docs/integration.md).
 
 ## Configuring the build feature
 
@@ -115,7 +115,7 @@ is 2025.03 (build 186049).
 
 After a build finishes, the signed attestation appears as the `provenance.sigstore.json` artifact,
 and `SLSA:` summary lines are written to `teamcity-server.log`. To verify it — with `cosign` or
-`openssl` — see [`docs/INTEGRATION.md`](docs/INTEGRATION.md) (Section 9).
+`openssl` — see [`docs/integration.md`](docs/integration.md) (Section 9).
 
 > **Server URL:** the provenance records the platform identity from **Administration → Global
 > Settings → Server URL** (resolved per project, so a project root-URL override changes `builder.id`).
