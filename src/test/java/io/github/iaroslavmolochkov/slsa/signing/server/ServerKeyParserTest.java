@@ -2,11 +2,8 @@ package io.github.iaroslavmolochkov.slsa.signing.server;
 
 import io.github.iaroslavmolochkov.slsa.provenance.Sha256Handler;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -33,6 +30,33 @@ class ServerKeyParserTest {
             MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGDAMRiQH20RyAd4Jd2s1AD/d7G9/
             TZMpA2F0VSHtQPONS13xWgS0qsMNT7Ty3cIoCwVtCS7VjEpXRw25YL8KDw==
             -----END PUBLIC KEY-----
+            """;
+
+    private static final String OPENSSL_EC_PARAMS_AND_KEY = """
+            -----BEGIN EC PARAMETERS-----
+            BggqhkjOPQMBBw==
+            -----END EC PARAMETERS-----
+            -----BEGIN EC PRIVATE KEY-----
+            MHcCAQEEID8YIg8TJzrOp3ghOz32ArSuQeUmI6Ah9EmmlFMK1woroAoGCCqGSM49
+            AwEHoUQDQgAE3AIDHAqoIfPeGyCz3CUQ3jaolix/iUDJJuvOfjXm/1hGvdvVjxUH
+            pKpNznaH9dCK/IwOPL2ejWlrHxRGvsra+Q==
+            -----END EC PRIVATE KEY-----
+            """;
+    private static final String OPENSSL_EC_PARAMS_AND_KEY_PUBLIC = """
+            -----BEGIN PUBLIC KEY-----
+            MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE3AIDHAqoIfPeGyCz3CUQ3jaolix/
+            iUDJJuvOfjXm/1hGvdvVjxUHpKpNznaH9dCK/IwOPL2ejWlrHxRGvsra+Q==
+            -----END PUBLIC KEY-----
+            """;
+    private static final String OPENSSL_ENCRYPTED_PKCS8 = """
+            -----BEGIN ENCRYPTED PRIVATE KEY-----
+            MIH0MF8GCSqGSIb3DQEFDTBSMDEGCSqGSIb3DQEFDDAkBBDeLxeq1XM3lgrsv4bp
+            o496AgIIADAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQUaaotQqK3jWlyELO
+            mVm+vASBkJAx1g+XX/k98xzgwHOCIGRAK4vdalwh+C8O7Ftfrtg/QaAd3GXrzzU1
+            Q9XY1Uat7Iw7qnonGBNWag9SJbsv/VDfL0in1P73CqVXj/zq++J6cN2pcTHzHPic
+            qYM8fnmtK4TZ9MxG1LlhWnbEC0oYRZ8qKqeIvgIQU4Z4qqNGbGCnOFLqKH/ffyWu
+            20KqnGtOUw==
+            -----END ENCRYPTED PRIVATE KEY-----
             """;
 
     private final ServerKeyParser parser = new ServerKeyParser(new Sha256Handler());
@@ -79,20 +103,19 @@ class ServerKeyParserTest {
     }
 
     @Test
-    void readsKeyFromFile(@TempDir Path dir) throws Exception {
-        KeyPair pair = ec("secp256r1");
-        Path keyFile = dir.resolve("key.pem");
-        Files.writeString(keyFile, pkcs8Pem(pair));
-
-        ServerKey key = parser.fromPath(keyFile.toString());
+    void parsesPemWithLeadingEcParametersBlock() throws Exception {
+        ServerKey key = parser.parse(OPENSSL_EC_PARAMS_AND_KEY);
 
         assertEquals("SHA256withECDSA", key.signatureAlgorithm());
-        assertArrayEquals(pair.getPublic().getEncoded(), key.publicKey().getEncoded());
+        assertArrayEquals(spki(OPENSSL_EC_PARAMS_AND_KEY_PUBLIC).getEncoded(), key.publicKey().getEncoded());
     }
 
     @Test
-    void rejectsMissingFile(@TempDir Path dir) {
-        assertThrows(InvalidServerKeyException.class, () -> parser.fromPath(dir.resolve("nope.pem").toString()));
+    void rejectsEncryptedKeyWithAnAccurateMessage() {
+        InvalidServerKeyException e =
+                assertThrows(InvalidServerKeyException.class, () -> parser.parse(OPENSSL_ENCRYPTED_PKCS8));
+
+        assertEquals("encrypted keys are not supported", e.getMessage());
     }
 
     @Test

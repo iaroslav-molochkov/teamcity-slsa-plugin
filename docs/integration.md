@@ -1,9 +1,7 @@
 # Integration Guide
 
 This guide explains how to configure the plugin to produce signed provenance for a build,
-and how to verify that provenance afterwards. It assumes familiarity with operating
-TeamCity and a command line, but no prior knowledge of supply-chain attestation. Terms are
-defined on first use; a consolidated glossary appears in the final section.
+and how to verify that provenance afterwards. A glossary appears in the final section.
 
 **Author and maintainer:** [Iaroslav Molochkov](https://github.com/iaroslav-molochkov).
 
@@ -60,7 +58,7 @@ A *signer* determines where the private signing key lives. Two are available:
 | Signer | Key location | Use when |
 |---|---|---|
 | **AWS KMS** | AWS KMS | A cloud KMS is available. Recommended. |
-| **Server key** | A PEM file on the server's disk | No cloud KMS is available. |
+| **Server key** | A PEM file in the server key store | No cloud KMS is available. |
 
 For the AWS KMS signer you then choose a **credentials method** — how the server authenticates
 to AWS — independently of the key itself:
@@ -77,17 +75,11 @@ Definitions:
 
 - **AWS KMS (Key Management Service):** an AWS service that holds a private key and performs
   signing on request. The private key never leaves AWS; the server sends a digest and
-  receives a signature.
-- **Asymmetric key:** a key pair consisting of a *private key* (used to sign; kept secret)
-  and a *public key* (used to verify; safe to publish). KMS keys used here must be of type
-  *asymmetric, SIGN_VERIFY*.
+  receives a signature. Keys must be *asymmetric, SIGN_VERIFY*.
 - **STS (Security Token Service):** an AWS service that issues temporary credentials. The
-  *assume-role* signer uses it to obtain short-lived credentials scoped to the signing role.
-- **PEM file:** a text file encoding a key. The *server key* signer reads a PEM private key
-  from a path on the server's filesystem.
-
-General guidance: prefer a key held in KMS over a key on disk, and prefer credentials that
-are obtained dynamically (default chain, assume-role) over long-lived stored secrets.
+  *assume-role* option uses it to obtain short-lived credentials scoped to the signing role.
+- **Server key store:** the directory the *server key* signer reads PEM private keys from,
+  managed by the server administrator (Section 6.1).
 
 ---
 
@@ -119,12 +111,20 @@ A field marked with an asterisk is required. The form validates required fields 
 
 ### 6.1 Server key
 
+Keys are read from the server key store: the directory
+`<TeamCity data directory>/system/pluginData/slsa/keys`, managed by the server administrator.
+Place PEM private key files there (EC, RSA, or Ed25519; PKCS#8 for any, plus PKCS#1/SEC1 for
+RSA/EC), readable only by the server process. File names are restricted to letters, digits,
+dots, hyphens, and underscores.
+
 | Field | Required | Meaning |
 |---|---|---|
-| Private key file | Yes | Absolute path, on the server, to a PEM private key (EC, RSA, or Ed25519; PKCS#8 for any, plus PKCS#1/SEC1 for RSA/EC). The file should be readable only by the server process. |
+| Signing key | Yes | A key from the server key store, selected by file name. |
 
-Retain the matching public key; verifiers will need it. The plugin derives the key
-identifier published in the bundle as `sha256:<public key>` (see Section 9).
+Project administrators select a key from the store by name; the plugin never reads key
+material from an arbitrary path. Retain the matching public key; verifiers will need it. The
+plugin derives the key identifier published in the bundle as `sha256:<public key>` (see
+Section 9).
 
 ### 6.2 AWS KMS
 
@@ -133,8 +133,9 @@ The KMS key fields, common to both credentials methods:
 | Field | Required | Meaning |
 |---|---|---|
 | AWS region | No | The region of the KMS key (for example, `us-east-1`). If omitted, the AWS SDK resolves it from the environment (`AWS_REGION`, profile, or instance metadata). |
+| Use FIPS endpoints | No | Use the AWS FIPS endpoints for KMS and STS. Off by default. |
 | KMS key id / ARN | Yes | The asymmetric SIGN_VERIFY key: a key id, alias, or ARN (Amazon Resource Name, the fully qualified identifier of an AWS resource). |
-| Signing algorithm | Yes | Must match the key's specification (for example, `ECDSA_SHA_256` for an `ECC_NIST_P256` key). Supported: ECDSA and RSA (PSS or PKCS#1 v1.5) with SHA-256/384/512. KMS's other specs (SM2, ML-DSA, Ed25519) are not offered. `cosign --key` verifies ECDSA and RSA PKCS#1 v1.5 with SHA-256 (Section 9.2); RSA-PSS and RSA with SHA-384/512 require `openssl` (Section 9.3). |
+| Signing algorithm | Yes | Must match the key's specification (for example, `ECDSA_SHA_256` for an `ECC_NIST_P256` key). Supported: ECDSA and RSA (PSS or PKCS#1 v1.5) with SHA-256/384/512. KMS's other specs (SM2, ML-DSA, Ed25519) are not offered. `cosign --key` verifies `ECDSA_SHA_256` and `RSASSA_PKCS1_V1_5_SHA_256` (Section 9.2); the SHA-384/512 variants and RSA-PSS require `openssl` (Section 9.3). |
 | Credentials | Yes | The credentials method: **default provider chain** or **static access key**. |
 
 **Default provider chain.** Credentials are resolved by the AWS SDK's default *provider chain*:
@@ -150,13 +151,21 @@ No credentials are stored in TeamCity. No further fields.
 
 **GovCloud and other partitions.** Set the region to a partition region (for example
 `us-gov-west-1`) and supply the key as a partition ARN (`arn:aws-us-gov:kms:…`). The SDK resolves
-the KMS and STS endpoints from the region; no endpoint override is needed. The STS endpoint field
-(Section 6.3) is for private/VPC routing, not for reaching a partition.
+the KMS and STS endpoints from the region; no endpoint override is needed.
 
-**FIPS endpoints.** The plugin does not expose a FIPS toggle. Where FIPS-compliant endpoints are
-required, set `AWS_USE_FIPS_ENDPOINT=true` (or `use_fips_endpoint=true` in the AWS profile) in the
-TeamCity **server's** environment; the SDK then selects the `-fips` KMS and STS endpoints for the
-configured region.
+**FIPS endpoints.** Enable **Use FIPS endpoints** to address the `-fips` KMS and STS endpoints for
+the configured region. KMS publishes `kms-fips` endpoints in most commercial regions; STS publishes
+`sts-fips` in the US regions, Canada, and GovCloud only. In a region without an `sts-fips` endpoint,
+such as `eu-west-1`, this option works with the default provider chain and the static access key,
+and fails when **Assume an IAM role** is also enabled. Alternatively, set
+`AWS_USE_FIPS_ENDPOINT=true` (or `use_fips_endpoint=true` in the AWS profile) in the TeamCity
+**server's** environment to apply FIPS endpoints server-wide.
+
+**Custom endpoints.** The plugin has no endpoint override fields. For private/VPC routing or
+testing, set the AWS SDK's endpoint variables in the TeamCity **server's** environment (for
+example, `AWS_ENDPOINT_URL_STS` and `AWS_ENDPOINT_URL_KMS`, or the `aws.endpointUrlSts` and
+`aws.endpointUrlKms` JVM system properties). These apply to every AWS SDK client in the server
+process.
 
 ### 6.3 Assume an IAM role (optional)
 
@@ -171,7 +180,6 @@ fields below are ignored.
 | Session name | No | A label for the assumed-role session. Defaults to `teamcity-slsa-signer`. |
 | External id | No | A shared value required by some cross-account role trust policies. |
 | Session duration (s) | No | Lifetime of the temporary credentials, in seconds. |
-| STS endpoint | No | An override for the STS endpoint (regional or VPC). |
 
 ---
 
@@ -195,38 +203,36 @@ Run the build configuration. On successful completion, the build's **Artifacts**
 provenance.sigstore.json
 ```
 
-This is the signed attestation. Download it for verification (Section 9). It is a *Sigstore
-bundle*: a JSON document that carries a *DSSE envelope* (defined below). Verify it with
-`cosign` (Section 9.2), or — for a dependency-free check — with `openssl` after extracting the
-envelope (Section 9.3).
+This is the signed attestation. Download it and verify it with `cosign` (Section 9.2) or
+`openssl` (Section 9.3).
 
 ---
 
 ## 9. Verify the provenance
 
-Verification answers two questions: *was the record altered?* and *who signed it?* It
-requires the attestation file and the signer's public key.
+Verification requires the attestation file and the signer's public key.
 
 Obtaining the public key:
 
 - **Server key signer:** use the public key you retained when configuring the signer.
-- **AWS KMS signers:** export the key once with
-  `aws kms get-public-key --key-id <id>` and save it as a PEM file.
+- **AWS KMS signers:** export the key once. `get-public-key` returns DER in a JSON field, so
+  convert it to PEM:
+
+  ```bash
+  aws kms get-public-key --key-id <id> --output text --query PublicKey \
+    | base64 -d | openssl pkey -pubin -inform DER -outform PEM > pub.pem
+  ```
 
 ### 9.1 Concepts
 
 - **DSSE envelope (Dead Simple Signing Envelope):** a JSON structure with three fields:
   `payload` (the record, encoded in Base64), `payloadType` (a label identifying the record
   format), and `signatures` (one or more signatures over the payload).
-- **Base64:** a reversible text encoding of arbitrary bytes using only printable
-  characters, so binary data can be embedded in JSON.
-- **Payload:** once Base64-decoded, the human-readable provenance record (an *in-toto
-  Statement*; see the glossary).
-- **PAE (Pre-Authentication Encoding):** the exact byte sequence that was actually signed.
-  It is not the file as stored, nor the payload alone; it is a defined concatenation of the
-  payload type and payload, each prefixed by its length. The length prefixes make the
-  encoding unambiguous, which prevents an attacker from reinterpreting the boundary between
-  fields. Verification must reconstruct this sequence precisely.
+- **Payload:** once Base64-decoded, the provenance record (an *in-toto Statement*; see the
+  glossary).
+- **PAE (Pre-Authentication Encoding):** the exact byte sequence that was signed — not the file
+  as stored, nor the payload alone, but a defined concatenation of the payload type and payload,
+  each prefixed by its length. Verification must reconstruct it precisely (Section 9.3).
 - **Key identifier:** an identifier of the signing key, carried in the bundle as
   `verificationMaterial.publicKey.hint`. For the server key it is `sha256:<public key>` (a
   fingerprint you can recompute from the public key to confirm the match); for AWS KMS it is
@@ -263,16 +269,17 @@ Expected output: `Verified OK`. The flags are not optional:
 cosign trusts the key you supply with `--key`; the bundle's `publicKey.hint` (the signer's key
 id) is informational only. Establish trust in that key out of band (Section 9.4).
 
-**Algorithm support.** `cosign --key` infers the scheme from the key: ECDSA uses the curve's hash
-(P-256/384/521 → SHA-256/384/512); RSA is treated as PKCS#1 v1.5 with SHA-256. It verifies ECDSA,
-RSA PKCS#1 v1.5 with SHA-256, and Ed25519 (KMS: `ECDSA_SHA_256/384/512`, `RSASSA_PKCS1_V1_5_SHA_256`).
-RSA-PSS and RSA with SHA-384/512 are not verifiable this way; use `openssl` (Section 9.3).
+**Algorithm support.** `cosign --key` uses SHA-256 for every ECDSA key, whatever the curve, and
+treats RSA as PKCS#1 v1.5 with SHA-256. It verifies ECDSA P-256, RSA PKCS#1 v1.5 with SHA-256, and
+Ed25519 (KMS: `ECDSA_SHA_256`, `RSASSA_PKCS1_V1_5_SHA_256`). A P-384 or P-521 server key, which this
+plugin signs with the curve-matched SHA-384 or SHA-512, and the KMS `ECDSA_SHA_384/512`,
+`RSASSA_PSS_*` and `RSASSA_PKCS1_V1_5_SHA_384/512` algorithms are not verifiable this way; use
+`openssl` (Section 9.3).
 
 ### 9.3 Verify with openssl
 
-A dependency-free alternative to cosign, using standard `python3` and `openssl`. The DSSE
-envelope lives inside the bundle under `dsseEnvelope`; extract it first, then verify the
-signature over the *PAE* (the exact signed bytes).
+An alternative to cosign, using `python3` and `openssl`. The DSSE envelope lives inside the
+bundle under `dsseEnvelope`; extract it first, then verify the signature over the *PAE*.
 
 **Step 1 — extract the envelope, reconstruct the signed bytes, and read the signature.**
 

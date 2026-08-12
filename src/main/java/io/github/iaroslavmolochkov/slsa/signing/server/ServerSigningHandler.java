@@ -12,14 +12,16 @@ import org.springframework.stereotype.Component;
 import java.security.GeneralSecurityException;
 import java.security.Signature;
 
-/** Signs the DSSE PAE with the PEM private key read from the server-side path in the feature config; stateless. */
+/** Signs the DSSE PAE with the named PEM private key from the server key store; stateless. */
 @Component
 public class ServerSigningHandler implements SigningHandler {
 
+    private final ServerKeyStore keyStore;
     private final ServerKeyParser keyParser;
     private final DsseService dsse;
 
-    public ServerSigningHandler(ServerKeyParser keyParser, DsseService dsse) {
+    public ServerSigningHandler(ServerKeyStore keyStore, ServerKeyParser keyParser, DsseService dsse) {
+        this.keyStore = keyStore;
         this.keyParser = keyParser;
         this.dsse = dsse;
     }
@@ -31,7 +33,7 @@ public class ServerSigningHandler implements SigningHandler {
 
     @Override
     public DsseEnvelope sign(SigningContext context, byte[] payload) {
-        ServerKey key = keyParser.fromPath(context.get(SlsaParams.SERVER_PRIVATE_KEY_PATH));
+        ServerKey key = keyParser.parse(keyStore.read(context.get(SlsaParams.SERVER_KEY_NAME)));
         byte[] pae = dsse.pae(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload);
 
         try {

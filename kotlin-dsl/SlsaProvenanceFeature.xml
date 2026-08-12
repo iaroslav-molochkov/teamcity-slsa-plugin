@@ -20,9 +20,10 @@
       </description>
 
       <option name="serverKey" value="server">
-        <param name="slsa.server.privateKeyPath" dslName="privateKeyPath" type="string" mandatory="true">
+        <param name="slsa.server.keyName" dslName="keyName" type="string" mandatory="true">
           <description>
-            Absolute path to a PEM private key on the server (EC, RSA, or Ed25519; PKCS#8 for any, plus PKCS#1/SEC1 for RSA/EC).
+            File name of a PEM private key in the server key store, "system/pluginData/slsa/keys" under the
+            TeamCity data directory (EC, RSA, or Ed25519; PKCS#8 for any, plus PKCS#1/SEC1 for RSA/EC).
           </description>
         </param>
       </option>
@@ -32,6 +33,11 @@
           <description>
             KMS key region (e.g. us-east-1). Optional: when omitted, the AWS SDK resolves the region
             from the environment (AWS_REGION, profile, or instance metadata).
+          </description>
+        </param>
+        <param name="slsa.aws.useFipsEndpoints" dslName="useFipsEndpoints" type="boolean" trueValue="true" falseValue="">
+          <description>
+            Use the AWS FIPS endpoints for KMS and STS. Off by default.
           </description>
         </param>
         <param name="slsa.kms.keyId" dslName="keyId" type="string" mandatory="true">
@@ -93,12 +99,6 @@
         Temporary-credential lifetime, in seconds.
       </description>
     </param>
-    <param name="slsa.aws.stsEndpoint" dslName="stsEndpoint" type="string">
-      <description>
-        STS endpoint override (regional or VPC).
-      </description>
-    </param>
-
     <param name="slsa.failBuildOnError" dslName="failBuildOnError" type="boolean" trueValue="true" falseValue="">
       <description>
         Fail the build when provenance cannot be produced. Off by default (logs a warning).
@@ -172,12 +172,12 @@
     </example>
     <example>
       <description>
-        Sign with a PEM private key stored on the TeamCity server.
+        Sign with a PEM private key from the server key store.
       </description>
       <code>
         slsaProvenance {
             signer = serverKey {
-                privateKeyPath = "/etc/teamcity/slsa/signing-key.pem"
+                keyName = "signing-key.pem"
             }
         }
       </code>

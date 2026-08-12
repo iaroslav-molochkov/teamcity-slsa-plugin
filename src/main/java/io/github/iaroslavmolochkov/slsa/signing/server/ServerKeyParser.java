@@ -13,14 +13,14 @@ import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.math.ec.FixedPointCombMultiplier;
+import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -44,18 +44,6 @@ public class ServerKeyParser {
         this.sha256 = sha256;
     }
 
-    public ServerKey fromPath(String path) {
-        String pem;
-
-        try {
-            pem = Files.readString(Path.of(path));
-        } catch (IOException | RuntimeException e) {
-            throw new InvalidServerKeyException("could not read key file: " + path, e);
-        }
-
-        return parse(pem);
-    }
-
     public ServerKey parse(String pem) {
         PrivateKey privateKey = readPrivateKey(pem);
         PublicKey publicKey = derivePublicKey(privateKey);
@@ -66,19 +54,24 @@ public class ServerKeyParser {
 
     private PrivateKey readPrivateKey(String pem) {
         try (PEMParser parser = new PEMParser(new StringReader(pem))) {
-            Object object = parser.readObject();
+            PrivateKeyInfo info = null;
+            Object object;
 
-            if (object == null) {
-                throw new InvalidServerKeyException("no PEM private key found");
+            while (info == null && (object = parser.readObject()) != null) {
+                info = switch (object) {
+                    case PEMKeyPair keyPair -> keyPair.getPrivateKeyInfo();
+                    case PrivateKeyInfo pkcs8 -> pkcs8;
+                    case PEMEncryptedKeyPair ignored ->
+                            throw new InvalidServerKeyException("encrypted keys are not supported");
+                    case PKCS8EncryptedPrivateKeyInfo ignored ->
+                            throw new InvalidServerKeyException("encrypted keys are not supported");
+                    default -> null;
+                };
             }
 
-            PrivateKeyInfo info = switch (object) {
-                case PEMKeyPair keyPair -> keyPair.getPrivateKeyInfo();
-                case PrivateKeyInfo pkcs8 -> pkcs8;
-                default -> throw new InvalidServerKeyException(
-                        "unsupported PEM object: " + object.getClass().getSimpleName()
-                                + " (encrypted keys are not supported)");
-            };
+            if (info == null) {
+                throw new InvalidServerKeyException("no PEM private key found");
+            }
 
             String algorithm = keyAlgorithm(info.getPrivateKeyAlgorithm().getAlgorithm());
 

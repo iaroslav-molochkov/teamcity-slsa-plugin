@@ -18,14 +18,15 @@ import java.util.Set;
 @Component
 public class SlsaBuildFeature extends BuildFeature {
 
-    private static final Set<String> SERVER_PARAMS = Set.of(SlsaParams.SERVER_PRIVATE_KEY_PATH);
+    private static final Set<String> SERVER_PARAMS = Set.of(SlsaParams.SERVER_KEY_NAME);
     private static final Set<String> KMS_PARAMS = Set.of(
-            SlsaParams.REGION, SlsaParams.KMS_KEY_ID, SlsaParams.SIGNING_ALGORITHM, SlsaParams.CREDENTIALS);
+            SlsaParams.REGION, SlsaParams.USE_FIPS_ENDPOINTS, SlsaParams.KMS_KEY_ID,
+            SlsaParams.SIGNING_ALGORITHM, SlsaParams.CREDENTIALS);
     private static final Set<String> STATIC_PARAMS = Set.of(
             SlsaParams.ACCESS_KEY_ID, SlsaParams.SECRET_ACCESS_KEY);
     private static final Set<String> ROLE_PARAMS = Set.of(
             SlsaParams.ASSUME_ROLE_ENABLED, SlsaParams.ASSUME_ROLE_ARN, SlsaParams.ASSUME_ROLE_SESSION_NAME,
-            SlsaParams.ASSUME_ROLE_EXTERNAL_ID, SlsaParams.ASSUME_ROLE_DURATION_SECONDS, SlsaParams.STS_ENDPOINT);
+            SlsaParams.ASSUME_ROLE_EXTERNAL_ID, SlsaParams.ASSUME_ROLE_DURATION_SECONDS);
 
     private final String editUrl;
     private final ParameterValidator parameterValidator;

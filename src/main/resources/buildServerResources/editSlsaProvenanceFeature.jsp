@@ -42,12 +42,18 @@
 </tr>
 
 <tr class="slsa-server">
-  <th><label for="slsa.server.privateKeyPath">Private key file: <l:star/></label></th>
+  <th><label for="slsa.server.keyName">Signing key: <l:star/></label></th>
   <td>
-    <props:textProperty name="slsa.server.privateKeyPath" className="longField"/>
-    <span class="error" id="error_slsa.server.privateKeyPath"></span>
-    <span class="smallNote">Absolute path to a PEM private key on the server (EC, RSA, or Ed25519; PKCS#8 for
-      any, plus PKCS#1/SEC1 for RSA/EC), readable only by the server process</span>
+    <props:selectProperty name="slsa.server.keyName" className="mediumField">
+      <props:option value="">-- Select key --</props:option>
+      <c:forEach var="keyName" items="${serverKeyNames}">
+        <props:option value="${keyName}"><c:out value="${keyName}"/></props:option>
+      </c:forEach>
+    </props:selectProperty>
+    <span class="error" id="error_slsa.server.keyName"></span>
+    <span class="smallNote">PEM private key from the server key store,
+      <code>&lt;TeamCity data directory&gt;/system/pluginData/slsa/keys</code> (EC, RSA, or Ed25519; PKCS#8 for
+      any, plus PKCS#1/SEC1 for RSA/EC). Place key files there, readable only by the server process</span>
   </td>
 </tr>
 
@@ -58,6 +64,15 @@
     <span class="error" id="error_slsa.aws.region"></span>
     <span class="smallNote">KMS key region (e.g. <code>us-east-1</code>). Optional: when blank, the AWS SDK resolves
       the region from the environment (<code>AWS_REGION</code>, profile, or instance metadata)</span>
+  </td>
+</tr>
+
+<tr class="slsa-kms">
+  <th><label for="slsa.aws.useFipsEndpoints">Use FIPS endpoints:</label></th>
+  <td>
+    <props:checkboxProperty name="slsa.aws.useFipsEndpoints"/>
+    <span class="smallNote">Use the AWS FIPS endpoints for KMS and STS. Available in US and Canada
+      commercial regions and GovCloud; the SDK fails on regions without a FIPS endpoint</span>
   </td>
 </tr>
 
@@ -149,14 +164,6 @@
   <td>
     <props:textProperty name="slsa.aws.assumeRole.durationSeconds" className="mediumField"/>
     <span class="error" id="error_slsa.aws.assumeRole.durationSeconds"></span>
-  </td>
-</tr>
-
-<tr class="slsa-assume">
-  <th><label for="slsa.aws.stsEndpoint">STS endpoint:</label></th>
-  <td>
-    <props:textProperty name="slsa.aws.stsEndpoint" className="longField"/>
-    <span class="smallNote">STS endpoint override (regional or VPC)</span>
   </td>
 </tr>
 

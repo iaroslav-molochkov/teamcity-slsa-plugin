@@ -21,7 +21,7 @@ public class AwsKmsConnectionKey {
     private static final byte ASSUME_ROLE = 2;
     private static final byte ROLE_ARN = 3;
     private static final byte EXTERNAL_ID = 4;
-    private static final byte STS_ENDPOINT = 5;
+    private static final byte USE_FIPS = 5;
     private static final byte CREDENTIALS = 6;
     private static final byte ACCESS_KEY_ID = 7;
     private static final byte SECRET = 8;
@@ -31,6 +31,9 @@ public class AwsKmsConnectionKey {
         stream.putString(context.signerType().value());
 
         put(stream, REGION, context.get(SlsaParams.REGION));
+
+        stream.putByte(USE_FIPS);
+        stream.putBoolean(AwsKmsSigningHandler.useFipsEndpoints(context));
 
         CredentialsType source = context.credentialsType();
         put(stream, CREDENTIALS, source == null ? null : source.value());
@@ -46,7 +49,6 @@ public class AwsKmsConnectionKey {
         if (context.assumeRole()) {
             put(stream, ROLE_ARN, context.get(SlsaParams.ASSUME_ROLE_ARN));
             put(stream, EXTERNAL_ID, context.get(SlsaParams.ASSUME_ROLE_EXTERNAL_ID));
-            put(stream, STS_ENDPOINT, context.get(SlsaParams.STS_ENDPOINT));
         }
 
         HashValue128 hash = stream.get();

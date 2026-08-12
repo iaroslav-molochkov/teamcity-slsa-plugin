@@ -13,7 +13,7 @@ provenance) together with this non-forgeability mechanism. Full L3 additionally 
 isolation from the build infrastructure and complete `externalParameters`, which are beyond the
 plugin's claims — see the build type document's [SLSA level](docs/buildtype/v1.md#slsa-level) section.
 
-Signing can use **AWS KMS** (the key never leaves KMS) or a **PEM private key on the server's disk**.
+Signing can use **AWS KMS** (the key never leaves KMS) or a **PEM private key from the server key store**.
 
 ## How it works
 
@@ -42,7 +42,7 @@ Pick a **Signer**; the form then shows only the relevant fields.
 | Signer | Key location | Notes |
 | --- | --- | --- |
 | **AWS KMS** | AWS KMS | Sign with a KMS key. Pick a **Credentials** method below. Recommended. |
-| **Server key** | PEM file on the server | Absolute path to an EC, RSA, or Ed25519 PEM (PKCS#8 for any; PKCS#1/SEC1 for RSA/EC). |
+| **Server key** | PEM file in the server key store | An EC, RSA, or Ed25519 PEM (PKCS#8 for any; PKCS#1/SEC1 for RSA/EC) placed in `<data dir>/system/pluginData/slsa/keys` and selected by name. |
 
 For the AWS KMS signer, pick a **Credentials** method (how the server authenticates to AWS):
 
@@ -78,7 +78,7 @@ slsaProvenance {
 }
 ```
 
-For the server-key signer, use `signer = serverKey { privateKeyPath = "/etc/teamcity/slsa/signing-key.pem" }`.
+For the server-key signer, use `signer = serverKey { keyName = "signing-key.pem" }`.
 The untyped `feature { type = "slsa.provenance"; param(...) }` form also works.
 
 ### Credentials, caching, and assume-role

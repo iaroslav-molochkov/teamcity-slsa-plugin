@@ -13,9 +13,10 @@ public final class SlsaParams {
     public static final String SIGNER_SERVER = "server";
     public static final String SIGNER_AWS_KMS = "aws-kms";
 
-    public static final String SERVER_PRIVATE_KEY_PATH = "slsa.server.privateKeyPath";
+    public static final String SERVER_KEY_NAME = "slsa.server.keyName";
 
     public static final String REGION = "slsa.aws.region";
+    public static final String USE_FIPS_ENDPOINTS = "slsa.aws.useFipsEndpoints";
     public static final String KMS_KEY_ID = "slsa.kms.keyId";
     public static final String SIGNING_ALGORITHM = "slsa.kms.signingAlgorithm";
 
@@ -31,8 +32,6 @@ public final class SlsaParams {
     public static final String ASSUME_ROLE_SESSION_NAME = "slsa.aws.assumeRole.sessionName";
     public static final String ASSUME_ROLE_EXTERNAL_ID = "slsa.aws.assumeRole.externalId";
     public static final String ASSUME_ROLE_DURATION_SECONDS = "slsa.aws.assumeRole.durationSeconds";
-
-    public static final String STS_ENDPOINT = "slsa.aws.stsEndpoint";
 
     public static final String DEFAULT_SESSION_NAME = "teamcity-slsa-signer";
 

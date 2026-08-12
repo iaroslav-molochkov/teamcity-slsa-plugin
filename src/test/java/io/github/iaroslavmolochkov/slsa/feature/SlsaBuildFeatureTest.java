@@ -40,13 +40,13 @@ class SlsaBuildFeatureTest {
     void serverSignerStripsAllAwsParameters() {
         Map<String, String> result = normalize(Map.of(
                 SlsaParams.SIGNER, SlsaParams.SIGNER_SERVER,
-                SlsaParams.SERVER_PRIVATE_KEY_PATH, "/key.pem",
+                SlsaParams.SERVER_KEY_NAME, "key.pem",
                 SlsaParams.SIGNING_ALGORITHM, "RSASSA_PSS_SHA_256",
                 SlsaParams.REGION, "us-east-1",
                 SlsaParams.ACCESS_KEY_ID, "AKIA",
                 SlsaParams.ASSUME_ROLE_ENABLED, "false"));
 
-        assertEquals("/key.pem", result.get(SlsaParams.SERVER_PRIVATE_KEY_PATH));
+        assertEquals("key.pem", result.get(SlsaParams.SERVER_KEY_NAME));
         assertFalse(result.containsKey(SlsaParams.SIGNING_ALGORITHM), "leftover KMS algorithm must be dropped");
         assertFalse(result.containsKey(SlsaParams.REGION));
         assertFalse(result.containsKey(SlsaParams.ACCESS_KEY_ID));
@@ -59,14 +59,14 @@ class SlsaBuildFeatureTest {
                 SlsaParams.SIGNER, SlsaParams.SIGNER_AWS_KMS,
                 SlsaParams.CREDENTIALS, SlsaParams.CREDENTIALS_DEFAULT,
                 SlsaParams.KMS_KEY_ID, "k", SlsaParams.SIGNING_ALGORITHM, "ECDSA_SHA_256",
-                SlsaParams.SERVER_PRIVATE_KEY_PATH, "/leftover.pem",
+                SlsaParams.SERVER_KEY_NAME, "leftover.pem",
                 SlsaParams.ACCESS_KEY_ID, "AKIA",
                 SlsaParams.ASSUME_ROLE_ENABLED, "false", SlsaParams.ASSUME_ROLE_ARN, "arn:leftover"));
 
         assertTrue(result.containsKey(SlsaParams.KMS_KEY_ID));
         assertTrue(result.containsKey(SlsaParams.SIGNING_ALGORITHM));
         assertTrue(result.containsKey(SlsaParams.CREDENTIALS));
-        assertFalse(result.containsKey(SlsaParams.SERVER_PRIVATE_KEY_PATH));
+        assertFalse(result.containsKey(SlsaParams.SERVER_KEY_NAME));
         assertFalse(result.containsKey(SlsaParams.ACCESS_KEY_ID), "static keys are irrelevant to the default chain");
         assertFalse(result.containsKey(SlsaParams.ASSUME_ROLE_ARN), "role fields dropped when role is disabled");
     }

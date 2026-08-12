@@ -29,7 +29,6 @@ import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
-import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -93,17 +92,22 @@ public class AwsKmsSigningHandler implements SigningHandler {
 
     private SignerClient buildClient(SigningContext context) {
         String region = context.get(SlsaParams.REGION);
+        boolean fips = useFipsEndpoints(context);
         SdkHttpClient httpClient = UrlConnectionHttpClient.create();
         List<AutoCloseable> closeables = new ArrayList<>();
         closeables.add(httpClient);
         AwsCredentialsProvider provider = baseProvider(context, httpClient, closeables);
 
         if (context.assumeRole()) {
-            provider = assumeRole(context, region, httpClient, provider, closeables);
+            provider = assumeRole(context, region, fips, httpClient, provider, closeables);
         }
 
-        KmsClient kms = client(region, httpClient, provider);
+        KmsClient kms = client(region, fips, httpClient, provider);
         return new SignerClient(kms, closeables);
+    }
+
+    static boolean useFipsEndpoints(SigningContext context) {
+        return Boolean.parseBoolean(context.get(SlsaParams.USE_FIPS_ENDPOINTS));
     }
 
     private AwsCredentialsProvider baseProvider(SigningContext context, SdkHttpClient httpClient,
@@ -117,8 +121,9 @@ public class AwsKmsSigningHandler implements SigningHandler {
         return factory.create(context, httpClient, closeables);
     }
 
-    private AwsCredentialsProvider assumeRole(SigningContext context, String region, SdkHttpClient httpClient,
-                                             AwsCredentialsProvider base, List<AutoCloseable> closeables) {
+    private AwsCredentialsProvider assumeRole(SigningContext context, String region, boolean fips,
+                                             SdkHttpClient httpClient, AwsCredentialsProvider base,
+                                             List<AutoCloseable> closeables) {
         StsClientBuilder stsBuilder = StsClient.builder()
                 .httpClient(httpClient)
                 .credentialsProvider(base);
@@ -127,10 +132,8 @@ public class AwsKmsSigningHandler implements SigningHandler {
             stsBuilder.region(Region.of(region));
         }
 
-        String stsEndpoint = context.get(SlsaParams.STS_ENDPOINT);
-
-        if (stsEndpoint != null) {
-            stsBuilder.endpointOverride(URI.create(stsEndpoint));
+        if (fips) {
+            stsBuilder.fipsEnabled(true);
         }
 
         StsClient sts = stsBuilder.build();
@@ -161,13 +164,17 @@ public class AwsKmsSigningHandler implements SigningHandler {
         return provider;
     }
 
-    private KmsClient client(String region, SdkHttpClient httpClient, AwsCredentialsProvider provider) {
+    private KmsClient client(String region, boolean fips, SdkHttpClient httpClient, AwsCredentialsProvider provider) {
         KmsClientBuilder builder = KmsClient.builder()
                 .httpClient(httpClient)
                 .credentialsProvider(provider);
 
         if (region != null) {
             builder.region(Region.of(region));
+        }
+
+        if (fips) {
+            builder.fipsEnabled(true);
         }
 
         return builder.build();

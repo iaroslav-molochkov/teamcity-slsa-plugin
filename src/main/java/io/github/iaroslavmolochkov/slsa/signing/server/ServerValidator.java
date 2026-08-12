@@ -7,16 +7,17 @@ import io.github.iaroslavmolochkov.slsa.signing.Validator;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import org.springframework.stereotype.Component;
 
-import java.nio.file.Path;
 import java.util.List;
 
-/** Validates the server signer: the configured path must point to a readable, usable EC, RSA, or Ed25519 PEM key. */
+/** Validates the server signer: the named key must exist in the server key store and parse as a usable PEM key. */
 @Component
 public class ServerValidator implements Validator {
 
+    private final ServerKeyStore keyStore;
     private final ServerKeyParser keyParser;
 
-    public ServerValidator(ServerKeyParser keyParser) {
+    public ServerValidator(ServerKeyStore keyStore, ServerKeyParser keyParser) {
+        this.keyStore = keyStore;
         this.keyParser = keyParser;
     }
 
@@ -27,23 +28,19 @@ public class ServerValidator implements Validator {
 
     @Override
     public List<InvalidProperty> validate(SigningContext context) {
-        String path = context.get(SlsaParams.SERVER_PRIVATE_KEY_PATH);
+        String name = context.get(SlsaParams.SERVER_KEY_NAME);
 
-        if (path == null) {
-            return List.of(new InvalidProperty(SlsaParams.SERVER_PRIVATE_KEY_PATH,
-                    "A path to a PEM private key file on the server is required"));
+        if (name == null) {
+            return List.of(new InvalidProperty(SlsaParams.SERVER_KEY_NAME,
+                    "A signing key from the server key store is required"));
         }
 
         try {
-            if (!Path.of(path).isAbsolute()) {
-                return List.of(new InvalidProperty(SlsaParams.SERVER_PRIVATE_KEY_PATH,
-                        "The key file path must be absolute"));
-            }
-            keyParser.fromPath(path);
+            keyParser.parse(keyStore.read(name));
             return List.of();
         } catch (RuntimeException e) {
-            return List.of(new InvalidProperty(SlsaParams.SERVER_PRIVATE_KEY_PATH,
-                    "Cannot read a usable EC, RSA, or Ed25519 private key from " + path + ": " + e.getMessage()));
+            return List.of(new InvalidProperty(SlsaParams.SERVER_KEY_NAME,
+                    "Cannot load a usable EC, RSA, or Ed25519 private key: " + e.getMessage()));
         }
     }
 }
