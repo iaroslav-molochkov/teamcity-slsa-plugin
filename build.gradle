@@ -16,12 +16,16 @@ tasks.withType(JavaCompile).configureEach {
     options.release = 21
 }
 
+configurations.server {
+    exclude group: 'software.amazon.awssdk', module: 'netty-nio-client'
+}
+
 dependencies {
     server platform('software.amazon.awssdk:bom:2.41.24')
     server('software.amazon.awssdk:kms') { exclude group: 'org.slf4j' }
     server('software.amazon.awssdk:sts') { exclude group: 'org.slf4j' }
     server('software.amazon.awssdk:auth') { exclude group: 'org.slf4j' }
-    server('software.amazon.awssdk:url-connection-client') { exclude group: 'org.slf4j' }
+    server('software.amazon.awssdk:apache-client') { exclude group: 'org.slf4j' }
     server 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     server 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     server 'com.dynatrace.hash4j:hash4j:0.28.0'
@@ -35,7 +39,7 @@ dependencies {
     compileOnly 'software.amazon.awssdk:kms'
     compileOnly 'software.amazon.awssdk:sts'
     compileOnly 'software.amazon.awssdk:auth'
-    compileOnly 'software.amazon.awssdk:url-connection-client'
+    compileOnly 'software.amazon.awssdk:apache-client'
     compileOnly 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     compileOnly 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     compileOnly 'com.dynatrace.hash4j:hash4j:0.28.0'

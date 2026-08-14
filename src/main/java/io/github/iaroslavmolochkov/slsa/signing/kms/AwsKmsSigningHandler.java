@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpClient;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.KmsClientBuilder;
@@ -93,7 +93,7 @@ public class AwsKmsSigningHandler implements SigningHandler {
     private SignerClient buildClient(SigningContext context) {
         String region = context.get(SlsaParams.REGION);
         boolean fips = useFipsEndpoints(context);
-        SdkHttpClient httpClient = UrlConnectionHttpClient.create();
+        SdkHttpClient httpClient = ApacheHttpClient.create();
         List<AutoCloseable> closeables = new ArrayList<>();
         closeables.add(httpClient);
         AwsCredentialsProvider provider = baseProvider(context, httpClient, closeables);
