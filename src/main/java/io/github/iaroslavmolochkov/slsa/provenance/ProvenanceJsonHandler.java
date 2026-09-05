@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 public class ProvenanceJsonHandler {
 
     private static final ObjectMapper mapper = new ObjectMapper()
-            .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
+            .setDefaultPropertyInclusion(JsonInclude.Include.NON_EMPTY)
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
 
     public byte[] toBytes(Object value) {

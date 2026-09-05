@@ -27,7 +27,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** Orchestrates provenance for a finished build: validate, hash, build, sign, publish. */
+/**
+ * Orchestrates provenance for a finished build: validate, hash, build, sign,
+ * publish.
+ */
 @Component
 public class ProvenanceService {
 
@@ -46,13 +49,13 @@ public class ProvenanceService {
     private final Sha256Handler sha256;
 
     public ProvenanceService(ParameterValidator parameterValidator,
-                             ArtifactHasher hasher,
-                             ProvenanceBuilder provenanceBuilder,
-                             ProvenanceJsonHandler provenanceJsonHandler,
-                             SigningService signingService,
-                             SigstoreBundleService sigstoreBundleService,
-                             ProvenancePublisher publisher,
-                             Sha256Handler sha256) {
+            ArtifactHasher hasher,
+            ProvenanceBuilder provenanceBuilder,
+            ProvenanceJsonHandler provenanceJsonHandler,
+            SigningService signingService,
+            SigstoreBundleService sigstoreBundleService,
+            ProvenancePublisher publisher,
+            Sha256Handler sha256) {
         this.parameterValidator = parameterValidator;
         this.hasher = hasher;
         this.provenanceBuilder = provenanceBuilder;
@@ -121,10 +124,9 @@ public class ProvenanceService {
         byte[] bundle = provenanceJsonHandler.toBytes(sigstoreBundleService.bundle(envelope));
         String signerId = context.signerType().value();
 
-        if (publisher.publish(build, bundle, metadata(envelope, signerId, bundle))) {
-            log.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
-                    + subjects.size() + " subject(s)) via '" + signerId + "' signer");
-        }
+        publisher.publish(build, bundle, metadata(envelope, signerId, bundle));
+        log.info("SLSA: signed provenance for build " + build.getBuildId() + " ("
+                + subjects.size() + " subject(s)) via '" + signerId + "' signer");
     }
 
     private void reportError(SRunningBuild build, SigningContext context, String reason) {
