@@ -248,32 +248,43 @@ plugin signs with the curve-matched SHA-384 or SHA-512, and the KMS `ECDSA_SHA_3
 
 ### 9.3 Verify with openssl
 
-An alternative to cosign, using `python3` and `openssl`. The DSSE envelope lives inside the
-bundle under `dsseEnvelope`; extract it first, then verify the signature over the *PAE*.
+OpenSSL verifies the signature. Use Python 3 to extract it from the bundle and reconstruct
+the DSSE signed bytes (PAE).
 
-**Step 1 — extract the envelope, reconstruct the signed bytes, and read the signature.**
+**Step 1 — prepare the files.**
 
-The PAE is `DSSEv1`, then the length of the payload type, then the payload type, then the
-length of the payload, then the payload, all separated by single spaces. The lengths count the
-bytes of the payload type and decoded payload, respectively.
+Python script example (e.g. `extract.py`):
 
-```bash
-F="provenance.sigstore.json"
-python3 -c "
-import json, base64
-b = json.load(open('$F'))
-e = b['dsseEnvelope']
-payload = base64.b64decode(e['payload'])
-pt = e['payloadType'].encode()
-pae = b'DSSEv1 ' + str(len(pt)).encode() + b' ' + pt + b' ' + str(len(payload)).encode() + b' ' + payload
-open('pae.bin','wb').write(pae)
-open('sig.bin','wb').write(base64.b64decode(e['signatures'][0]['sig']))
-print('keyid:', b['verificationMaterial']['publicKey']['hint'])
-"
+```python
+import base64
+import json
+from pathlib import Path
+
+bundle = json.loads(Path("provenance.sigstore.json").read_text())
+envelope = bundle["dsseEnvelope"]
+payload_type = envelope["payloadType"].encode("utf-8")
+payload = base64.b64decode(envelope["payload"])
+
+pae = b" ".join([
+    b"DSSEv1",
+    str(len(payload_type)).encode(),
+    payload_type,
+    str(len(payload)).encode(),
+    payload,
+])
+
+Path("pae.bin").write_bytes(pae)
+Path("sig.bin").write_bytes(base64.b64decode(envelope["signatures"][0]["sig"]))
+print("Key identifier:", bundle["verificationMaterial"]["publicKey"]["hint"])
 ```
 
-This writes `pae.bin` (the signed bytes) and `sig.bin` (the signature), and prints the key
-identifier the bundle states.
+Run it once:
+
+```bash
+python3 extract.py
+```
+
+This creates `pae.bin` and `sig.bin` for the commands below and prints the bundle's key identifier.
 
 **Step 2 — verify the signature against the public key.**
 
@@ -336,7 +347,7 @@ appears as a subject digest:
 
 ```bash
 shasum -a 256 dist/app.jar
-python3 -c "import json,base64; print('\n'.join(s['digest']['sha256'] for s in json.loads(base64.b64decode(json.load(open('$F'))['dsseEnvelope']['payload']))['subject']))"
+python3 -c "import json,base64; print('\n'.join(s['digest']['sha256'] for s in json.loads(base64.b64decode(json.load(open('provenance.sigstore.json'))['dsseEnvelope']['payload']))['subject']))"
 ```
 
 The artifact's digest must be among the printed subject digests. A signature that verifies but
