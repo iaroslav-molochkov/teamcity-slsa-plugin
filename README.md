@@ -1,125 +1,60 @@
-# teamcity-slsa-plugin
+# TeamCity SLSA Plugin
 
-A **server-side** TeamCity plugin that generates [SLSA v1.2](https://slsa.dev/spec/v1.2/build-provenance) build provenance for a
-build's artifacts and signs it as a [DSSE](https://github.com/secure-systems-lab/dsse) envelope. The
-signed attestation is published back onto the build as a downloadable artifact.
+A TeamCity server plugin that generates [SLSA v1.2 build provenance](https://slsa.dev/spec/v1.2/build-provenance)
+for build artifacts. It signs the provenance with AWS KMS or a PEM private key stored on the server
+and publishes it as `provenance.sigstore.json`, a Sigstore bundle containing a DSSE envelope.
 
-Everything happens on the TeamCity **server**: artifacts are read via the server `BuildArtifacts`
-API, and signing is performed server-side with a key the build agents never see. Because the
-provenance is produced by the platform — not the build steps — and signed with a key the build never
-sees, the build cannot forge its own attestation. This is the signing-material isolation that SLSA
-Build **L3** requires; the plugin provides SLSA Build **L2** (signed, control-plane–generated
-provenance) together with this non-forgeability mechanism. Full L3 additionally requires run
-isolation from the build infrastructure and complete `externalParameters`, which are beyond the
-plugin's claims — see the build type document's [SLSA level](docs/buildtype/v1.md#slsa-level) section.
-
-Signing can use **AWS KMS** (the key never leaves KMS) or a **PEM private key from the server key store**.
+The plugin generates and signs provenance on the server. Signing keys and credentials must be
+kept separate from build agents.
 
 ## How it works
 
-1. Add the **SLSA Provenance Attestation** build feature to a build configuration and choose a signer
-   (see below).
-2. When a build finishes successfully, `ProvenanceService` (driven by `ArtifactProvenanceListener`)
-   orchestrates the steps below.
-3. `ArtifactHasher` reads the build's file artifacts server-side (`VIEW_DEFAULT`) and SHA-256s each.
-4. `ProvenanceBuilder` assembles an in-toto Statement v1 with a SLSA provenance predicate
-   (build type, external/internal parameters, VCS revisions and upstream builds, builder id,
-   timestamps).
-5. The selected `SigningHandler` signs the DSSE PAE (`DsseService`) — for KMS via `kms:Sign`
-   (`MessageType.DIGEST`), for the server key via local crypto — and wraps the result in a DSSE
-   envelope.
-6. `ProvenancePublisher` writes it to the build's artifacts as `provenance.sigstore.json` (a Sigstore
-   bundle, for `cosign verify-blob-attestation`) and indexes its metadata.
+For a successful build with the **SLSA Provenance Attestation** build feature enabled, the plugin:
 
-The output format is defined by the published build-type contract,
-[`docs/buildtype/v1.md`](docs/buildtype/v1.md). For step-by-step setup and verification, see
-[`docs/integration.md`](docs/integration.md).
+1. Computes SHA-256 digests of file artifacts visible in the server's default artifact view.
+2. Records build inputs, dependencies, platform identity, and timestamps.
+3. Signs the provenance and publishes the bundle as a build artifact.
 
-## Configuring the build feature
+Builds without file artifacts produce no attestation.
 
-Pick a **Signer**; the form then shows only the relevant fields.
+## Build and install
 
-| Signer | Key location | Notes |
-| --- | --- | --- |
-| **AWS KMS** | AWS KMS | Sign with a KMS key. Pick a **Credentials** method below. Recommended. |
-| **Server key** | PEM file in the server key store | An EC, RSA, or Ed25519 PEM (PKCS#8 for any; PKCS#1/SEC1 for RSA/EC) placed in `<data dir>/system/pluginData/slsa/keys` and selected by name. |
-
-For the AWS KMS signer, pick a **Credentials** method (how the server authenticates to AWS):
-
-| Credentials | Notes |
-| --- | --- |
-| **Default provider chain** | From the SDK default chain (env/profile/container/instance role on the server). Recommended. |
-| **Static access key** | Long-lived access key id + secret (secret stored encrypted). Least preferred. |
-
-You may additionally enable **Assume an IAM role**: the chosen base credentials are used to assume a
-`kms:Sign`-scoped role via STS, and the temporary credentials perform the signing.
-
-For AWS KMS: **KMS key id / ARN** (an asymmetric `SIGN_VERIFY` key) and **signing
-algorithm** (must match the key spec, e.g. `ECDSA_SHA_256`) are required; **AWS region** is optional
-— when blank, the AWS SDK resolves it from the environment (`AWS_REGION`,
-profile, or instance metadata). **Fail build on error** (off by default) turns a provenance
-failure from a warning into a build failure.
-
-The feature is exported as a typed **Kotlin DSL** extension, so it can be set in a build
-configuration's `features` block in `settings.kts`:
-
-```kotlin
-slsaProvenance {
-    signer = kmsDefaultChain {
-        region = "us-east-1"
-        keyId = "arn:aws:kms:us-east-1:123456789012:key/abcd-…"
-        signingAlgorithm = "ECDSA_SHA_256"
-    }
-    // optional: assume a kms:Sign-scoped role on top of the base credentials
-    assumeRole = true
-    roleArn = "arn:aws:iam::123456789012:role/tc-slsa-signer"
-    // optional: fail the build instead of warning
-    failBuildOnError = true
-}
-```
-
-For the server-key signer, use `signer = serverKey { keyName = "signing-key.pem" }`.
-The untyped `feature { type = "slsa.provenance"; param(...) }` form also works.
-
-### Credentials, caching, and assume-role
-
-KMS credential resolution uses the AWS SDK's own providers. A **base** provider —
-`DefaultCredentialsProvider` or `StaticCredentialsProvider` — is selected by the chosen
-credentials method, and when **Assume an IAM role** is enabled it is wrapped in
-`StsAssumeRoleCredentialsProvider` (which refreshes the STS session internally) layered on that base.
-`KmsClientCache` caches one client per **connection**, keyed (via `AwsKmsConnectionKey`) on a hash of
-the credentials method plus its identity fields (region, credentials identity, assume-role/STS
-settings) — deliberately **not** on the KMS key id or the project. Builds that share a connection
-reuse the client and its refreshed session credentials; evicted clients are closed.
-
-The signing identity should be dedicated and least-privileged, and must not be shared with
-credentials that are injected into build agents.
-
-## Building
+Requires TeamCity 2025.03 (build 186049) or later.
 
 ```bash
 ./gradlew clean test serverPlugin
 ```
 
-Target a different TeamCity API with `-Pteamcity.version=2025.03`. The minimum supported TeamCity version is 2025.03 (build 186049).
+To select the TeamCity API version, pass `-Pteamcity.version=2025.03`.
 
-## Installing
+1. Upload the generated plugin zip under **Administration → Plugins → Upload plugin zip**.
+2. Enable the plugin.
+3. Add **SLSA Provenance Attestation** under the build configuration's **Build Features**.
+4. Configure a signer using the [integration guide](docs/integration.md).
 
-1. Build the zip.
-2. In TeamCity: **Administration → Plugins → Upload plugin zip**.
-3. Enable it (the descriptor allows runtime reload).
-4. Add the **SLSA Provenance Attestation** feature to a build configuration and configure a signer.
+## Kotlin DSL
 
-After a build finishes, the signed attestation appears as the `provenance.sigstore.json` artifact,
-and `SLSA:` summary lines are written to `teamcity-server.log`. To verify it — with `cosign` or
-`openssl` — see [`docs/integration.md`](docs/integration.md) (Section 9).
+The build feature can also be configured in the `features` block of `settings.kts`:
 
-> **Server URL:** the provenance records the platform identity from **Administration → Global
-> Settings → Server URL** (resolved per project, so a project root-URL override changes `builder.id`).
-> Set it to the externally visible address so `builder.id` and `invocationId` are correct.
+```kotlin
+slsaProvenance {
+    signer = awsKms {
+        region = "us-east-1"
+        keyId = "arn:aws:kms:us-east-1:123456789012:key/abcd-…"
+        signingAlgorithm = "ECDSA_SHA_256"
+        credentials = defaultCredentials {}
+    }
+    assumeRole = true
+    roleArn = "arn:aws:iam::123456789012:role/tc-slsa-signer"
+    failBuildOnError = true
+}
+```
 
-## IAM (KMS signers)
+`assumeRole` and `failBuildOnError` are optional. Set `roleArn` when enabling `assumeRole`.
+`failBuildOnError` makes provenance errors fail the build.
+For a server key, use `signer = serverKey { keyName = "signing-key.pem" }`.
 
-The resolved identity needs `kms:Sign` on the key. For assume-role, the base identity needs
-`sts:AssumeRole` on the signing role, and the signing role holds `kms:Sign`. Verifiers fetch the
-public key once via `kms:GetPublicKey` (no permission needed by the plugin itself).
+## Documentation
+
+- [Integration guide](docs/integration.md): signer configuration, permissions, and verification.
+- [Build type v1](docs/buildtype/v1.md): output fields, trust model, and limitations.

@@ -8,11 +8,15 @@ import jetbrains.buildServer.serverSide.metadata.MetadataStorage;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 /**
- * Writes the signed envelope as the {@code provenance.sigstore.json} build artifact (a Sigstore bundle, verifiable
+ * Writes the signed envelope as the {@code provenance.sigstore.json} build
+ * artifact (a Sigstore bundle, verifiable
  * with {@code cosign verify-blob-attestation}) and indexes its metadata.
  */
 @Component
@@ -29,30 +33,46 @@ public class ProvenancePublisher {
     private final MetadataStorage metadataStorage;
 
     public ProvenancePublisher(ArtifactsGuard artifactsGuard,
-                               MetadataStorage metadataStorage) {
+            MetadataStorage metadataStorage) {
         this.artifactsGuard = artifactsGuard;
         this.metadataStorage = metadataStorage;
     }
 
-    public boolean publish(SBuild build, byte[] bundle, Map<String, String> metadata) {
+    public void publish(SBuild build, byte[] bundle, Map<String, String> metadata) {
         File artifactsDir;
 
         try {
             artifactsDir = build.getArtifactsDirectory();
         } catch (Exception e) {
-            log.warnAndDebugDetails("SLSA: artifacts directory unavailable for build " + build.getBuildId(), e);
-            return false;
+            throw new ProvenancePublishingException("Artifacts directory unavailable for build " + build.getBuildId(),
+                    e);
         }
 
-        File target = new File(artifactsDir, ARTIFACT_NAME);
         artifactsGuard.lockWriting(artifactsDir);
 
+        Path dir = artifactsDir.toPath();
+        Path filePath = artifactsDir.toPath().resolve(ARTIFACT_NAME);
+        Path tempPath = null;
+
         try {
-            Files.createDirectories(artifactsDir.toPath());
-            Files.write(target.toPath(), bundle);
+            Files.createDirectories(dir);
+            tempPath = Files.createTempFile(dir, ARTIFACT_NAME, null);
+            Files.write(tempPath, bundle);
+            Files.move(tempPath, filePath, StandardCopyOption.ATOMIC_MOVE);
         } catch (Exception e) {
-            log.warnAndDebugDetails("SLSA: failed to write provenance artifact for build " + build.getBuildId(), e);
-            return false;
+            RuntimeException t = new ProvenancePublishingException(
+                    "Failed to write provenance artifact for build " + build.getBuildId(), e);
+
+            if (tempPath != null) {
+                try {
+                    Files.deleteIfExists(tempPath);
+                } catch (IOException ex) {
+                    t.addSuppressed(ex);
+                    log.warnAndDebugDetails("SLSA: failed to clean up the provenance file", ex);
+                }
+            }
+
+            throw t;
         } finally {
             artifactsGuard.unlockWriting(artifactsDir);
         }
@@ -62,7 +82,5 @@ public class ProvenancePublisher {
         } catch (Exception e) {
             log.warnAndDebugDetails("SLSA: failed to index provenance metadata for build " + build.getBuildId(), e);
         }
-
-        return true;
     }
 }

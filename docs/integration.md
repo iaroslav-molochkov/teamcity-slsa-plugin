@@ -3,25 +3,19 @@
 This guide explains how to configure the plugin to produce signed provenance for a build,
 and how to verify that provenance afterwards. A glossary appears in the final section.
 
-**Author and maintainer:** [Iaroslav Molochkov](https://github.com/iaroslav-molochkov).
-
----
-
 ## 1. Overview
 
 The plugin attaches to a build configuration. When a build finishes successfully, the plugin,
 running on the TeamCity server, performs the following:
 
-1. Computes a cryptographic digest (a fixed-length fingerprint) of each published artifact.
-2. Assembles a structured record describing what was built and how (the *provenance*).
+1. Computes a SHA-256 digest of each file artifact visible in the server's default artifact view.
+2. Records build inputs, dependencies, platform identity, and timestamps in the provenance.
 3. Signs that record with a private key.
 4. Publishes the signed record as the build artifact `provenance.sigstore.json` — a Sigstore
    bundle, verifiable with `cosign`.
 
-The output lets any party later confirm that a given artifact was produced by this build, and
-that the description has not been altered.
-
----
+Consumers can verify the signature and match an artifact to its recorded digest. Trust in the
+build information depends on trust in the signing key and platform (Section 9.4).
 
 ## 2. Prerequisites
 
@@ -30,26 +24,14 @@ that the description has not been altered.
 - A signing key (see Section 4 for the options).
 - The server's externally visible URL configured correctly (see Section 3).
 
----
-
 ## 3. Configure the server URL (required for correct output)
 
-The provenance records the identity of the build platform as an absolute URL (for example,
-`https://teamcity.example.com`). This value is read from the TeamCity **server URL**
-setting, because at the moment a build finishes there is no incoming web request from which
-to infer the address.
+Set **Administration → Global Settings → Server URL** to the server's externally visible URL,
+for example `https://teamcity.example.com`. The plugin uses it to identify the platform in
+`builder.id` and link to the build in `invocationId`.
 
-Set it under **Administration → Global Settings → Server URL** to the exact address users
-reach the server at. If this is wrong, the provenance will name the platform
-incorrectly, which weakens its value to verifiers.
-
-The recorded URL is resolved per project: a project with a root-URL override produces a `builder.id`
-based on that override rather than the global server URL. Because a verifier uses `builder.id` as the
-trust anchor and to determine the claimed SLSA Build level, a deployment that exposes different build
-modes under different project URLs should ensure each `builder.id` names a distinct, well-understood
-platform identity (see Section 10).
-
----
+URLs are resolved per project. A project's root-URL override changes its recorded platform
+identity.
 
 ## 4. Choose a signer
 
@@ -81,18 +63,12 @@ Definitions:
 - **Server key store:** the directory the *server key* signer reads PEM private keys from,
   managed by the server administrator (Section 6.1).
 
----
-
 ## 5. Enable the build feature
 
 1. Open the build configuration.
 2. Go to **Build Features**.
 3. Select **Add build feature**.
 4. Choose **SLSA Provenance Attestation** from the list.
-
-   - A *build feature* is an optional capability attached to a build configuration. Only one
-     instance of this feature is permitted per configuration.
-
 5. In the form, set **Signer** to the option chosen in Section 4. The form then shows only
    the fields relevant to that signer.
 6. Fill in the signer-specific fields (Section 6).
@@ -103,9 +79,8 @@ Definitions:
    plain parameters.
 9. Save.
 
-A field marked with an asterisk is required. The form validates required fields on save.
-
----
+Only one instance of this feature is permitted per configuration. Fields marked with an asterisk
+are required and validated on save.
 
 ## 6. Signer-specific fields
 
@@ -167,6 +142,10 @@ example, `AWS_ENDPOINT_URL_STS` and `AWS_ENDPOINT_URL_KMS`, or the `aws.endpoint
 `aws.endpointUrlKms` JVM system properties). These apply to every AWS SDK client in the server
 process.
 
+**Permissions.** The signing identity needs `kms:Sign` on the key. With assume-role, the base identity
+also needs `sts:AssumeRole` on the signing role. Verifiers need `kms:GetPublicKey` to export the public
+key; the plugin does not require it. Use a dedicated signing identity with only the permissions it needs.
+
 ### 6.3 Assume an IAM role (optional)
 
 Available with the AWS KMS signer under either credentials method. When enabled, the chosen base
@@ -181,32 +160,23 @@ fields below are ignored.
 | External id | No | A shared value required by some cross-account role trust policies. |
 | Session duration (s) | No | Lifetime of the temporary credentials, in seconds. |
 
----
-
 ## 7. Failure behaviour
 
-By default, if provenance cannot be produced, the build still succeeds and a warning is
-written to the build log. This is the *fail-open on the build, fail-closed on the
-attestation* model: a problem never results in a published but incorrect attestation; it
-results in no attestation plus a warning.
+If provenance generation or publication fails, the plugin writes a warning to the build log.
+Enable **Fail build on error** to fail the build instead. This option is off by default.
 
-Enable **Fail build on error** to make a provenance failure fail the build instead. A
-published attestation is always complete and well-formed regardless of this setting.
-
----
+Only complete attestations are published. A failed operation must not leave a partial attestation.
 
 ## 8. Run a build and locate the output
 
-Run the build configuration. On successful completion, the build's **Artifacts** tab lists:
+Run the build configuration. After provenance is generated, the build's **Artifacts** tab lists:
 
 ```
 provenance.sigstore.json
 ```
 
-This is the signed attestation. Download it and verify it with `cosign` (Section 9.2) or
-`openssl` (Section 9.3).
-
----
+Builds without file artifacts produce no attestation. Download the bundle and verify it with
+`cosign` (Section 9.2) or `openssl` (Section 9.3).
 
 ## 9. Verify the provenance
 
@@ -255,7 +225,7 @@ cosign verify-blob-attestation \
   --digest <artifact-sha256> --digestAlg sha256
 ```
 
-Expected output: `Verified OK`. The flags are not optional:
+Expected output: `Verified OK`. The flags serve these purposes:
 
 - `--type slsaprovenance1` — the predicate is SLSA provenance v1; without it cosign expects a
   `custom` predicate and rejects the bundle.
@@ -278,32 +248,43 @@ plugin signs with the curve-matched SHA-384 or SHA-512, and the KMS `ECDSA_SHA_3
 
 ### 9.3 Verify with openssl
 
-An alternative to cosign, using `python3` and `openssl`. The DSSE envelope lives inside the
-bundle under `dsseEnvelope`; extract it first, then verify the signature over the *PAE*.
+OpenSSL verifies the signature. Use Python 3 to extract it from the bundle and reconstruct
+the DSSE signed bytes (PAE).
 
-**Step 1 — extract the envelope, reconstruct the signed bytes, and read the signature.**
+**Step 1 — prepare the files.**
 
-The PAE is `DSSEv1`, then the length of the payload type, then the payload type, then the
-length of the payload, then the payload, all separated by single spaces. The lengths are
-byte counts of the decoded payload.
+Python script example (e.g. `extract.py`):
 
-```bash
-F="provenance.sigstore.json"
-python3 -c "
-import json, base64
-b = json.load(open('$F'))
-e = b['dsseEnvelope']
-payload = base64.b64decode(e['payload'])
-pt = e['payloadType'].encode()
-pae = b'DSSEv1 ' + str(len(pt)).encode() + b' ' + pt + b' ' + str(len(payload)).encode() + b' ' + payload
-open('pae.bin','wb').write(pae)
-open('sig.bin','wb').write(base64.b64decode(e['signatures'][0]['sig']))
-print('keyid:', b['verificationMaterial']['publicKey']['hint'])
-"
+```python
+import base64
+import json
+from pathlib import Path
+
+bundle = json.loads(Path("provenance.sigstore.json").read_text())
+envelope = bundle["dsseEnvelope"]
+payload_type = envelope["payloadType"].encode("utf-8")
+payload = base64.b64decode(envelope["payload"])
+
+pae = b" ".join([
+    b"DSSEv1",
+    str(len(payload_type)).encode(),
+    payload_type,
+    str(len(payload)).encode(),
+    payload,
+])
+
+Path("pae.bin").write_bytes(pae)
+Path("sig.bin").write_bytes(base64.b64decode(envelope["signatures"][0]["sig"]))
+print("Key identifier:", bundle["verificationMaterial"]["publicKey"]["hint"])
 ```
 
-This writes `pae.bin` (the signed bytes) and `sig.bin` (the signature), and prints the key
-identifier the bundle states.
+Run it once:
+
+```bash
+python3 extract.py
+```
+
+This creates `pae.bin` and `sig.bin` for the commands below and prints the bundle's key identifier.
 
 **Step 2 — verify the signature against the public key.**
 
@@ -360,13 +341,13 @@ ARN; confirm it identifies the key and account you expect — see Section 9.4.)
 
 **Step 4 — confirm the artifact you care about is covered.**
 
-The attestation covers every artifact the build published, each listed under `subject[]`. To
-confirm a specific artifact is attested, compute its SHA-256 and check that it appears as a
-subject digest:
+The attestation covers file artifacts visible in the server's default artifact view, listed under
+`subject[]`. To confirm a specific artifact is attested, compute its SHA-256 and check that it
+appears as a subject digest:
 
 ```bash
 shasum -a 256 dist/app.jar
-python3 -c "import json,base64; print('\n'.join(s['digest']['sha256'] for s in json.loads(base64.b64decode(json.load(open('$F'))['dsseEnvelope']['payload']))['subject']))"
+python3 -c "import json,base64; print('\n'.join(s['digest']['sha256'] for s in json.loads(base64.b64decode(json.load(open('provenance.sigstore.json'))['dsseEnvelope']['payload']))['subject']))"
 ```
 
 The artifact's digest must be among the printed subject digests. A signature that verifies but
@@ -383,47 +364,20 @@ expect. That trust is established out of band:
   received it through a trusted channel).
 
 A consumer should also confirm that the `builder.id` field inside the payload names the
-expected platform. With `builder.id` trusted, both sections may inform policy: `externalParameters`
-are requester-supplied and untrusted (verify them); `internalParameters` are platform-established and
-trusted (no re-verification needed). See the build type document's "Trust model" section.
+expected platform. Apply policy to the recorded inputs and build metadata as described in the
+[trust model](buildtype/v1.md#trust-model).
 
----
-
-## 10. SLSA level and your infrastructure
-
-The provenance this plugin produces satisfies SLSA Build L2: it is signed and generated by the
-TeamCity server (the platform control plane), not by the build steps. The signing key is held
-server-side and is never exposed to build agents — the signing-material isolation that SLSA Build L3
-requires.
-
-Reaching full Build L3 additionally depends on your build infrastructure, not on this plugin. Build
-L3 requires each run to execute in an isolated, ephemeral environment so that runs cannot influence
-one another; whether this holds is determined by how you provision agents (for example, ephemeral
-cloud agents). Build L3 also requires external parameters to be fully enumerated, which this plugin
-does not claim (see the build type document).
-
-If a single server offers build modes with different isolation guarantees, each mode must be
-published under a distinct `builder.id`: `builder.id` is the field a verifier uses to determine the
-SLSA Build level. `builder.id` is derived per project from the configured server URL (Section 3),
-which is the mechanism for distinguishing such modes.
-
----
-
-## 11. Glossary
-
+## 10. Glossary
 
 - **Artifact:** a file produced by a build and published by TeamCity.
 - **Attestation:** a signed, machine-readable statement about an artifact.
 - **builder.id:** a field in the provenance giving the absolute URL that identifies the
-  build platform (resolved per project from the server URL). Used by verifiers as the trust anchor
-  and as the determiner of the claimed SLSA Build level.
+  build platform, resolved per project from the server URL.
 - **DSSE envelope:** the signed container format (see Section 9.1).
-- **Digest:** a fixed-length fingerprint of data, here SHA-256, such that any change to the
-  data changes the digest.
+- **Digest:** a fixed-length fingerprint of data, here SHA-256, used to detect changes to the data.
 - **externalParameters / internalParameters:** two sections of the provenance.
   `externalParameters` are requester-supplied inputs (untrusted; a verifier checks them);
-  `internalParameters` are platform-established facts (trusted). Values the build could write are
-  excluded from both.
+  `internalParameters` contain build metadata reported by the platform.
 - **in-toto Statement:** the standard structure of the payload, comprising a `subject`
   (the artifacts, by name and digest) and a `predicate` (the provenance details: the
   `buildDefinition` describing inputs, and the `runDetails` describing the execution).
