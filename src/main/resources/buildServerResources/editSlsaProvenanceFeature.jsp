@@ -12,7 +12,7 @@
 </tr>
 
 <tr>
-  <th><label for="slsa.signer">Signer:</label></th>
+  <th><label for="slsaSigner">Signer:</label></th>
   <td>
     <props:selectProperty name="slsa.signer" id="slsaSigner" className="mediumField" onchange="BS.Slsa.updateSignerFields()">
       <props:option value="server">Server key (PEM private key on the server)</props:option>
@@ -71,8 +71,7 @@
   <th><label for="slsa.aws.useFipsEndpoints">Use FIPS endpoints:</label></th>
   <td>
     <props:checkboxProperty name="slsa.aws.useFipsEndpoints"/>
-    <span class="smallNote">Use the AWS FIPS endpoints for KMS and STS. Available in US and Canada
-      commercial regions and GovCloud; the SDK fails on regions without a FIPS endpoint</span>
+    <span class="smallNote">Use FIPS for KMS and, when assuming a role, STS. Availability varies by service and region</span>
   </td>
 </tr>
 
@@ -100,7 +99,7 @@
 </tr>
 
 <tr class="slsa-kms">
-  <th><label for="slsa.aws.credentials">Credentials: <l:star/></label></th>
+  <th><label for="slsaCredentials">Credentials: <l:star/></label></th>
   <td>
     <props:selectProperty name="slsa.aws.credentials" id="slsaCredentials" className="mediumField"
                           onchange="BS.Slsa.updateSignerFields()">
