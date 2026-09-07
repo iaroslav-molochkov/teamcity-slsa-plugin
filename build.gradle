@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'io.github.iaroslavmolochkov'
-version = '1.0.0'
+version = '1.0.1'
 
 ext.teamcityVersion = project.findProperty('teamcity.version') ?: '2026.1'
 
